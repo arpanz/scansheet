@@ -548,7 +548,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         builder: (ctx, scrollController) => StatefulBuilder(
           builder: (ctx, setSheetState) => Container(
             decoration: BoxDecoration(
-              color: context.themeCard,
+              color: ctx.themeCard,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(24),
               ),
@@ -565,7 +565,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                           width: 44,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: context.themeBorder,
+                            color: ctx.themeBorder,
                             borderRadius: BorderRadius.circular(100),
                           ),
                         ),
@@ -576,7 +576,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                           Text(
                             'All Rows',
                             style: TextStyle(
-                              color: context.themeTextPrimary,
+                              color: ctx.themeTextPrimary,
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                             ),
@@ -588,15 +588,13 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: context.themeAccent.withValues(
-                                alpha: 0.10,
-                              ),
+                              color: ctx.themeAccent.withValues(alpha: 0.10),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
                               '${_rows.length}',
                               style: TextStyle(
-                                color: context.themeAccent,
+                                color: ctx.themeAccent,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -606,7 +604,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                           IconButton(
                             icon: Icon(
                               Icons.close_rounded,
-                              color: context.themeTextSecondary,
+                              color: ctx.themeTextSecondary,
                               size: 20,
                             ),
                             onPressed: () => Navigator.pop(ctx),
@@ -631,17 +629,17 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                         columnSpacing: 16,
                         horizontalMargin: 12,
                         headingTextStyle: TextStyle(
-                          color: context.themeTextSecondary,
+                          color: ctx.themeTextSecondary,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                         dataTextStyle: TextStyle(
-                          color: context.themeTextPrimary,
+                          color: ctx.themeTextPrimary,
                           fontSize: 12,
                         ),
                         border: TableBorder(
                           horizontalInside: BorderSide(
-                            color: context.themeBorder,
+                            color: ctx.themeBorder,
                             width: 0.5,
                           ),
                         ),
@@ -676,7 +674,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                                     Text(
                                       '${row.rowIndex + 1}',
                                       style: TextStyle(
-                                        color: context.themeTextSecondary,
+                                        color: ctx.themeTextSecondary,
                                         fontSize: 11,
                                       ),
                                     ),
@@ -687,8 +685,8 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                                         v.isEmpty ? '—' : v,
                                         style: TextStyle(
                                           color: v.isEmpty
-                                              ? context.themeTextSecondary
-                                              : context.themeTextPrimary,
+                                              ? ctx.themeTextSecondary
+                                              : ctx.themeTextPrimary,
                                           fontSize: 12,
                                           fontStyle: v.isEmpty
                                               ? FontStyle.italic
@@ -701,7 +699,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                                     Icon(
                                       Icons.edit_rounded,
                                       size: 16,
-                                      color: context.themeAccent,
+                                      color: ctx.themeAccent,
                                     ),
                                     onTap: () async {
                                       final changed = await _showEditRowDialog(
