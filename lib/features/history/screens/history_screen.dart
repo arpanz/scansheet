@@ -230,7 +230,7 @@ Future<bool> _confirmDelete(BuildContext context, String label) async {
 }
 
 (IconData, Color) _iconAndColorFor(String type) => switch (type) {
-  'url' => (Icons.link_rounded, const Color(0xFF1E5BEA)),
+  'url' => (Icons.link_rounded, const Color(0xFF34A853)),
   'wifi' => (Icons.wifi_rounded, const Color(0xFF16A34A)),
   'vcard' => (Icons.person_rounded, const Color(0xFF9333EA)),
   'email' => (Icons.email_rounded, const Color(0xFFEA4335)),

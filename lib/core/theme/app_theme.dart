@@ -17,7 +17,7 @@ extension AppThemeContext on BuildContext {
   Color get themeTextPrimary => Theme.of(this).colorScheme.onSurface;
   Color get themeTextSecondary => Theme.of(this).colorScheme.onSurfaceVariant;
   Color get themeError => Theme.of(this).colorScheme.error;
-  Color get themeSuccess => const Color(0xFF30D158);
+  Color get themeSuccess => const Color(0xFF34A853);
 }
 
 class ThemeProvider extends ChangeNotifier {
@@ -53,13 +53,11 @@ class AppTheme {
 
   // Dark Palette
   static const Color _bgDark = Color(0xFF0D0D0F);
-  static const Color _surfaceDark = Color(0xFF1A1A1E); // +13 steps from bg
-  static const Color _cardDark = Color(0xFF26262B); // +12 steps from surface
-  static const Color _borderDark = Color(0xFF3C3C42); // visible at ~2.5:1 on bg
-  static const Color _accentDark = Color(
-    0xFF4F8EF7,
-  ); // lighter blue — readable on dark
-  static const Color _accentMutedDark = Color(0x2E4F8EF7);
+  static const Color _surfaceDark = Color(0xFF1A1A1E);
+  static const Color _cardDark = Color(0xFF26262B);
+  static const Color _borderDark = Color(0xFF3C3C42);
+  static const Color _accentDark = Color(0xFF34A853);
+  static const Color _accentMutedDark = Color(0x2E34A853);
   static const Color _textPrimaryDark = Color(0xFFE8E8EA);
   static const Color _textSecondaryDark = Color(0xFF8E8E93);
 
@@ -68,8 +66,8 @@ class AppTheme {
   static const Color _surfaceLight = Color(0xFFFFFFFF);
   static const Color _cardLight = Color(0xFFF7F7F9);
   static const Color _borderLight = Color(0xFFDDDDE2);
-  static const Color _accentLight = Color(0xFF1D4ED8);
-  static const Color _accentMutedLight = Color(0x221D4ED8);
+  static const Color _accentLight = Color(0xFF0F9D58);
+  static const Color _accentMutedLight = Color(0x220F9D58);
   static const Color _textPrimaryLight = Color(0xFF1C1C1E);
   static const Color _textSecondaryLight = Color(0xFF8E8E93);
 

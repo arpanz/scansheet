@@ -736,7 +736,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   }
 
   Color _typeColor(SessionColumnType t) => switch (t) {
-    SessionColumnType.scan => const Color(0xFF4F8EF7),
+    SessionColumnType.scan => const Color(0xFF34A853),
     SessionColumnType.manual => const Color(0xFF9333EA),
     SessionColumnType.timestamp => const Color(0xFF16A34A),
     SessionColumnType.increment => const Color(0xFFF59E0B),
@@ -878,7 +878,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
                             color: const Color(
-                              0xFF4F8EF7,
+                              0xFF34A853,
                             ).withValues(alpha: 0.6),
                           ),
                         ),
@@ -919,7 +919,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                               label: _session.columns[scanIndices[i]].name,
                               isActive: i == _activeScanColumnIndex,
                               stepNumber: i + 1,
-                              color: const Color(0xFF4F8EF7),
+                              color: const Color(0xFF34A853),
                             ),
                             if (i < scanIndices.length - 1)
                               const Icon(
@@ -1328,7 +1328,7 @@ class _SessionScannerOverlay extends CustomPainter {
 
     const double bracketLen = 24;
     final bracketPaint = Paint()
-      ..color = const Color(0xFF4F8EF7)
+      ..color = const Color(0xFF34A853)
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;

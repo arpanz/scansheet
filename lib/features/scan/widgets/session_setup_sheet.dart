@@ -73,7 +73,7 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
   };
 
   Color _colorFor(SessionColumnType t) => switch (t) {
-    SessionColumnType.scan => const Color(0xFF4F8EF7),
+    SessionColumnType.scan => const Color(0xFF34A853),
     SessionColumnType.manual => const Color(0xFF9333EA),
     SessionColumnType.timestamp => const Color(0xFF16A34A),
     SessionColumnType.increment => const Color(0xFFF59E0B),
@@ -124,9 +124,7 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
     ScanSessionService.saveSession(session).then((_) {
       if (!mounted) return;
       navigator.pop(); // close sheet
-      navigator.push(
-        FadeSlideRoute(page: ScanSessionScreen(session: session)),
-      );
+      navigator.push(FadeSlideRoute(page: ScanSessionScreen(session: session)));
     });
   }
 

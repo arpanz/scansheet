@@ -57,7 +57,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     ),
     _PageData(
       icon: Icons.app_registration_rounded,
-      gradient: [Color(0xFF1D4ED8), Color(0xFF4F8EF7)],
+      gradient: [Color(0xFF15633B), Color(0xFF34A853)],
       glowColor: Color(0x334F8EF7),
       tag: 'SCAN TO SHEET',
       title: 'Custom columns\nfor your data.',
