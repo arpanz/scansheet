@@ -74,6 +74,15 @@ class _HistoryScreenState extends State<HistoryScreen>
           unselectedLabelColor: context.themeTextSecondary,
           indicatorColor: context.themeAccent,
           indicatorSize: TabBarIndicatorSize.label,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            letterSpacing: -0.2,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
           tabs: const [
             Tab(text: 'Scanned'),
             Tab(text: 'Sheets'),
@@ -82,7 +91,7 @@ class _HistoryScreenState extends State<HistoryScreen>
         actions: [
           const ProCrownIcon(),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded),
+            icon: const Icon(Icons.more_horiz_rounded),
             onSelected: (val) async {
               bool cleared = false;
               if (val == 'clear_scanned') {
@@ -230,14 +239,14 @@ Future<bool> _confirmDelete(BuildContext context, String label) async {
 }
 
 (IconData, Color) _iconAndColorFor(String type) => switch (type) {
-  'url' => (Icons.link_rounded, const Color(0xFF34A853)),
+  'url' => (Icons.link_rounded, const Color(0xFF3B82F6)),
   'wifi' => (Icons.wifi_rounded, const Color(0xFF16A34A)),
-  'vcard' => (Icons.person_rounded, const Color(0xFF9333EA)),
-  'email' => (Icons.email_rounded, const Color(0xFFEA4335)),
+  'vcard' => (Icons.person_rounded, const Color(0xFF8B5CF6)),
+  'email' => (Icons.email_rounded, const Color(0xFFEF4444)),
   'phone' => (Icons.phone_rounded, const Color(0xFF16A34A)),
-  'sms' => (Icons.sms_rounded, const Color(0xFF0891B2)),
+  'sms' => (Icons.sms_rounded, const Color(0xFF06B6D4)),
   'geo' => (Icons.location_on_rounded, const Color(0xFFF59E0B)),
-  _ => (Icons.text_fields_rounded, const Color(0xFF64748B)),
+  _ => (Icons.text_fields_rounded, const Color(0xFF6B7280)),
 };
 
 String _labelFor(String type) => switch (type) {

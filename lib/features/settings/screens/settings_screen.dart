@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/ads/ad_manager.dart';
-import '../../../core/style/qr_style_profile.dart';
-import '../../../core/style/qr_style_service.dart';
 import '../../../core/theme/app_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_router.dart';
@@ -25,109 +23,10 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool get _isPro => AdManager.instance.isPro;
-  List<QrStyleProfile> _styleProfiles = const [];
-  String _activeStyleProfileId = 'default';
 
   @override
   void initState() {
     super.initState();
-    _loadStyleProfiles();
-  }
-
-  Future<void> _loadStyleProfiles() async {
-    final profiles = await QrStyleService.getProfiles();
-    final activeId = await QrStyleService.getActiveProfileId();
-    if (!mounted) return;
-    setState(() {
-      _styleProfiles = profiles;
-      _activeStyleProfileId = profiles.any((p) => p.id == activeId)
-          ? activeId
-          : profiles.first.id;
-    });
-  }
-
-  Future<void> _setActiveStyleProfile(String profileId) async {
-    await QrStyleService.setActiveProfile(profileId);
-    if (!mounted) return;
-    setState(() => _activeStyleProfileId = profileId);
-  }
-
-  Future<void> _deleteStyleProfile(String profileId) async {
-    final profile = _styleProfiles.firstWhere(
-      (p) => p.id == profileId,
-      orElse: () => QrStyleProfile.defaultProfile(),
-    );
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete preset?'),
-        content: Text('"${profile.name}" will be permanently removed.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: context.themeError,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    final updated = await QrStyleService.deleteProfile(profileId);
-    if (!mounted) return;
-    final newActive = updated.any((p) => p.id == _activeStyleProfileId)
-        ? _activeStyleProfileId
-        : updated.first.id;
-    setState(() {
-      _styleProfiles = updated;
-      _activeStyleProfileId = newActive;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('"${profile.name}" deleted.'),
-        backgroundColor: context.themeSuccess,
-      ),
-    );
-  }
-
-  Future<void> _resetStylePresets() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reset style presets?'),
-        content: const Text(
-          'This removes custom presets and keeps Default + Brand.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    final profiles = await QrStyleService.resetToDefaults();
-    if (!mounted) return;
-    setState(() {
-      _styleProfiles = profiles;
-      _activeStyleProfileId = profiles.first.id;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Style presets reset.'),
-        backgroundColor: context.themeSuccess,
-      ),
-    );
   }
 
   Future<void> _rateApp() async {
@@ -167,10 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _privacyPolicy() {
-    Navigator.push(
-      context,
-      FadeSlideRoute(page: const PrivacyPolicyScreen()),
-    );
+    Navigator.push(context, FadeSlideRoute(page: const PrivacyPolicyScreen()));
   }
 
   @override
@@ -186,9 +82,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          // Pro banner
           if (!_isPro)
             AppCard(
+              margin: const EdgeInsets.only(bottom: 6),
               onTap: () => Navigator.push(
                 context,
                 FadeSlideRoute(page: const PaywallScreen()),
@@ -198,14 +94,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2C2206),
-                        borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
                         Icons.workspace_premium_rounded,
-                        color: Color(0xFFF5A623),
+                        color: Color(0xFFF59E0B),
                         size: 22,
                       ),
                     ),
@@ -221,9 +118,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               color: context.themeTextPrimary,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 3),
                           Text(
-                            'Remove ads \u00b7 1,000 codes per batch \u00b7 full export',
+                            'Remove ads \u00b7 unlimited scanning \u00b7 full export',
                             style: t.textTheme.bodySmall?.copyWith(
                               color: context.themeTextSecondary,
                             ),
@@ -242,30 +139,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
             )
           else
             Container(
+              margin: const EdgeInsets.only(bottom: 6),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF1A2A1A), Color(0xFF1A2430)],
+                  colors: [Color(0xFF15803D), Color(0xFF166534)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: const Color(0xFF22C55E).withValues(alpha: 0.35),
-                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF22C55E).withValues(alpha: 0.25),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(9),
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2C2206),
-                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
                       Icons.workspace_premium_rounded,
-                      color: Color(0xFFF5A623),
-                      size: 20,
+                      color: Colors.white,
+                      size: 22,
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -275,11 +178,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(
+                            const Text(
                               'ScanSheet Pro',
-                              style: t.textTheme.bodyMedium?.copyWith(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
+                                fontSize: 15,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -289,13 +193,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF22C55E),
+                                color: const Color(0xFF4ADE80),
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: const Text(
                                 'ACTIVE',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: Color(0xFF052E16),
                                   fontSize: 9,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.6,
@@ -304,11 +208,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
+                        const SizedBox(height: 3),
+                        const Text(
                           'All features unlocked \u00b7 ad-free',
-                          style: t.textTheme.bodySmall?.copyWith(
-                            color: Colors.white54,
+                          style: TextStyle(
+                            color: Color(0xFFBBF7D0),
+                            fontSize: 12.5,
                           ),
                         ),
                       ],
@@ -316,8 +221,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const Icon(
                     Icons.check_circle_rounded,
-                    color: Color(0xFF22C55E),
-                    size: 20,
+                    color: Color(0xFF4ADE80),
+                    size: 22,
                   ),
                 ],
               ),
@@ -377,121 +282,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     selectedForegroundColor: context.themeAccent,
                     foregroundColor: context.themeTextSecondary,
                     side: BorderSide(color: context.themeBorder),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 28),
-
-          // Generation
-          _sectionLabel('Generation'),
-          const SizedBox(height: 10),
-          AppCard(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.style_outlined,
-                      size: 18,
-                      color: context.themeTextSecondary,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Default Style Preset',
-                        style: t.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: context.themeTextPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Preset list with inline delete buttons
-                ..._styleProfiles.map((profile) {
-                  final isActive = profile.id == _activeStyleProfileId;
-                  final isProtected =
-                      profile.id == 'default' || profile.id == 'brand';
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: InkWell(
-                      onTap: () => _setActiveStyleProfile(profile.id),
-                      borderRadius: BorderRadius.circular(10),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? context.themeAccentContainer
-                              : context.themeSurface,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isActive
-                                ? context.themeAccent
-                                : context.themeBorder,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              isActive
-                                  ? Icons.radio_button_checked_rounded
-                                  : Icons.radio_button_unchecked_rounded,
-                              size: 18,
-                              color: isActive
-                                  ? context.themeAccent
-                                  : context.themeTextSecondary,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                profile.name,
-                                style: t.textTheme.bodyMedium?.copyWith(
-                                  color: isActive
-                                      ? context.themeAccent
-                                      : context.themeTextPrimary,
-                                  fontWeight: isActive
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (!isProtected)
-                              GestureDetector(
-                                onTap: () => _deleteStyleProfile(profile.id),
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 8),
-                                  child: Icon(
-                                    Icons.delete_outline_rounded,
-                                    size: 18,
-                                    color: context.themeError
-                                        .withValues(alpha: 0.75),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 6),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: _resetStylePresets,
-                    icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                    label: const Text('Reset Presets'),
                   ),
                 ),
               ],

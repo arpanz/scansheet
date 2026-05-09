@@ -214,7 +214,7 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                   return GestureDetector(
                     onTap: () => setDialogState(() => selectedType = t),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
+                      duration: const Duration(milliseconds: 180),
                       margin: const EdgeInsets.only(bottom: 6),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -222,9 +222,9 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                       ),
                       decoration: BoxDecoration(
                         color: selected
-                            ? color.withValues(alpha: 0.10)
+                            ? color.withValues(alpha: 0.08)
                             : context.themeSurface,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: selected ? color : context.themeBorder,
                           width: selected ? 1.5 : 1,
@@ -232,7 +232,7 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                       ),
                       child: Row(
                         children: [
-                          Icon(_iconFor(t), size: 16, color: color),
+                          Icon(_iconFor(t), size: 18, color: color),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
@@ -242,7 +242,7 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                                   _labelFor(t),
                                   style: TextStyle(
                                     color: context.themeTextPrimary,
-                                    fontSize: 13,
+                                    fontSize: 13.5,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -250,7 +250,7 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                                   descriptions[t]!,
                                   style: TextStyle(
                                     color: context.themeTextSecondary,
-                                    fontSize: 11,
+                                    fontSize: 11.5,
                                   ),
                                 ),
                               ],
@@ -259,7 +259,7 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                           if (selected)
                             Icon(
                               Icons.check_circle_rounded,
-                              size: 16,
+                              size: 18,
                               color: color,
                             ),
                         ],
@@ -329,7 +329,7 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
       builder: (ctx, scrollController) => Container(
         decoration: BoxDecoration(
           color: context.themeCard,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
         ),
         child: Column(
           children: [

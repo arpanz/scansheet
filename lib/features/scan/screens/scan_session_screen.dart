@@ -294,12 +294,12 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: context.themeCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Text(
           'Session Columns',
           style: TextStyle(
             color: context.themeTextPrimary,
-            fontSize: 16,
+            fontSize: 17,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -312,16 +312,18 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
               final col = _session.columns[i];
               return ListTile(
                 dense: true,
+                visualDensity: VisualDensity.compact,
+                contentPadding: EdgeInsets.zero,
                 leading: Container(
-                  width: 30,
-                  height: 30,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
-                    color: _typeColor(col.type).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    color: _typeColor(col.type).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     _iconFor(col.type),
-                    size: 15,
+                    size: 16,
                     color: _typeColor(col.type),
                   ),
                 ),
@@ -329,7 +331,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                   col.name,
                   style: TextStyle(
                     color: context.themeTextPrimary,
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -337,13 +339,13 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                   _labelFor(col.type),
                   style: TextStyle(
                     color: context.themeTextSecondary,
-                    fontSize: 11,
+                    fontSize: 12,
                   ),
                 ),
                 trailing: IconButton(
                   icon: Icon(
                     Icons.edit_rounded,
-                    size: 16,
+                    size: 18,
                     color: context.themeTextSecondary,
                   ),
                   onPressed: () {
@@ -843,12 +845,11 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       ),
       body: Column(
         children: [
-          // Camera viewfinder
           AspectRatio(
             aspectRatio: 16 / 9,
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(16),
+                bottom: Radius.circular(18),
               ),
               child: Stack(
                 fit: StackFit.expand,
@@ -1316,7 +1317,7 @@ class _SessionScannerOverlay extends CustomPainter {
     final double top = (size.height - cutoutSize) / 2;
     final cutoutRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(left, top, cutoutSize, cutoutSize),
-      const Radius.circular(16),
+      const Radius.circular(18),
     );
 
     final bgPaint = Paint()..color = const Color(0x88000000);
@@ -1328,12 +1329,12 @@ class _SessionScannerOverlay extends CustomPainter {
 
     const double bracketLen = 24;
     final bracketPaint = Paint()
-      ..color = const Color(0xFF34A853)
-      ..strokeWidth = 3
+      ..color = const Color(0xFF22C55E)
+      ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
-    final double r = 16;
+    final double r = 18;
     final double x1 = left, y1 = top;
     final double x2 = left + cutoutSize, y2 = top + cutoutSize;
 

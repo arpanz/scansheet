@@ -21,27 +21,29 @@ class BeautifulLoadingWidget extends StatelessWidget {
       children: [
         Positioned.fill(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
             child: Container(
-              color: context.themeBg.withValues(alpha: 0.55),
+              color: context.themeBg.withValues(alpha: 0.5),
             ),
           ),
         ),
         Center(
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 340),
+            constraints: const BoxConstraints(maxWidth: 320),
             margin: const EdgeInsets.all(24),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
             decoration: BoxDecoration(
               color: context.themeCard,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: context.themeBorder),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: context.themeBorder.withValues(alpha: 0.4),
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 32,
-                  offset: const Offset(0, 12),
-                  spreadRadius: -4,
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 40,
+                  offset: const Offset(0, 16),
+                  spreadRadius: -8,
                 ),
               ],
             ),
@@ -49,11 +51,14 @@ class BeautifulLoadingWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
-                  width: 48, height: 48,
+                  width: 44,
+                  height: 44,
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
                     backgroundColor: context.themeBorder,
-                    valueColor: AlwaysStoppedAnimation<Color>(context.themeAccent),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      context.themeAccent,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -64,10 +69,10 @@ class BeautifulLoadingWidget extends StatelessWidget {
                     color: context.themeTextPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 0.1,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   'Please wait a moment\u2026',
                   style: TextStyle(
@@ -90,10 +95,12 @@ class BeautifulLoadingWidget extends StatelessWidget {
                       onPressed: onCancel,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: context.themeTextSecondary,
-                        side: BorderSide(color: context.themeBorder),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        side: BorderSide(
+                          color: context.themeBorder.withValues(alpha: 0.5),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                       child: const Text('Cancel'),

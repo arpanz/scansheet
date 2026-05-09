@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/theme/app_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../models/scan_session.dart';
@@ -53,20 +54,16 @@ class _AllSessionsScreenState extends State<AllSessionsScreen> {
                 ];
                 final dateStr = '${months[s.createdAt.month - 1]} ${s.createdAt.day}';
 
-                return InkWell(
+                return AppCard(
+                  borderRadius: 14,
                   onTap: () {
                     HapticFeedback.selectionClick();
                     _openSessionMode(s);
                   },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: context.themeCard,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: context.themeBorder.withValues(alpha: 0.5),
-                      ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
                     ),
                     child: Row(
                       children: [
@@ -85,11 +82,12 @@ class _AllSessionsScreenState extends State<AllSessionsScreen> {
                                 style: TextStyle(
                                   color: context.themeTextPrimary,
                                   fontWeight: FontWeight.w600,
+                                  fontSize: 14,
                                 ),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 3),
                               Text(
-                                '$rowCount rows · $dateStr',
+                                '$rowCount rows \u00b7 $dateStr',
                                 style: TextStyle(
                                   color: context.themeTextSecondary,
                                   fontSize: 12,
@@ -99,9 +97,9 @@ class _AllSessionsScreenState extends State<AllSessionsScreen> {
                           ),
                         ),
                         Icon(
-                          Icons.chevron_right,
+                          Icons.chevron_right_rounded,
                           color: context.themeTextSecondary,
-                          size: 16,
+                          size: 18,
                         ),
                       ],
                     ),

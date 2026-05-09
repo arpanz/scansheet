@@ -26,12 +26,12 @@ class SessionExportSheet extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: context.themeCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,18 +110,25 @@ class SessionExportSheet extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: context.themeError.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: context.themeError.withValues(alpha: 0.2)),
+                      border: Border.all(
+                        color: context.themeError.withValues(alpha: 0.2),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline_rounded,
-                            color: context.themeError, size: 18),
+                        Icon(
+                          Icons.info_outline_rounded,
+                          color: context.themeError,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'No rows collected yet. Scan some items first.',
                             style: TextStyle(
-                                color: context.themeError, fontSize: 13),
+                              color: context.themeError,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ],
@@ -221,7 +228,9 @@ class SessionExportSheet extends StatelessWidget {
           for (int c = 0; c < headerRow.length; c++) {
             sheet
                 .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0))
-                .value = TextCellValue(headerRow[c]);
+                .value = TextCellValue(
+              headerRow[c],
+            );
           }
         }
 
@@ -231,7 +240,9 @@ class SessionExportSheet extends StatelessWidget {
           for (int c = 0; c < row.length; c++) {
             sheet
                 .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r))
-                .value = TextCellValue(row[c]);
+                .value = TextCellValue(
+              row[c],
+            );
           }
         }
 
@@ -282,7 +293,9 @@ class _ExportCard extends StatelessWidget {
                 : context.themeSurface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: enabled ? color.withValues(alpha: 0.3) : context.themeBorder,
+              color: enabled
+                  ? color.withValues(alpha: 0.3)
+                  : context.themeBorder,
             ),
           ),
           child: Padding(
@@ -293,7 +306,9 @@ class _ExportCard extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: enabled ? color.withValues(alpha: 0.15) : context.themeBorder,
+                    color: enabled
+                        ? color.withValues(alpha: 0.15)
+                        : context.themeBorder,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -383,10 +398,12 @@ class _SheetsTeaser extends StatelessWidget {
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 2),
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFF14B8A6), Color(0xFF0EA5E9)],
+                                colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
                               ),
                               borderRadius: BorderRadius.circular(999),
                             ),

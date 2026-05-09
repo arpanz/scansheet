@@ -189,7 +189,7 @@ class _PaywallScreenState extends State<PaywallScreen>
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isError ? context.themeError : const Color(0xFF0EA35B),
+        backgroundColor: isError ? context.themeError : const Color(0xFF16A34A),
       ),
     );
   }
@@ -217,7 +217,7 @@ class _PaywallScreenState extends State<PaywallScreen>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFF111827), Color(0xFF0B1220)],
+              colors: [Color(0xFF08080B), Color(0xFF0E1419)],
             ),
           ),
           child: SafeArea(
@@ -233,7 +233,6 @@ class _PaywallScreenState extends State<PaywallScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // ── Hero ────────────────────────────────────────────
                             const Center(child: _QrBeamAnimation(size: 128)),
                             const SizedBox(height: 14),
                             Center(
@@ -245,8 +244,8 @@ class _PaywallScreenState extends State<PaywallScreen>
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
                                     colors: [
-                                      Color(0xFF14B8A6),
-                                      Color(0xFF0EA5E9),
+                                      Color(0xFF22C55E),
+                                      Color(0xFF16A34A),
                                     ],
                                   ),
                                   borderRadius: BorderRadius.circular(999),
@@ -285,7 +284,6 @@ class _PaywallScreenState extends State<PaywallScreen>
                             ),
                             const SizedBox(height: 22),
 
-                            // ── Features ──────────────────────────────────────────
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -302,7 +300,7 @@ class _PaywallScreenState extends State<PaywallScreen>
                                 children: [
                                   _FeatureRow(
                                     icon: Icons.block_rounded,
-                                    label: 'No ads — ever',
+                                    label: 'No ads \u2014 ever',
                                   ),
                                   _FeatureRow(
                                     icon: Icons.all_inclusive_rounded,
@@ -310,7 +308,7 @@ class _PaywallScreenState extends State<PaywallScreen>
                                   ),
                                   _FeatureRow(
                                     icon: Icons.bolt_rounded,
-                                    label: 'Priority priority support',
+                                    label: 'Priority support',
                                   ),
                                   _FeatureRow(
                                     icon: Icons.table_chart_rounded,
@@ -323,7 +321,6 @@ class _PaywallScreenState extends State<PaywallScreen>
                             ),
                             const SizedBox(height: 22),
 
-                            // ── Plan selector ─────────────────────────────────────
                             Text(
                               _hasSubscriptionPlans
                                   ? 'Choose a plan'
@@ -339,7 +336,8 @@ class _PaywallScreenState extends State<PaywallScreen>
                             if (_yearlyProduct != null) ...[
                               _PlanTile(
                                 title: 'Yearly',
-                                subtitle: 'Billed once a year · cancel anytime',
+                                subtitle:
+                                    'Billed once a year \u00b7 cancel anytime',
                                 price: _yearlyProduct!.price,
                                 selected:
                                     _selectedProduct?.id == _yearlyProduct!.id,
@@ -353,7 +351,7 @@ class _PaywallScreenState extends State<PaywallScreen>
                               const SizedBox(height: 10),
                               _PlanTile(
                                 title: 'Lifetime',
-                                subtitle: 'Pay once · yours forever',
+                                subtitle: 'Pay once \u00b7 yours forever',
                                 price: _oneTimeProduct!.price,
                                 selected:
                                     _selectedProduct?.id == _oneTimeProduct!.id,
@@ -367,7 +365,8 @@ class _PaywallScreenState extends State<PaywallScreen>
                               _PlanTile(
                                 title: 'Pro Access',
                                 subtitle: 'Unlock premium capabilities',
-                                price: _selectedProduct?.price ?? 'Unavailable',
+                                price:
+                                    _selectedProduct?.price ?? 'Unavailable',
                                 selected: true,
                                 onTap: () {},
                               ),
@@ -389,7 +388,7 @@ class _PaywallScreenState extends State<PaywallScreen>
                     Container(
                       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0B1220),
+                        color: const Color(0xFF08080B),
                         border: Border(
                           top: BorderSide(
                             color: Colors.white.withValues(alpha: 0.07),
@@ -398,7 +397,6 @@ class _PaywallScreenState extends State<PaywallScreen>
                       ),
                       child: Column(
                         children: [
-                          // Trust row
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: const [
@@ -419,7 +417,6 @@ class _PaywallScreenState extends State<PaywallScreen>
                             ],
                           ),
                           const SizedBox(height: 14),
-                          // Gradient CTA button
                           SizedBox(
                             width: double.infinity,
                             height: 54,
@@ -428,8 +425,8 @@ class _PaywallScreenState extends State<PaywallScreen>
                                 gradient: (_available && !_isLoading)
                                     ? const LinearGradient(
                                         colors: [
-                                          Color(0xFF14B8A6),
-                                          Color(0xFF0EA5E9),
+                                          Color(0xFF22C55E),
+                                          Color(0xFF16A34A),
                                         ],
                                       )
                                     : null,
@@ -444,7 +441,8 @@ class _PaywallScreenState extends State<PaywallScreen>
                                     : null,
                                 style: FilledButton.styleFrom(
                                   backgroundColor: Colors.transparent,
-                                  disabledBackgroundColor: Colors.transparent,
+                                  disabledBackgroundColor:
+                                      Colors.transparent,
                                   shadowColor: Colors.transparent,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
@@ -463,11 +461,11 @@ class _PaywallScreenState extends State<PaywallScreen>
                                     : Text(
                                         _selectedProduct?.id ==
                                                 AdManager.yearlyProductId
-                                            ? 'Start Pro — ${_yearlyProduct?.price ?? ""}/yr'
+                                            ? 'Start Pro \u2014 ${_yearlyProduct?.price ?? ""}/yr'
                                             : _selectedProduct?.id ==
-                                                  AdManager.productId
-                                            ? 'Get Lifetime — ${_oneTimeProduct?.price ?? ""}'
-                                            : 'Unlock Pro',
+                                                    AdManager.productId
+                                                ? 'Get Lifetime \u2014 ${_oneTimeProduct?.price ?? ""}'
+                                                : 'Unlock Pro',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w800,
                                           fontSize: 15,
@@ -479,7 +477,8 @@ class _PaywallScreenState extends State<PaywallScreen>
                           ),
                           const SizedBox(height: 4),
                           TextButton(
-                            onPressed: _isLoading ? null : _restorePurchases,
+                            onPressed:
+                                _isLoading ? null : _restorePurchases,
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.white38,
                             ),
@@ -527,10 +526,10 @@ class _FeatureRow extends StatelessWidget {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF14B8A6).withValues(alpha: 0.15),
+                  color: const Color(0xFF22C55E).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 16, color: const Color(0xFF14B8A6)),
+                child: Icon(icon, size: 16, color: const Color(0xFF22C55E)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -574,7 +573,7 @@ class _FeatureRow extends StatelessWidget {
               const Icon(
                 Icons.check_circle_rounded,
                 size: 16,
-                color: Color(0xFF14B8A6),
+                color: Color(0xFF22C55E),
               ),
             ],
           ),
@@ -638,19 +637,19 @@ class _PlanTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: selected
-              ? const Color(0xFF14B8A6).withValues(alpha: 0.12)
+              ? const Color(0xFF22C55E).withValues(alpha: 0.12)
               : Colors.white.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected
-                ? const Color(0xFF14B8A6)
+                ? const Color(0xFF22C55E)
                 : Colors.white.withValues(alpha: 0.09),
             width: selected ? 1.5 : 1,
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF14B8A6).withValues(alpha: 0.18),
+                    color: const Color(0xFF22C55E).withValues(alpha: 0.18),
                     blurRadius: 16,
                     spreadRadius: -4,
                   ),
@@ -667,11 +666,11 @@ class _PlanTile extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: selected
-                      ? const Color(0xFF14B8A6)
+                      ? const Color(0xFF22C55E)
                       : Colors.white.withValues(alpha: 0.25),
                   width: 1.5,
                 ),
-                color: selected ? const Color(0xFF14B8A6) : Colors.transparent,
+                color: selected ? const Color(0xFF22C55E) : Colors.transparent,
               ),
               child: selected
                   ? const Icon(
@@ -705,7 +704,7 @@ class _PlanTile extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFF14B8A6), Color(0xFF0EA5E9)],
+                              colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
                             ),
                             borderRadius: BorderRadius.circular(999),
                           ),
@@ -819,7 +818,7 @@ class _QrBeamAnimationState extends State<_QrBeamAnimation>
                     boxShadow: [
                       BoxShadow(
                         color: const Color(
-                          0xFF14B8A6,
+                          0xFF22C55E,
                         ).withValues(alpha: 0.08 + 0.06 * pulse),
                         blurRadius: 28,
                         spreadRadius: -8,
@@ -861,51 +860,51 @@ class _QrBeamAnimationState extends State<_QrBeamAnimation>
                           top: beamY,
                           child: Container(
                             height: beamH,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  const Color(
-                                    0xFF5EEAD4,
-                                  ).withValues(alpha: 0.0),
-                                  const Color(
-                                    0xFF5EEAD4,
-                                  ).withValues(alpha: 0.06),
-                                  const Color(
-                                    0xFF5EEAD4,
-                                  ).withValues(alpha: 0.18),
-                                  const Color(
-                                    0xFF5EEAD4,
-                                  ).withValues(alpha: 0.06),
-                                  const Color(
-                                    0xFF5EEAD4,
-                                  ).withValues(alpha: 0.0),
-                                ],
-                              ),
-                            ),
-                            alignment: Alignment.center,
-                            child: Container(
-                              height: 1.2,
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.transparent,
-                                    const Color(
-                                      0xFF5EEAD4,
-                                    ).withValues(alpha: 0.6),
-                                    const Color(
-                                      0xFF5EEAD4,
-                                    ).withValues(alpha: 0.6),
-                                    Colors.transparent,
-                                  ],
-                                  stops: const [0.0, 0.2, 0.8, 1.0],
-                                ),
-                              ),
-                            ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(
+                            0xFF4ADE80,
+                          ).withValues(alpha: 0.0),
+                          const Color(
+                            0xFF4ADE80,
+                          ).withValues(alpha: 0.06),
+                          const Color(
+                            0xFF4ADE80,
+                          ).withValues(alpha: 0.18),
+                          const Color(
+                            0xFF4ADE80,
+                          ).withValues(alpha: 0.06),
+                          const Color(
+                            0xFF4ADE80,
+                          ).withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Container(
+                      height: 1.2,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            const Color(
+                              0xFF4ADE80,
+                            ).withValues(alpha: 0.6),
+                            const Color(
+                              0xFF4ADE80,
+                            ).withValues(alpha: 0.6),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.2, 0.8, 1.0],
+                        ),
+                      ),
+                    ),
                           ),
                         ),
                       ],
@@ -978,9 +977,9 @@ class _QrGlyphPainter extends CustomPainter {
     final darkPaint = Paint()..color = const Color(0xFFCBD5E1);
     final faintPaint = Paint()
       ..color = const Color(0xFFCBD5E1).withValues(alpha: 0.07);
-    final litPaint = Paint()..color = const Color(0xFF5EEAD4);
+    final litPaint = Paint()..color = const Color(0xFF4ADE80);
     final litFaintPaint = Paint()
-      ..color = const Color(0xFF5EEAD4).withValues(alpha: 0.18);
+      ..color = const Color(0xFF4ADE80).withValues(alpha: 0.18);
 
     for (int y = 0; y < 21; y++) {
       for (int x = 0; x < 21; x++) {

@@ -172,8 +172,6 @@ class _ScanScreenState extends State<ScanScreen> {
         name: 'ScanScreen',
       );
 
-      // Stop the live camera so analyzeImage() has exclusive access to ML Kit.
-      // Do NOT start→stop cycle — that leaves the pipeline in a bad state.
       if (_scannerRunning) {
         await _controller.stop();
         if (mounted) setState(() => _scannerRunning = false);
@@ -385,7 +383,6 @@ class _ScanScreenState extends State<ScanScreen> {
 
   List<Widget> _buildSessionCard(ScanSession? activeSession) {
     if (activeSession != null) {
-      // ── Active session: prominent resume card ──
       final rowCount = ScanSessionService.getRowCount(activeSession.id);
       return [
         const SizedBox(height: 10),
@@ -395,34 +392,38 @@ class _ScanScreenState extends State<ScanScreen> {
             _openSessionMode(activeSession);
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
-              color: _kSheetGreen,
-              borderRadius: BorderRadius.circular(14),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF15803D), Color(0xFF16A34A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: _kSheetGreen.withValues(alpha: 0.30),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: _kSheetGreen.withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
             child: Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.20),
-                    borderRadius: BorderRadius.circular(10),
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.table_chart_rounded,
                     color: Colors.white,
-                    size: 20,
+                    size: 22,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,9 +450,9 @@ class _ScanScreenState extends State<ScanScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 4),
                       Text(
-                        '${activeSession.name} · $rowCount ${rowCount == 1 ? 'row' : 'rows'}',
+                        '${activeSession.name} \u00b7 $rowCount ${rowCount == 1 ? 'row' : 'rows'}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,
@@ -464,18 +465,18 @@ class _ScanScreenState extends State<ScanScreen> {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
+                    horizontal: 14,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.20),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: const Text(
                     'Resume',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -487,7 +488,6 @@ class _ScanScreenState extends State<ScanScreen> {
       ];
     }
 
-    // ── No active session: feature discovery card ──
     return [
       const SizedBox(height: 10),
       GestureDetector(
@@ -496,28 +496,30 @@ class _ScanScreenState extends State<ScanScreen> {
           _openSessionMode(null);
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
             color: context.themeCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _kSheetGreen.withValues(alpha: 0.25)),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _kSheetGreen.withValues(alpha: 0.2),
+            ),
           ),
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
-                  color: _kSheetGreen.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  color: _kSheetGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.table_chart_rounded,
                   color: _kSheetGreen,
-                  size: 20,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -530,9 +532,9 @@ class _ScanScreenState extends State<ScanScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
-                      'Scan codes → collect rows → export CSV/Excel',
+                      'Scan codes \u00b7 collect rows \u00b7 export CSV/Excel',
                       style: TextStyle(
                         color: context.themeTextSecondary,
                         fontSize: 12,
@@ -543,18 +545,18 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 7,
+                  horizontal: 14,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: _kSheetGreen.withValues(alpha: 0.12),
+                  color: _kSheetGreen.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: const Text(
                   'New Sheet',
                   style: TextStyle(
                     color: _kSheetGreen,
-                    fontSize: 12,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -576,7 +578,7 @@ class _ScanScreenState extends State<ScanScreen> {
       appBar: AppBar(
         leading: (!_isPickMode && _entryState != _ScanEntryState.chooser)
             ? IconButton(
-                icon: const Icon(Icons.arrow_back),
+                icon: const Icon(Icons.arrow_back_rounded),
                 onPressed: () => _setEntryState(_ScanEntryState.chooser),
               )
             : null,
@@ -584,7 +586,7 @@ class _ScanScreenState extends State<ScanScreen> {
           _isPickMode
               ? 'Scan to Clone'
               : switch (_entryState) {
-                  _ScanEntryState.chooser => 'Smart Scanner',
+                  _ScanEntryState.chooser => 'Scan',
                   _ScanEntryState.quickScan => 'Quick Scan',
                   _ScanEntryState.scanToSheet => 'Scan to Sheet',
                 },
@@ -599,13 +601,13 @@ class _ScanScreenState extends State<ScanScreen> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.image_search_rounded),
+                  : const Icon(Icons.image_rounded),
               onPressed: _isPickingImage ? null : _scanFromGallery,
             ),
           if (_entryState == _ScanEntryState.quickScan)
             IconButton(
               tooltip: 'Flash',
-              icon: const Icon(Icons.flashlight_on_rounded),
+              icon: const Icon(Icons.flash_on_rounded),
               onPressed: _isCameraSurfaceActive
                   ? _controller.toggleTorch
                   : null,
@@ -633,21 +635,22 @@ class _ScanScreenState extends State<ScanScreen> {
         children: [
           Expanded(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 380),
+              duration: const Duration(milliseconds: 360),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
               transitionBuilder: (child, animation) {
                 return FadeTransition(
                   opacity: animation,
                   child: SlideTransition(
-                    position:
-                        Tween<Offset>(
-                          begin: const Offset(0, 0.06), // subtle upward drift
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOutCubic,
-                          ),
-                        ),
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.04),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    ),
                     child: child,
                   ),
                 );
@@ -659,10 +662,9 @@ class _ScanScreenState extends State<ScanScreen> {
               },
             ),
           ),
-          // Banner ad at the bottom — only shown in standalone mode (not pick-for-clone)
           if (!_isPickMode)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 6),
               child: Center(child: AdManager.instance.getBannerAdWidget()),
             ),
         ],
@@ -673,15 +675,20 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget _buildCamera() {
     return Padding(
       key: const ValueKey('quickScan'),
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
         children: [
           Expanded(
-            child: AppCard(
-              padding: EdgeInsets.zero,
-              borderRadius: 18,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: context.themeBorder.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(20),
                 child: widget.isActive || _isPickMode
                     ? Stack(
                         children: [
@@ -689,7 +696,6 @@ class _ScanScreenState extends State<ScanScreen> {
                             controller: _controller,
                             onDetect: _onDetect,
                           ),
-                          // Viewfinder overlay
                           if (_scannerRunning)
                             Positioned.fill(
                               child: CustomPaint(
@@ -701,34 +707,33 @@ class _ScanScreenState extends State<ScanScreen> {
                               child: GestureDetector(
                                 onTap: _toggleScanner,
                                 child: Container(
-                                  color: Colors.black.withValues(alpha: 0.55),
+                                  color: Colors.black.withValues(alpha: 0.5),
                                   child: Center(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Container(
-                                          width: 56,
-                                          height: 56,
+                                          width: 60,
+                                          height: 60,
                                           decoration: BoxDecoration(
                                             color: Colors.white.withValues(
-                                              alpha: 0.15,
+                                              alpha: 0.12,
                                             ),
-                                            borderRadius: BorderRadius.circular(
-                                              14,
-                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(16),
                                             border: Border.all(
                                               color: Colors.white.withValues(
-                                                alpha: 0.3,
+                                                alpha: 0.2,
                                               ),
                                             ),
                                           ),
                                           child: const Icon(
                                             Icons.play_arrow_rounded,
                                             color: Colors.white,
-                                            size: 32,
+                                            size: 34,
                                           ),
                                         ),
-                                        const SizedBox(height: 10),
+                                        const SizedBox(height: 12),
                                         const Text(
                                           'Tap to resume scanning',
                                           style: TextStyle(
@@ -756,7 +761,7 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           ),
           if (_lastValue != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(
               'Last: $_lastValue',
               maxLines: 2,
@@ -778,7 +783,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
     return SingleChildScrollView(
       key: const ValueKey('sheet'),
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -795,7 +800,7 @@ class _ScanScreenState extends State<ScanScreen> {
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: context.themeTextSecondary,
-                    letterSpacing: 0.5,
+                    letterSpacing: 0.3,
                   ),
                 ),
               ),
@@ -817,7 +822,11 @@ class _ScanScreenState extends State<ScanScreen> {
                   ),
                   child: Text(
                     'View All',
-                    style: TextStyle(fontSize: 13, color: context.themeAccent),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: context.themeAccent,
+                    ),
                   ),
                 ),
             ],
@@ -846,39 +855,22 @@ class _ScanScreenState extends State<ScanScreen> {
                 final s = displaySessions[index];
                 final rowCount = ScanSessionService.getRowCount(s.id);
                 const months = [
-                  'Jan',
-                  'Feb',
-                  'Mar',
-                  'Apr',
-                  'May',
-                  'Jun',
-                  'Jul',
-                  'Aug',
-                  'Sep',
-                  'Oct',
-                  'Nov',
-                  'Dec',
+                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
                 ];
                 final dateStr =
                     '${months[s.createdAt.month - 1]} ${s.createdAt.day}';
 
-                return InkWell(
+                return AppCard(
+                  borderRadius: 14,
                   onTap: () {
                     HapticFeedback.selectionClick();
                     _openSessionMode(s);
                   },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
+                  child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.themeCard,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: context.themeBorder.withValues(alpha: 0.5),
-                      ),
+                      vertical: 14,
                     ),
                     child: Row(
                       children: [
@@ -897,11 +889,12 @@ class _ScanScreenState extends State<ScanScreen> {
                                 style: TextStyle(
                                   color: context.themeTextPrimary,
                                   fontWeight: FontWeight.w600,
+                                  fontSize: 14,
                                 ),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 3),
                               Text(
-                                '$rowCount rows · $dateStr',
+                                '$rowCount rows \u00b7 $dateStr',
                                 style: TextStyle(
                                   color: context.themeTextSecondary,
                                   fontSize: 12,
@@ -911,9 +904,9 @@ class _ScanScreenState extends State<ScanScreen> {
                           ),
                         ),
                         Icon(
-                          Icons.chevron_right,
+                          Icons.chevron_right_rounded,
                           color: context.themeTextSecondary,
-                          size: 16,
+                          size: 18,
                         ),
                       ],
                     ),
@@ -939,18 +932,21 @@ class _ScanScreenState extends State<ScanScreen> {
             'What would you\nlike to do?',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-              height: 1.25,
+              letterSpacing: -0.5,
+              height: 1.2,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             'Choose a scan mode to get started',
-            style: TextStyle(color: context.themeTextSecondary, fontSize: 13.5),
+            style: TextStyle(
+              color: context.themeTextSecondary,
+              fontSize: 14,
+            ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 36),
           _StaggeredCard(
             delayMs: 0,
             child: _buildChooserCard(
@@ -969,7 +965,7 @@ class _ScanScreenState extends State<ScanScreen> {
               },
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           _StaggeredCard(
             delayMs: 80,
             child: _buildChooserCard(
@@ -1007,103 +1003,107 @@ class _ScanScreenState extends State<ScanScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         splashColor: accentColor.withValues(alpha: 0.08),
         highlightColor: accentColor.withValues(alpha: 0.04),
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+          padding: const EdgeInsets.all(1),
           decoration: BoxDecoration(
-            color: accentColor.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: accentColor.withValues(alpha: isDark ? 0.35 : 0.30),
-              width: 1.5,
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              colors: [
+                accentColor.withValues(alpha: isDark ? 0.3 : 0.25),
+                accentColor.withValues(alpha: isDark ? 0.05 : 0.03),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: accentColor.withValues(alpha: isDark ? 0.08 : 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF121215)
+                  : const Color(0xFFF8F8FB),
+              borderRadius: BorderRadius.circular(17),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: accentColor, size: 26),
                 ),
-                child: Icon(icon, color: accentColor, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: context.themeTextPrimary,
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: context.themeTextPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: context.themeTextSecondary,
-                        fontSize: 13,
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: context.themeTextSecondary,
+                          fontSize: 13,
+                        ),
                       ),
-                    ),
-                    if (stepIcons.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          for (int i = 0; i < stepIcons.length; i++) ...[
-                            Icon(
-                              stepIcons[i],
-                              size: 14,
-                              color: accentColor.withValues(alpha: 0.8),
-                            ),
-                            if (i < stepIcons.length - 1)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                ),
-                                child: Icon(
-                                  Icons.arrow_forward_rounded,
-                                  size: 12,
-                                  color: context.themeTextSecondary.withValues(
-                                    alpha: 0.4,
+                      if (stepIcons.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            for (int i = 0; i < stepIcons.length; i++) ...[
+                              Icon(
+                                stepIcons[i],
+                                size: 15,
+                                color: accentColor.withValues(alpha: 0.7),
+                              ),
+                              if (i < stepIcons.length - 1)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5,
+                                  ),
+                                  child: Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 12,
+                                    color: context.themeTextSecondary
+                                        .withValues(alpha: 0.4),
                                   ),
                                 ),
-                              ),
+                            ],
                           ],
-                        ],
-                      ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(8),
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward_rounded,
+                    color: accentColor,
+                    size: 18,
+                  ),
                 ),
-                child: Icon(
-                  Icons.arrow_forward_rounded,
-                  color: accentColor,
-                  size: 15,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1124,7 +1124,7 @@ class _StaggeredCardState extends State<_StaggeredCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 500),
+    duration: const Duration(milliseconds: 480),
   );
   late final Animation<double> _anim = CurvedAnimation(
     parent: _ctrl,
@@ -1150,10 +1150,10 @@ class _StaggeredCardState extends State<_StaggeredCard>
     return FadeTransition(
       opacity: _anim,
       child: ScaleTransition(
-        scale: Tween<double>(begin: 0.96, end: 1.0).animate(_anim),
+        scale: Tween<double>(begin: 0.97, end: 1.0).animate(_anim),
         child: SlideTransition(
           position: Tween<Offset>(
-            begin: const Offset(0, 0.06),
+            begin: const Offset(0, 0.05),
             end: Offset.zero,
           ).animate(_anim),
           child: widget.child,
@@ -1185,33 +1185,33 @@ class _ScanResultSheet extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
                 child: Container(
-                  width: 44,
+                  width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: context.themeBorder,
+                    color: context.themeTextSecondary.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(100),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               Row(
                 children: [
                   _typeIconBox(context),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           _typeLabel(),
-                          style: Theme.of(context).textTheme.titleMedium
+                          style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(
                                 color: context.themeTextPrimary,
                                 fontWeight: FontWeight.w700,
@@ -1232,14 +1232,15 @@ class _ScanResultSheet extends StatelessWidget {
                       color: context.themeTextSecondary,
                       size: 20,
                     ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    style: IconButton.styleFrom(
+                      backgroundColor: context.themeSurface,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              _buildContentCard(context),
               const SizedBox(height: 16),
+              _buildContentCard(context),
+              const SizedBox(height: 18),
               Divider(color: context.themeBorder, height: 1),
               const SizedBox(height: 16),
               Text(
@@ -1247,10 +1248,10 @@ class _ScanResultSheet extends StatelessWidget {
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: context.themeTextSecondary,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
+                  letterSpacing: 1.0,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               _buildActions(context),
             ],
           ),
@@ -1265,7 +1266,7 @@ class _ScanResultSheet extends StatelessWidget {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Icon(icon, color: color, size: 24),
@@ -1274,14 +1275,14 @@ class _ScanResultSheet extends StatelessWidget {
 
   (IconData, Color) _typeIconAndColor() {
     return switch (type) {
-      'url' => (Icons.link_rounded, const Color(0xFF1E5BEA)),
+      'url' => (Icons.link_rounded, const Color(0xFF3B82F6)),
       'wifi' => (Icons.wifi_rounded, const Color(0xFF16A34A)),
-      'vcard' => (Icons.person_rounded, const Color(0xFF9333EA)),
-      'email' => (Icons.email_rounded, const Color(0xFFEA4335)),
+      'vcard' => (Icons.person_rounded, const Color(0xFF8B5CF6)),
+      'email' => (Icons.email_rounded, const Color(0xFFEF4444)),
       'phone' => (Icons.phone_rounded, const Color(0xFF16A34A)),
-      'sms' => (Icons.sms_rounded, const Color(0xFF0891B2)),
+      'sms' => (Icons.sms_rounded, const Color(0xFF06B6D4)),
       'geo' => (Icons.location_on_rounded, const Color(0xFFF59E0B)),
-      _ => (Icons.text_fields_rounded, const Color(0xFF64748B)),
+      _ => (Icons.text_fields_rounded, const Color(0xFF6B7280)),
     };
   }
 
@@ -1306,14 +1307,16 @@ class _ScanResultSheet extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: context.themeSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.themeBorder),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: context.themeBorder.withValues(alpha: 0.5),
+        ),
       ),
       child: SelectableText(
         raw,
         style: TextStyle(
           color: type == 'url' ? context.themeAccent : context.themeTextPrimary,
-          fontSize: 13,
+          fontSize: 13.5,
           height: 1.5,
         ),
       ),
@@ -1374,7 +1377,9 @@ class _ScanResultSheet extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.themeSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.themeBorder),
+        border: Border.all(
+          color: context.themeBorder.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1382,7 +1387,7 @@ class _ScanResultSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
             decoration: BoxDecoration(
-              color: avatarColor.withValues(alpha: 0.07),
+              color: avatarColor.withValues(alpha: 0.06),
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
               ),
@@ -1391,7 +1396,7 @@ class _ScanResultSheet extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: avatarColor.withValues(alpha: 0.18),
+                  backgroundColor: avatarColor.withValues(alpha: 0.15),
                   child: Text(
                     initials.isEmpty ? '?' : initials,
                     style: TextStyle(
@@ -1440,14 +1445,14 @@ class _ScanResultSheet extends StatelessWidget {
                 if (email.isNotEmpty)
                   _ContactFieldTile(
                     icon: Icons.email_rounded,
-                    color: const Color(0xFFEA4335),
+                    color: const Color(0xFFEF4444),
                     label: 'Email',
                     value: email,
                   ),
                 if (url.isNotEmpty)
                   _ContactFieldTile(
                     icon: Icons.link_rounded,
-                    color: const Color(0xFF1E5BEA),
+                    color: const Color(0xFF3B82F6),
                     label: 'Website',
                     value: url,
                   ),
@@ -1461,7 +1466,7 @@ class _ScanResultSheet extends StatelessWidget {
                 if (note.isNotEmpty)
                   _ContactFieldTile(
                     icon: Icons.notes_rounded,
-                    color: const Color(0xFF64748B),
+                    color: const Color(0xFF6B7280),
                     label: 'Note',
                     value: note,
                   ),
@@ -1507,63 +1512,37 @@ class _ScanResultSheet extends StatelessWidget {
             action: _ScanAction.openUrl,
             primary: true,
           ));
-          actions.add((
-            label: 'Copy Link',
-            icon: Icons.copy_rounded,
-            action: _ScanAction.copyText,
-            primary: false,
-          ));
-          actions.add((
-            label: 'Share',
-            icon: Icons.share_rounded,
-            action: _ScanAction.shareText,
-            primary: false,
-          ));
+          break;
         case 'wifi':
           actions.add((
             label: 'Copy Password',
-            icon: Icons.password_rounded,
+            icon: Icons.key_rounded,
             action: _ScanAction.copyWifiPassword,
             primary: true,
           ));
           actions.add((
-            label: 'Wi-Fi Settings',
-            icon: Icons.settings_rounded,
-            action: _ScanAction.connectWifi,
-            primary: false,
-          ));
-          actions.add((
-            label: 'Copy Raw',
-            icon: Icons.copy_all_rounded,
+            label: 'Copy All',
+            icon: Icons.copy_rounded,
             action: _ScanAction.copyText,
             primary: false,
           ));
+          break;
         case 'vcard':
           actions.add((
-            label: 'Copy Full Text',
+            label: 'Copy',
             icon: Icons.copy_rounded,
             action: _ScanAction.copyText,
             primary: true,
           ));
-          actions.add((
-            label: 'Share Contact',
-            icon: Icons.share_rounded,
-            action: _ScanAction.shareText,
-            primary: false,
-          ));
+          break;
         case 'email':
           actions.add((
-            label: 'Send Email',
+            label: 'Compose Email',
             icon: Icons.send_rounded,
             action: _ScanAction.sendEmail,
             primary: true,
           ));
-          actions.add((
-            label: 'Copy Address',
-            icon: Icons.copy_rounded,
-            action: _ScanAction.copyText,
-            primary: false,
-          ));
+          break;
         case 'phone':
           actions.add((
             label: 'Call',
@@ -1571,124 +1550,139 @@ class _ScanResultSheet extends StatelessWidget {
             action: _ScanAction.callPhone,
             primary: true,
           ));
-          actions.add((
-            label: 'Copy Number',
-            icon: Icons.copy_rounded,
-            action: _ScanAction.copyText,
-            primary: false,
-          ));
-          actions.add((
-            label: 'Share',
-            icon: Icons.share_rounded,
-            action: _ScanAction.shareText,
-            primary: false,
-          ));
+          break;
         case 'sms':
-          actions.add((
-            label: 'Open SMS',
-            icon: Icons.sms_rounded,
-            action: _ScanAction.sendEmail,
-            primary: true,
-          ));
           actions.add((
             label: 'Copy',
             icon: Icons.copy_rounded,
             action: _ScanAction.copyText,
-            primary: false,
+            primary: true,
           ));
+          break;
         case 'geo':
           actions.add((
-            label: 'Open in Maps',
+            label: 'Open Map',
             icon: Icons.map_rounded,
             action: _ScanAction.openMap,
             primary: true,
           ));
-          actions.add((
-            label: 'Copy Coordinates',
-            icon: Icons.copy_rounded,
-            action: _ScanAction.copyText,
-            primary: false,
-          ));
+          break;
         default:
           actions.add((
-            label: 'Copy Text',
+            label: 'Copy',
             icon: Icons.copy_rounded,
             action: _ScanAction.copyText,
             primary: true,
           ));
-          actions.add((
-            label: 'Share',
-            icon: Icons.share_rounded,
-            action: _ScanAction.shareText,
-            primary: false,
-          ));
+          break;
       }
-      actions.add((
-        label: 'Rescan',
-        icon: Icons.qr_code_scanner_rounded,
-        action: _ScanAction.rescan,
-        primary: false,
-      ));
+
+      if (!actions.any((a) => a.action == _ScanAction.copyText) &&
+          type != 'wifi') {
+        actions.add((
+          label: 'Copy',
+          icon: Icons.copy_rounded,
+          action: _ScanAction.copyText,
+          primary: false,
+        ));
+      }
     }
 
-    final primaryActions = actions.where((a) => a.primary).toList();
-    final secondaryActions = actions.where((a) => !a.primary).toList();
+    actions.add((
+      label: 'Share',
+      icon: Icons.share_rounded,
+      action: _ScanAction.shareText,
+      primary: false,
+    ));
 
-    return Column(
-      children: [
-        ...primaryActions.map(
-          (a) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => Navigator.pop(context, a.action),
-                icon: Icon(a.icon, size: 17),
-                label: Text(a.label),
-                style: FilledButton.styleFrom(
-                  backgroundColor: context.themeAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
+    return Wrap(spacing: 10, runSpacing: 10, children: [
+      for (final a in actions)
+        if (a.primary)
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(context, a.action),
+            icon: Icon(a.icon, size: 18),
+            label: Text(a.label),
+          )
+        else
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(context, a.action),
+            icon: Icon(a.icon, size: 18),
+            label: Text(a.label),
           ),
+    ]);
+  }
+}
+
+// ── Shared result sheet widgets ───────────────────────────────────────────────
+class _InfoCard extends StatelessWidget {
+  final List<Widget> children;
+  const _InfoCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.themeSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: context.themeBorder.withValues(alpha: 0.5),
         ),
-        if (secondaryActions.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: secondaryActions
-                .map(
-                  (a) => ActionChip(
-                    avatar: Icon(a.icon, size: 15),
-                    label: Text(a.label),
-                    onPressed: () => Navigator.pop(context, a.action),
-                    backgroundColor: context.themeSurface,
-                    side: BorderSide(color: context.themeBorder),
-                    labelStyle: TextStyle(
-                      fontSize: 12,
-                      color: context.themeTextPrimary,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 2,
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-      ],
+      ),
+      child: Column(
+        children: children,
+      ),
     );
   }
 }
 
-// ── Contact field tile ────────────────────────────────────────────────────────
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: context.themeTextSecondary),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: context.themeTextSecondary,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: context.themeTextPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ContactFieldTile extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -1705,7 +1699,7 @@ class _ContactFieldTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () async {
           await Clipboard.setData(ClipboardData(text: value));
@@ -1713,6 +1707,7 @@ class _ContactFieldTile extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('$label copied'),
+                backgroundColor: context.themeSuccess,
                 duration: const Duration(seconds: 1),
               ),
             );
@@ -1722,9 +1717,9 @@ class _ContactFieldTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.06),
+            color: color.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withValues(alpha: 0.15)),
+            border: Border.all(color: color.withValues(alpha: 0.12)),
           ),
           child: Row(
             children: [
@@ -1740,7 +1735,7 @@ class _ContactFieldTile extends StatelessWidget {
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: context.themeTextSecondary,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.3,
                       ),
                     ),
                     Text(
@@ -1767,165 +1762,84 @@ class _ContactFieldTile extends StatelessWidget {
   }
 }
 
-// ── Shared helper widgets ─────────────────────────────────────────────────────
-class _InfoCard extends StatelessWidget {
-  final List<Widget> children;
-  const _InfoCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.themeSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.themeBorder),
-      ),
-      child: Column(
-        children: [
-          for (int i = 0; i < children.length; i++) ...[
-            children[i],
-            if (i < children.length - 1)
-              Divider(height: 16, color: context.themeBorder),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 15, color: context.themeTextSecondary),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: context.themeTextSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                value,
-                style: TextStyle(fontSize: 13, color: context.themeTextPrimary),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-enum _ScanAction {
-  rescan,
-  useForClone,
-  openUrl,
-  copyText,
-  copyWifiPassword,
-  connectWifi,
-  callPhone,
-  sendEmail,
-  openMap,
-  shareText,
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scanner viewfinder overlay — dims edges, clear center cutout, corner brackets
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ── Scanner overlay painter ───────────────────────────────────────────────────
 class _ScannerOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final double cutoutSize = size.shortestSide * 0.65;
-    final double left = (size.width - cutoutSize) / 2;
-    final double top = (size.height - cutoutSize) / 2;
+    final cutoutSize = size.shortestSide * 0.72;
+    final left = (size.width - cutoutSize) / 2;
+    final top = (size.height - cutoutSize) / 2;
     final cutoutRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(left, top, cutoutSize, cutoutSize),
-      const Radius.circular(16),
+      const Radius.circular(18),
     );
 
-    // Dim the area outside the cutout
-    final bgPaint = Paint()..color = const Color(0x88000000);
+    final bgPaint = Paint()..color = const Color(0x77000000);
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
       ..addRRect(cutoutRect)
       ..fillType = PathFillType.evenOdd;
     canvas.drawPath(path, bgPaint);
 
-    // Corner brackets
-    const double bracketLen = 24;
-    const double bracketThickness = 3;
+    const double bracketLen = 28;
     final bracketPaint = Paint()
-      ..color = const Color(0xFF16A34A)
-      ..strokeWidth = bracketThickness
+      ..color = const Color(0xFF22C55E)
+      ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
-    final double r = 16; // corner radius
-    final double x1 = left;
-    final double y1 = top;
-    final double x2 = left + cutoutSize;
-    final double y2 = top + cutoutSize;
+    final double r = 18;
+    final double x1 = left, y1 = top;
+    final double x2 = left + cutoutSize, y2 = top + cutoutSize;
 
-    // Top-left
-    canvas.drawPath(
-      Path()
-        ..moveTo(x1, y1 + bracketLen)
-        ..lineTo(x1, y1 + r)
-        ..quadraticBezierTo(x1, y1, x1 + r, y1)
-        ..lineTo(x1 + bracketLen, y1),
-      bracketPaint,
-    );
-    // Top-right
-    canvas.drawPath(
-      Path()
-        ..moveTo(x2 - bracketLen, y1)
-        ..lineTo(x2 - r, y1)
-        ..quadraticBezierTo(x2, y1, x2, y1 + r)
-        ..lineTo(x2, y1 + bracketLen),
-      bracketPaint,
-    );
-    // Bottom-left
-    canvas.drawPath(
-      Path()
-        ..moveTo(x1, y2 - bracketLen)
-        ..lineTo(x1, y2 - r)
-        ..quadraticBezierTo(x1, y2, x1 + r, y2)
-        ..lineTo(x1 + bracketLen, y2),
-      bracketPaint,
-    );
-    // Bottom-right
-    canvas.drawPath(
-      Path()
-        ..moveTo(x2 - bracketLen, y2)
-        ..lineTo(x2 - r, y2)
-        ..quadraticBezierTo(x2, y2, x2, y2 - r)
-        ..lineTo(x2, y2 - bracketLen),
-      bracketPaint,
+    void drawCorner(double sx, double sy, double dx, double dy) {
+      final p = Path()
+        ..moveTo(sx, sy + dy)
+        ..lineTo(sx, sy + r)
+        ..quadraticBezierTo(sx, sy, sx + r, sy)
+        ..lineTo(sx + dx, sy);
+      canvas.drawPath(p, bracketPaint);
+    }
+
+    drawCorner(x1, y1, bracketLen, 0); // top-left (horizontal)
+    drawCorner(x1, y1, 0, bracketLen); // top-left (vertical)
+
+    drawCorner(x2, y1, -bracketLen, 0); // top-right (horizontal)
+    drawCorner(x2, y1, 0, bracketLen); // top-right (vertical)
+
+    drawCorner(x1, y2, bracketLen, 0); // bottom-left (horizontal)
+    drawCorner(x1, y2, 0, -bracketLen); // bottom-left (vertical)
+
+    drawCorner(x2, y2, -bracketLen, 0); // bottom-right (horizontal)
+    drawCorner(x2, y2, 0, -bracketLen); // bottom-right (vertical)
+
+    final hintPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.5)
+      ..strokeWidth = 0.5
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(left + 2, top + 2, cutoutSize - 4, cutoutSize - 4),
+        const Radius.circular(16),
+      ),
+      hintPaint,
     );
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+enum _ScanAction {
+  copyText,
+  openUrl,
+  copyWifiPassword,
+  connectWifi,
+  callPhone,
+  sendEmail,
+  openMap,
+  shareText,
+  useForClone,
+  rescan,
 }

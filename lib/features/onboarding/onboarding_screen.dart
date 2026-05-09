@@ -40,8 +40,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   static const _pages = [
     _PageData(
       icon: Icons.table_chart_rounded,
-      gradient: [Color(0xFF166534), Color(0xFF16A34A)],
-      glowColor: Color(0x3316A34A),
+      gradient: [Color(0xFF15803D), Color(0xFF22C55E)],
+      glowColor: Color(0x3322C55E),
       tag: 'WELCOME TO SCANSHEET',
       title: 'Scan a code.\nGet a row.\nExport a sheet.',
       subtitle:
@@ -57,8 +57,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     ),
     _PageData(
       icon: Icons.app_registration_rounded,
-      gradient: [Color(0xFF15633B), Color(0xFF34A853)],
-      glowColor: Color(0x334F8EF7),
+      gradient: [Color(0xFF15633B), Color(0xFF22C55E)],
+      glowColor: Color(0x333B82F6),
       tag: 'SCAN TO SHEET',
       title: 'Custom columns\nfor your data.',
       subtitle:
@@ -74,8 +74,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     ),
     _PageData(
       icon: Icons.history_edu_rounded,
-      gradient: [Color(0xFF6B21A8), Color(0xFFBF5AF2)],
-      glowColor: Color(0x33BF5AF2),
+      gradient: [Color(0xFF7C3AED), Color(0xFFA78BFA)],
+      glowColor: Color(0x33A78BFA),
       tag: 'QUICK SCAN & HISTORY',
       title: 'Scan anything.\nAccess it\nforever.',
       subtitle:
@@ -146,7 +146,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         backgroundColor: const Color(0xFF0D0D0F),
         body: Stack(
           children: [
-            // Animated glow background
             AnimatedPositioned(
               duration: const Duration(milliseconds: 700),
               curve: Curves.easeInOutCubic,

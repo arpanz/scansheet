@@ -122,6 +122,8 @@ class _MainHomeScreenState extends State<MainHomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return PopScope(
       canPop: _currentIndex == 0,
       onPopInvokedWithResult: (didPop, _) {
@@ -130,11 +132,13 @@ class _MainHomeScreenState extends State<MainHomeScreen>
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         body: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeIn,
-          transitionBuilder: (child, animation) =>
-              FadeTransition(opacity: animation, child: child),
+          duration: const Duration(milliseconds: 280),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
           child: IndexedStack(
             key: ValueKey(_currentIndex),
             index: _currentIndex,
@@ -145,49 +149,76 @@ class _MainHomeScreenState extends State<MainHomeScreen>
             ],
           ),
         ),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant,
-                width: 0.5,
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF1C1C22)
+                    : const Color(0xFFFCFCFD),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF2A2A32).withValues(alpha: 0.6)
+                      : const Color(0xFFE4E4EB).withValues(alpha: 0.6),
+                  width: 0.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: isDark ? 0.25 : 0.06,
+                    ),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                    spreadRadius: -4,
+                  ),
+                ],
+              ),
+              child: NavigationBar(
+                selectedIndex: _currentIndex,
+                onDestinationSelected: (i) {
+                  HapticFeedback.selectionClick();
+                  setState(() => _currentIndex = i);
+                },
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                animationDuration: const Duration(milliseconds: 360),
+                indicatorShape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                height: 60,
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                destinations: [
+                  NavigationDestination(
+                    icon: const Icon(Icons.qr_code_scanner_rounded),
+                    selectedIcon: Icon(
+                      Icons.qr_code_scanner,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    label: 'Scan',
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.history_rounded),
+                    selectedIcon: Icon(
+                      Icons.history,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    label: 'History',
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.settings_rounded),
+                    selectedIcon: Icon(
+                      Icons.settings,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    label: 'Settings',
+                  ),
+                ],
               ),
             ),
-          ),
-          child: NavigationBar(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (i) {
-              HapticFeedback.selectionClick();
-              setState(() => _currentIndex = i);
-            },
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            animationDuration: const Duration(milliseconds: 350),
-            destinations: [
-              NavigationDestination(
-                icon: const Icon(Icons.qr_code_scanner_outlined),
-                selectedIcon: _NavPill(
-                  icon: Icons.qr_code_scanner_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                label: 'Scan',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.history_outlined),
-                selectedIcon: _NavPill(
-                  icon: Icons.history_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                label: 'History',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.settings_outlined),
-                selectedIcon: _NavPill(
-                  icon: Icons.settings_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                label: 'Settings',
-              ),
-            ],
           ),
         ),
       ),
@@ -195,21 +226,4 @@ class _MainHomeScreenState extends State<MainHomeScreen>
   }
 }
 
-class _NavPill extends StatelessWidget {
-  final IconData icon;
-  final Color color;
 
-  const _NavPill({required this.icon, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: color.withValues(alpha: 0.12),
-      ),
-      child: Icon(icon, color: color),
-    );
-  }
-}
