@@ -27,19 +27,16 @@ enum _ScanEntryState { chooser, quickScan, scanToSheet }
 
 class ScanScreen extends StatefulWidget {
   final ScanScreenMode mode;
-  final ValueChanged<String>? onCloneEdit;
   final bool isActive;
 
   const ScanScreen({
     super.key,
     this.mode = ScanScreenMode.standalone,
-    this.onCloneEdit,
     this.isActive = true,
   });
 
   const ScanScreen.pickForClone({super.key})
     : mode = ScanScreenMode.pickForClone,
-      onCloneEdit = null,
       isActive = true;
 
   @override
@@ -284,12 +281,6 @@ class _ScanScreenState extends State<ScanScreen> {
       }
 
       switch (action) {
-        case _ScanAction.cloneEdit:
-          if (widget.onCloneEdit != null) {
-            widget.onCloneEdit!(raw);
-            _snack('Moved to Create with scanned data.');
-          }
-          break;
         case _ScanAction.openUrl:
           final uri = Uri.tryParse(raw);
           if (uri == null) {
@@ -353,12 +344,8 @@ class _ScanScreenState extends State<ScanScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _ScanResultSheet(
-        raw: raw,
-        type: type,
-        isPickMode: _isPickMode,
-        hasCloneEdit: widget.onCloneEdit != null,
-      ),
+      builder: (ctx) =>
+          _ScanResultSheet(raw: raw, type: type, isPickMode: _isPickMode),
     );
     return result ?? _ScanAction.rescan;
   }
@@ -1181,13 +1168,11 @@ class _ScanResultSheet extends StatelessWidget {
   final String raw;
   final String type;
   final bool isPickMode;
-  final bool hasCloneEdit;
 
   const _ScanResultSheet({
     required this.raw,
     required this.type,
     required this.isPickMode,
-    required this.hasCloneEdit,
   });
 
   @override
@@ -1638,14 +1623,6 @@ class _ScanResultSheet extends StatelessWidget {
             primary: false,
           ));
       }
-      if (!isPickMode && hasCloneEdit) {
-        actions.add((
-          label: 'Clone / Edit',
-          icon: Icons.edit_rounded,
-          action: _ScanAction.cloneEdit,
-          primary: false,
-        ));
-      }
       actions.add((
         label: 'Rescan',
         icon: Icons.qr_code_scanner_rounded,
@@ -1863,7 +1840,6 @@ class _InfoRow extends StatelessWidget {
 enum _ScanAction {
   rescan,
   useForClone,
-  cloneEdit,
   openUrl,
   copyText,
   copyWifiPassword,

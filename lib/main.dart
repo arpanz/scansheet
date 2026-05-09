@@ -13,7 +13,6 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/app_router.dart';
 import 'core/utils/review_service.dart';
 import 'core/utils/update_service.dart';
-import 'features/generate/screens/generate_screen.dart';
 import 'features/history/screens/history_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/scan/screens/scan_screen.dart';
@@ -42,10 +41,7 @@ void main() async {
   await ReviewService.trackDailyLaunch();
 
   AdManager.onShowPaywall = (context) async {
-    await Navigator.push(
-      context,
-      FadeSlideRoute(page: const PaywallScreen()),
-    );
+    await Navigator.push(context, FadeSlideRoute(page: const PaywallScreen()));
   };
 
   runApp(
@@ -74,7 +70,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return MaterialApp(
-      title: 'QR & Barcode Tools',
+      title: 'ScanSheet',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
@@ -97,9 +93,6 @@ class MainHomeScreen extends StatefulWidget {
 class _MainHomeScreenState extends State<MainHomeScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
-  final ValueNotifier<String?> _cloneTextNotifier = ValueNotifier<String?>(
-    null,
-  );
   StreamSubscription<dynamic>? _updateInstallSubscription;
 
   @override
@@ -120,16 +113,10 @@ class _MainHomeScreenState extends State<MainHomeScreen>
     }
   }
 
-  void _handleCloneEdit(String data) {
-    _cloneTextNotifier.value = data;
-    if (mounted) setState(() => _currentIndex = 0);
-  }
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _updateInstallSubscription?.cancel();
-    _cloneTextNotifier.dispose();
     super.dispose();
   }
 
@@ -146,19 +133,13 @@ class _MainHomeScreenState extends State<MainHomeScreen>
           duration: const Duration(milliseconds: 220),
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: child,
-          ),
+          transitionBuilder: (child, animation) =>
+              FadeTransition(opacity: animation, child: child),
           child: IndexedStack(
             key: ValueKey(_currentIndex),
             index: _currentIndex,
             children: [
-              ScanScreen(
-                isActive: _currentIndex == 0,
-                onCloneEdit: _handleCloneEdit,
-              ),
-              const GenerateScreen(),
+              ScanScreen(isActive: _currentIndex == 0),
               const HistoryScreen(),
               const SettingsScreen(),
             ],
@@ -189,14 +170,6 @@ class _MainHomeScreenState extends State<MainHomeScreen>
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 label: 'Scan',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.auto_awesome_mosaic_outlined),
-                selectedIcon: _NavPill(
-                  icon: Icons.auto_awesome_mosaic_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                label: 'Generate',
               ),
               NavigationDestination(
                 icon: const Icon(Icons.history_outlined),

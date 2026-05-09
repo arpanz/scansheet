@@ -275,7 +275,7 @@ class _PaywallScreenState extends State<PaywallScreen>
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Remove ads, unlock larger batches,\nand get the full export toolkit.',
+                              'Remove ads, unlock unlimited scanning,\nand priority support.',
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
@@ -305,16 +305,12 @@ class _PaywallScreenState extends State<PaywallScreen>
                                     label: 'No ads — ever',
                                   ),
                                   _FeatureRow(
-                                    icon: Icons.dataset_linked_rounded,
-                                    label: 'Up to 1,000 codes per batch',
+                                    icon: Icons.all_inclusive_rounded,
+                                    label: 'Unlimited scan sessions',
                                   ),
                                   _FeatureRow(
-                                    icon: Icons.tune_rounded,
-                                    label: 'Full style customisation',
-                                  ),
-                                  _FeatureRow(
-                                    icon: Icons.ios_share_rounded,
-                                    label: 'Export PNG, PDF & ZIP',
+                                    icon: Icons.bolt_rounded,
+                                    label: 'Priority priority support',
                                   ),
                                   _FeatureRow(
                                     icon: Icons.table_chart_rounded,
@@ -549,10 +545,13 @@ class _FeatureRow extends StatelessWidget {
                         height: 1.2,
                       ),
                     ),
-                    if (badge != null) ...[  
+                    if (badge != null) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(999),

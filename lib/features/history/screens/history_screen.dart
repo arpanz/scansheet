@@ -47,7 +47,7 @@ class _HistoryScreenState extends State<HistoryScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -57,23 +57,10 @@ class _HistoryScreenState extends State<HistoryScreen>
     super.dispose();
   }
 
-  List<HistoryEntry> _visibleEntries(List<HistoryEntry> entries) {
-    final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return entries;
-    return entries.where((e) {
-      return e.label.toLowerCase().contains(q) ||
-          e.data.toLowerCase().contains(q);
-    }).toList();
-  }
-
   List<ScanEntry> _visibleScans(List<ScanEntry> scans) {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return scans;
     return scans.where((e) => e.raw.toLowerCase().contains(q)).toList();
-  }
-
-  Future<void> _delete(HistoryEntry e) async {
-    await HistoryService.delete(e);
   }
 
   @override
@@ -88,7 +75,6 @@ class _HistoryScreenState extends State<HistoryScreen>
           indicatorColor: context.themeAccent,
           indicatorSize: TabBarIndicatorSize.label,
           tabs: const [
-            Tab(text: 'Created'),
             Tab(text: 'Scanned'),
             Tab(text: 'Sheets'),
           ],
@@ -99,17 +85,7 @@ class _HistoryScreenState extends State<HistoryScreen>
             icon: const Icon(Icons.more_vert_rounded),
             onSelected: (val) async {
               bool cleared = false;
-              if (val == 'clear_created') {
-                final ok = await _confirmClear(
-                  context,
-                  'Clear created history?',
-                  'This will permanently remove all saved codes.',
-                );
-                if (ok) {
-                  await HistoryService.clear();
-                  cleared = true;
-                }
-              } else if (val == 'clear_scanned') {
+              if (val == 'clear_scanned') {
                 final ok = await _confirmClear(
                   context,
                   'Clear scan history?',
@@ -133,10 +109,6 @@ class _HistoryScreenState extends State<HistoryScreen>
               if (cleared && mounted) setState(() {});
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'clear_created',
-                child: Text('Clear Created'),
-              ),
               const PopupMenuItem(
                 value: 'clear_scanned',
                 child: Text('Clear Scanned'),
@@ -175,12 +147,6 @@ class _HistoryScreenState extends State<HistoryScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _CreatedTab(
-                  query: _query,
-                  visibleEntries: _visibleEntries,
-                  onDelete: _delete,
-                  cloneListenable: widget.cloneTextListenable,
-                ),
                 _ScannedTab(query: _query, visibleScans: _visibleScans),
                 const _SessionsTab(),
               ],
@@ -316,176 +282,6 @@ Widget _buildMediumNativeAdSlot() {
       child: AdManager.instance.getNativeAdWidget(isMedium: true),
     ),
   );
-}
-
-// ── Created Tab ──────────────────────────────────────────────────────────────
-class _CreatedTab extends StatelessWidget {
-  final String query;
-  final List<HistoryEntry> Function(List<HistoryEntry>) visibleEntries;
-  final Future<void> Function(HistoryEntry) onDelete;
-  final ValueNotifier<String?>? cloneListenable;
-
-  const _CreatedTab({
-    required this.query,
-    required this.visibleEntries,
-    required this.onDelete,
-    this.cloneListenable,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context);
-    return ValueListenableBuilder<Box<HistoryEntry>>(
-      valueListenable: HistoryService.box.listenable(),
-      builder: (context, _, _) {
-        final entries = HistoryService.getAll();
-        final visible = visibleEntries(entries);
-        if (entries.isEmpty) {
-          // Empty state: medium native ad below the empty illustration.
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const _EmptyState(
-                icon: Icons.history_rounded,
-                message: 'No codes yet',
-                sub: 'Save a generated code to see it here.',
-              ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: AdManager.instance.getNativeAdWidget(isMedium: true),
-                ),
-              ),
-            ],
-          );
-        }
-        if (visible.isEmpty) {
-          return _NoSearchResults(query: query);
-        }
-
-        final bool useMediumAd = visible.length < 3;
-        // Build a merged list: real items + ad slots every _kAdInterval items.
-        // If items < 3, we just show one medium ad at the end.
-        final int adCount = useMediumAd ? 1 : (visible.length ~/ _kAdInterval);
-        final itemCount = visible.length + adCount;
-
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          itemCount: itemCount,
-          separatorBuilder: (_, _) => const SizedBox(height: 10),
-          itemBuilder: (ctx, i) {
-            if (useMediumAd) {
-              if (i == visible.length) return _buildMediumNativeAdSlot();
-            } else {
-              // Every (_kAdInterval + 1)th slot is an ad.
-              final adPeriod = _kAdInterval + 1;
-              if ((i + 1) % adPeriod == 0) {
-                return _buildSmallNativeAdSlot();
-              }
-            }
-
-            // Map mixed index back to real item index.
-            final realIndex = useMediumAd ? i : i - (i ~/ (_kAdInterval + 1));
-            if (realIndex >= visible.length) return const SizedBox.shrink();
-            final e = visible[realIndex];
-            return Dismissible(
-              key: Key(e.createdAt.toIso8601String()),
-              direction: DismissDirection.endToStart,
-              confirmDismiss: (_) => _confirmDelete(ctx, e.label),
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20),
-                decoration: BoxDecoration(
-                  color: context.themeError.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  Icons.delete_outline_rounded,
-                  color: context.themeError,
-                ),
-              ),
-              onDismissed: (_) => onDelete(e),
-              child: AppCard(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  Navigator.push(
-                    context,
-                    FadeSlideRoute(
-                      page: HistoryDetailScreen(
-                        entry: e,
-                        cloneListenable: cloneListenable,
-                      ),
-                    ),
-                  );
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: _MiniCode(entry: e),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                _TypeBadge(dataType: e.dataType),
-                                const SizedBox(width: 6),
-                                _TypeBadge(
-                                  dataType: e.generatorType,
-                                  isGenType: true,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              e.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.textTheme.bodyMedium?.copyWith(
-                                color: context.themeTextPrimary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              DateFormat(
-                                'MMM d, y - h:mm a',
-                              ).format(e.createdAt),
-                              style: t.textTheme.bodySmall?.copyWith(
-                                color: context.themeTextSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: context.themeTextSecondary,
-                        size: 18,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 }
 
 // ── Scanned Tab ──────────────────────────────────────────────────────────────

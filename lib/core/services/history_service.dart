@@ -1,6 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:batchqr/features/history/models/history_entry.dart';
-import 'package:batchqr/features/history/models/history_entry.g.dart';
+import 'package:scansheet/features/history/models/history_entry.dart';
+import 'package:scansheet/features/history/models/history_entry.g.dart';
 
 class HistoryService {
   static const _boxName = 'history';

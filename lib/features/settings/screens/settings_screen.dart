@@ -276,7 +276,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Row(
                           children: [
                             Text(
-                              'QR & Barcode Tools Pro',
+                              'ScanSheet Pro',
                               style: t.textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,

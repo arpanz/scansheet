@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:batchqr/core/theme/app_theme.dart';
+import 'package:scansheet/core/theme/app_theme.dart';
 
 class CustomPillToggle extends StatelessWidget {
   final List<String> options;
