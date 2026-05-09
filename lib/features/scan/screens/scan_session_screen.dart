@@ -537,186 +537,124 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   // ─────────────────────────────────────────────────────────────────────────
 
   void _showAllRows() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        minChildSize: 0.4,
-        maxChildSize: 0.95,
-        builder: (ctx, scrollController) => StatefulBuilder(
-          builder: (ctx, setSheetState) => Container(
-            decoration: BoxDecoration(
-              color: ctx.themeCard,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => Scaffold(
+          backgroundColor: ctx.themeBg,
+          appBar: AppBar(
+            backgroundColor: ctx.themeCard,
+            elevation: 0,
+            scrolledUnderElevation: 1,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_rounded, color: ctx.themeTextPrimary),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+            title: Text(
+              'All Rows (${_rows.length})',
+              style: TextStyle(
+                color: ctx.themeTextPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            child: Column(
-              children: [
-                // Handle + header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 12, 0),
-                  child: Column(
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 44,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: ctx.themeBorder,
-                            borderRadius: BorderRadius.circular(100),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Text(
-                            'All Rows',
-                            style: TextStyle(
-                              color: ctx.themeTextPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: ctx.themeAccent.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              '${_rows.length}',
-                              style: TextStyle(
-                                color: ctx.themeAccent,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            icon: Icon(
-                              Icons.close_rounded,
-                              color: ctx.themeTextSecondary,
-                              size: 20,
-                            ),
-                            onPressed: () => Navigator.pop(ctx),
-                          ),
-                        ],
-                      ),
-                    ],
+          ),
+          body: StatefulBuilder(
+            builder: (ctx, setPageState) => SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 32),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                child: DataTable(
+                  headingRowHeight: 36,
+                  dataRowMinHeight: 44,
+                  dataRowMaxHeight: 44,
+                  columnSpacing: 20,
+                  horizontalMargin: 12,
+                  headingTextStyle: TextStyle(
+                    color: ctx.themeTextSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
                   ),
-                ),
-                const SizedBox(height: 8),
-                // Scrollable table
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      child: DataTable(
-                        headingRowHeight: 36,
-                        dataRowMinHeight: 38,
-                        dataRowMaxHeight: 38,
-                        columnSpacing: 16,
-                        horizontalMargin: 12,
-                        headingTextStyle: TextStyle(
-                          color: ctx.themeTextSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        dataTextStyle: TextStyle(
-                          color: ctx.themeTextPrimary,
-                          fontSize: 12,
-                        ),
-                        border: TableBorder(
-                          horizontalInside: BorderSide(
-                            color: ctx.themeBorder,
-                            width: 0.5,
-                          ),
-                        ),
-                        columns: [
-                          const DataColumn(label: Text('#')),
-                          ..._session.columns.map(
-                            (col) => DataColumn(
-                              label: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      color: _typeColor(col.type),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(col.name),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const DataColumn(label: Text('')),
-                        ],
-                        rows: _rows
-                            .map(
-                              (row) => DataRow(
-                                cells: [
-                                  DataCell(
-                                    Text(
-                                      '${row.rowIndex + 1}',
-                                      style: TextStyle(
-                                        color: ctx.themeTextSecondary,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ),
-                                  ...row.values.map(
-                                    (v) => DataCell(
-                                      Text(
-                                        v.isEmpty ? '—' : v,
-                                        style: TextStyle(
-                                          color: v.isEmpty
-                                              ? ctx.themeTextSecondary
-                                              : ctx.themeTextPrimary,
-                                          fontSize: 12,
-                                          fontStyle: v.isEmpty
-                                              ? FontStyle.italic
-                                              : FontStyle.normal,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Icon(
-                                      Icons.edit_rounded,
-                                      size: 16,
-                                      color: ctx.themeAccent,
-                                    ),
-                                    onTap: () async {
-                                      final changed = await _showEditRowDialog(
-                                        row,
-                                      );
-                                      if (changed) setSheetState(() {});
-                                    },
-                                  ),
-                                ],
-                              ),
-                            )
-                            .toList(),
-                      ),
+                  dataTextStyle: TextStyle(
+                    color: ctx.themeTextPrimary,
+                    fontSize: 13,
+                  ),
+                  border: TableBorder(
+                    horizontalInside: BorderSide(
+                      color: ctx.themeBorder,
+                      width: 0.5,
                     ),
                   ),
+                  columns: [
+                    const DataColumn(label: Text('#')),
+                    ..._session.columns.map(
+                      (col) => DataColumn(
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: _typeColor(col.type),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(col.name),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const DataColumn(label: Text('')),
+                  ],
+                  rows: _rows
+                      .map(
+                        (row) => DataRow(
+                          cells: [
+                            DataCell(
+                              Text(
+                                '${row.rowIndex + 1}',
+                                style: TextStyle(
+                                  color: ctx.themeTextSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            ...row.values.map(
+                              (v) => DataCell(
+                                Text(
+                                  v.isEmpty ? '—' : v,
+                                  style: TextStyle(
+                                    color: v.isEmpty
+                                        ? ctx.themeTextSecondary
+                                        : ctx.themeTextPrimary,
+                                    fontSize: 13,
+                                    fontStyle: v.isEmpty
+                                        ? FontStyle.italic
+                                        : FontStyle.normal,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              Icon(
+                                Icons.edit_rounded,
+                                size: 18,
+                                color: ctx.themeAccent,
+                              ),
+                              onTap: () async {
+                                final changed = await _showEditRowDialog(row);
+                                if (changed) setPageState(() {});
+                              },
+                            ),
+                          ],
+                        ),
+                      )
+                      .toList(),
                 ),
-              ],
+              ),
             ),
           ),
         ),
