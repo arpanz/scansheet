@@ -9,7 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/ads/ad_manager.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../features/bulk_gen/services/export_service.dart';
+import '../../../core/services/export_service.dart';
 import '../models/scan_session.dart';
 
 /// Bottom sheet with CSV / Excel export options for a completed or in-progress session.

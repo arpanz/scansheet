@@ -4,22 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../../core/ads/ad_manager.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/beautiful_loading_widget.dart';
+import '../ads/ad_manager.dart';
+import '../theme/app_theme.dart';
+import '../widgets/beautiful_loading_widget.dart';
 
 class ExportService {
-  /// Full export flow: loading overlay → generator → success dialog.
-  /// [onGetFilePath] must return the path to the saved file AND its bytes.
   static Future<void> processExport<T>({
     required BuildContext context,
     required String loadingMessage,
     required Future<T> Function() generator,
     required String fileExtension,
     required String shareText,
-
-    /// Returns (filePath, fileBytes). filePath is used for Open/Share,
-    /// fileBytes is passed directly to FlutterFileDialog.saveFile.
     required Future<(String, Uint8List)> Function(T data) onGetFileData,
   }) async {
     bool isCancelled = false;
@@ -116,7 +111,6 @@ class ExportService {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ── Gradient header ──────────────────────────────────────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
@@ -197,7 +191,6 @@ class ExportService {
                 ),
               ),
 
-              // ── Native ad (compact, only for non-pro) ────────────────
               if (!AdManager.instance.isPro)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -209,12 +202,10 @@ class ExportService {
                   ),
                 ),
 
-              // ── Action row: Open | Save | Share ──────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
                 child: Row(
                   children: [
-                    // Open
                     Expanded(
                       child: _ActionButton(
                         icon: Icons.open_in_new_rounded,
@@ -229,7 +220,6 @@ class ExportService {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    // Save to device
                     Expanded(
                       child: _ActionButton(
                         icon: Icons.save_alt_rounded,
@@ -249,7 +239,6 @@ class ExportService {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    // Share
                     Expanded(
                       child: _ActionButton(
                         icon: Icons.ios_share_rounded,
@@ -278,7 +267,6 @@ class ExportService {
     );
   }
 
-  // ── Open ────────────────────────────────────────────────────────────────────
   static Future<void> _handleOpen(
     BuildContext context,
     String filePath,
@@ -315,9 +303,6 @@ class ExportService {
     }
   }
 
-  // ── Save ────────────────────────────────────────────────────────────────────
-  /// Uses FlutterFileDialog.saveFile which accepts raw bytes — works on
-  /// Android & iOS (same pattern as csvforge).
   static Future<void> _handleSave(
     BuildContext context,
     String filePath,
@@ -353,7 +338,6 @@ class ExportService {
           );
         }
       } else {
-        // Desktop fallback: file already saved at filePath
         if (context.mounted) {
           ScaffoldMessenger.of(
             context,
@@ -373,7 +357,6 @@ class ExportService {
   }
 }
 
-// ── Compact themed action button ─────────────────────────────────────────────
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final Color color;
