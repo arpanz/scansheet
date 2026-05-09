@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -200,7 +201,12 @@ class SessionExportSheet extends StatelessWidget {
         final dir = await getTemporaryDirectory();
         final ts = DateTime.now().millisecondsSinceEpoch;
         final file = File('${dir.path}/session_$ts.csv');
-        final bytes = Uint8List.fromList(csvString.codeUnits);
+        final bytes = Uint8List.fromList([
+          0xEF,
+          0xBB,
+          0xBF, // UTF-8 BOM
+          ...utf8.encode(csvString),
+        ]);
         await file.writeAsBytes(bytes);
         return (file.path, bytes);
       },

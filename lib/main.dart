@@ -135,10 +135,8 @@ class _MainHomeScreenState extends State<MainHomeScreen>
           duration: const Duration(milliseconds: 280),
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: child,
-          ),
+          transitionBuilder: (child, animation) =>
+              FadeTransition(opacity: animation, child: child),
           child: IndexedStack(
             key: ValueKey(_currentIndex),
             index: _currentIndex,
@@ -167,9 +165,7 @@ class _MainHomeScreenState extends State<MainHomeScreen>
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha: isDark ? 0.25 : 0.06,
-                    ),
+                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                     spreadRadius: -4,
@@ -225,5 +221,3 @@ class _MainHomeScreenState extends State<MainHomeScreen>
     );
   }
 }
-
-

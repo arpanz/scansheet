@@ -281,6 +281,12 @@ class ExportService {
         case 'zip':
           mimeType = 'application/zip';
           break;
+        case 'csv':
+          mimeType = 'text/csv';
+          break;
+        case 'xlsx':
+          mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          break;
       }
       final result = await OpenFilex.open(filePath, type: mimeType);
       if (result.type != ResultType.done && context.mounted) {
@@ -320,6 +326,12 @@ class ExportService {
           break;
         case 'zip':
           mimeType = 'application/zip';
+          break;
+        case 'csv':
+          mimeType = 'text/csv';
+          break;
+        case 'xlsx':
+          mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
           break;
         default:
           mimeType = 'application/octet-stream';
