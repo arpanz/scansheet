@@ -26,6 +26,19 @@ enum ScanScreenMode { standalone, pickForClone }
 
 enum _ScanEntryState { chooser, quickScan, scanToSheet }
 
+enum _ScanAction {
+  openUrl,
+  copyText,
+  copyWifiPassword,
+  connectWifi,
+  callPhone,
+  sendEmail,
+  openMap,
+  shareText,
+  useForClone,
+  rescan,
+}
+
 class ScanScreen extends StatefulWidget {
   final ScanScreenMode mode;
   final bool isActive;
@@ -383,7 +396,6 @@ class _ScanScreenState extends State<ScanScreen> {
         },
       ),
     );
-    // Refresh active session card after sheet closes (covers dismiss case)
     if (mounted) setState(() {});
   }
 
@@ -572,10 +584,512 @@ class _ScanScreenState extends State<ScanScreen> {
     ];
   }
 
+  // ── Chooser UI ────────────────────────────────────────────────────────────
+  Widget _buildChooser(ScanSession? activeSession) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 24),
+            Text(
+              'Scan',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: context.themeTextPrimary,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Quick scan card
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                _setEntryState(_ScanEntryState.quickScan);
+              },
+              child: AppCard(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: context.themeAccent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: context.themeAccent,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Quick Scan',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: context.themeTextPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Scan once, get instant result',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: context.themeTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: context.themeTextSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Session card (active or new)
+            ..._buildSessionCard(activeSession),
+            const Spacer(),
+            // Past sessions link
+            Center(
+              child: TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    FadeSlideRoute(page: const AllSessionsScreen()),
+                  ).then((_) {
+                    if (mounted) setState(() {});
+                  });
+                },
+                child: Text(
+                  'View past sheets',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: context.themeTextSecondary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Quick scan camera UI ──────────────────────────────────────────────────
+  Widget _buildQuickScanCamera() {
+    return Stack(
+      children: [
+        // Full-screen camera
+        MobileScanner(
+          controller: _controller,
+          onDetect: _onDetect,
+        ),
+        // Overlay
+        _ScannerOverlay(accent: context.themeDetectionBorder),
+        // Top bar
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => _setEntryState(_ScanEntryState.chooser),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black45,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                const Spacer(),
+                // Torch toggle
+                ValueListenableBuilder(
+                  valueListenable: _controller,
+                  builder: (_, state, __) {
+                    final torchOn =
+                        state.torchState == TorchState.on;
+                    return IconButton(
+                      onPressed: _controller.toggleTorch,
+                      icon: Icon(
+                        torchOn
+                            ? Icons.flash_on_rounded
+                            : Icons.flash_off_rounded,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black45,
+                        foregroundColor:
+                            torchOn ? Colors.amber : Colors.white,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+                // Gallery button
+                IconButton(
+                  onPressed: _isPickingImage ? null : _scanFromGallery,
+                  icon: _isPickingImage
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.photo_library_outlined),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black45,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Bottom label
+        const Positioned(
+          left: 0,
+          right: 0,
+          bottom: 80,
+          child: Center(
+            child: Text(
+              'Point camera at a barcode or QR code',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final activeSession = ScanSessionService.getActiveSession();
-    // rest of build method unchanged — reading from existing file
-    return const Placeholder();
+
+    // In pick-for-clone mode, go straight to camera
+    if (_isPickMode) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: _buildQuickScanCamera(),
+      );
+    }
+
+    switch (_entryState) {
+      case _ScanEntryState.chooser:
+        return Scaffold(
+          backgroundColor: context.themeBg,
+          body: _buildChooser(activeSession),
+        );
+      case _ScanEntryState.quickScan:
+        return Scaffold(
+          backgroundColor: Colors.black,
+          body: _buildQuickScanCamera(),
+        );
+      case _ScanEntryState.scanToSheet:
+        // Phase 3 will replace this with the live scanning overlay
+        return Scaffold(
+          backgroundColor: context.themeBg,
+          appBar: AppBar(title: const Text('Scan to Sheet')),
+          body: const Center(child: CircularProgressIndicator()),
+        );
+    }
+  }
+}
+
+// ── Scanner corner overlay ────────────────────────────────────────────────────
+
+class _ScannerOverlay extends StatelessWidget {
+  final Color accent;
+  const _ScannerOverlay({required this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _ScannerOverlayPainter(accent: accent),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _ScannerOverlayPainter extends CustomPainter {
+  final Color accent;
+  const _ScannerOverlayPainter({required this.accent});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const cutoutSize = 260.0;
+    const cornerLen = 28.0;
+    const cornerRadius = 6.0;
+    const strokeW = 3.5;
+
+    final cx = size.width / 2;
+    final cy = size.height / 2 - 20;
+    final left = cx - cutoutSize / 2;
+    final top = cy - cutoutSize / 2;
+    final right = cx + cutoutSize / 2;
+    final bottom = cy + cutoutSize / 2;
+
+    // Dim overlay
+    final dimPaint = Paint()..color = Colors.black.withValues(alpha: 0.55);
+    final fullRect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final cutout = RRect.fromRectAndRadius(
+      Rect.fromLTRB(left, top, right, bottom),
+      const Radius.circular(cornerRadius),
+    );
+    canvas.drawPath(
+      Path()
+        ..addRect(fullRect)
+        ..addRRect(cutout)
+        ..fillType = PathFillType.evenOdd,
+      dimPaint,
+    );
+
+    // Corner lines
+    final linePaint = Paint()
+      ..color = accent
+      ..strokeWidth = strokeW
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    // Top-left
+    canvas.drawLine(Offset(left, top + cornerLen), Offset(left, top), linePaint);
+    canvas.drawLine(Offset(left, top), Offset(left + cornerLen, top), linePaint);
+    // Top-right
+    canvas.drawLine(Offset(right - cornerLen, top), Offset(right, top), linePaint);
+    canvas.drawLine(Offset(right, top), Offset(right, top + cornerLen), linePaint);
+    // Bottom-left
+    canvas.drawLine(Offset(left, bottom - cornerLen), Offset(left, bottom), linePaint);
+    canvas.drawLine(Offset(left, bottom), Offset(left + cornerLen, bottom), linePaint);
+    // Bottom-right
+    canvas.drawLine(Offset(right - cornerLen, bottom), Offset(right, bottom), linePaint);
+    canvas.drawLine(Offset(right, bottom), Offset(right, bottom - cornerLen), linePaint);
+  }
+
+  @override
+  bool shouldRepaint(_ScannerOverlayPainter old) => old.accent != accent;
+}
+
+// ── Result bottom sheet ───────────────────────────────────────────────────────
+
+class _ScanResultSheet extends StatelessWidget {
+  final String raw;
+  final String type;
+  final bool isPickMode;
+
+  const _ScanResultSheet({
+    required this.raw,
+    required this.type,
+    required this.isPickMode,
+  });
+
+  bool get _isUrl =>
+      raw.startsWith('http://') || raw.startsWith('https://');
+  bool get _isWifi => raw.startsWith('WIFI:');
+  bool get _isPhone => raw.startsWith('tel:') ||
+      RegExp(r'^\+?[0-9\s\-().]{7,}$').hasMatch(raw);
+  bool get _isEmail =>
+      raw.startsWith('mailto:') || raw.contains('@');
+  bool get _isGeoOrMap =>
+      raw.startsWith('geo:') || raw.startsWith('https://maps.');
+
+  IconData _typeIcon() {
+    if (_isUrl) return Icons.open_in_browser_rounded;
+    if (_isWifi) return Icons.wifi_rounded;
+    if (_isPhone) return Icons.phone_rounded;
+    if (_isEmail) return Icons.email_rounded;
+    if (_isGeoOrMap) return Icons.map_rounded;
+    return Icons.qr_code_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          const SizedBox(height: 12),
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Type icon + value
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: context.themeAccent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(_typeIcon(), color: context.themeAccent, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        type,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: context.themeTextSecondary,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        raw,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: context.themeTextPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          // Actions
+          if (isPickMode) ...[
+            _ActionTile(
+              icon: Icons.content_copy_rounded,
+              label: 'Use this barcode',
+              onTap: () => Navigator.pop(context, _ScanAction.useForClone),
+            ),
+          ] else ...[
+            if (_isUrl)
+              _ActionTile(
+                icon: Icons.open_in_browser_rounded,
+                label: 'Open URL',
+                onTap: () => Navigator.pop(context, _ScanAction.openUrl),
+              ),
+            if (_isWifi) ...[
+              _ActionTile(
+                icon: Icons.wifi_password_rounded,
+                label: 'Copy Wi-Fi password',
+                onTap: () =>
+                    Navigator.pop(context, _ScanAction.copyWifiPassword),
+              ),
+              _ActionTile(
+                icon: Icons.settings_rounded,
+                label: 'Connect to Wi-Fi',
+                onTap: () =>
+                    Navigator.pop(context, _ScanAction.connectWifi),
+              ),
+            ],
+            if (_isPhone)
+              _ActionTile(
+                icon: Icons.call_rounded,
+                label: 'Call',
+                onTap: () => Navigator.pop(context, _ScanAction.callPhone),
+              ),
+            if (_isEmail)
+              _ActionTile(
+                icon: Icons.send_rounded,
+                label: 'Send email',
+                onTap: () => Navigator.pop(context, _ScanAction.sendEmail),
+              ),
+            if (_isGeoOrMap)
+              _ActionTile(
+                icon: Icons.directions_rounded,
+                label: 'Open in Maps',
+                onTap: () => Navigator.pop(context, _ScanAction.openMap),
+              ),
+            _ActionTile(
+              icon: Icons.copy_rounded,
+              label: 'Copy text',
+              onTap: () => Navigator.pop(context, _ScanAction.copyText),
+            ),
+            _ActionTile(
+              icon: Icons.share_rounded,
+              label: 'Share',
+              onTap: () => Navigator.pop(context, _ScanAction.shareText),
+            ),
+          ],
+          _ActionTile(
+            icon: Icons.qr_code_scanner_rounded,
+            label: 'Scan again',
+            onTap: () => Navigator.pop(context, _ScanAction.rescan),
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: context.themeTextSecondary),
+            const SizedBox(width: 14),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w500,
+                color: context.themeTextPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

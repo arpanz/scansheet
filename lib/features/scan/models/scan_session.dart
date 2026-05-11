@@ -9,10 +9,12 @@ enum SessionColumnType {
   fixed,      // Same value every row
 }
 
+enum SessionDestination { localCsv, localXlsx, googleSheets }
+
 class SessionColumn {
   final String name;
   final SessionColumnType type;
-  final String? fixedValue; // only relevant when type == fixed
+  final String? fixedValue;
 
   const SessionColumn({
     required this.name,
@@ -50,24 +52,28 @@ class SessionColumn {
 
 class SessionRow {
   final int rowIndex;
-  final List<String> values; // values[i] maps to session.columns[i]
+  final List<String> values;
   final DateTime scannedAt;
+  final String? barcodeFormat; // e.g. 'qr', 'ean13', 'code128'
 
   const SessionRow({
     required this.rowIndex,
     required this.values,
     required this.scannedAt,
+    this.barcodeFormat,
   });
 
   SessionRow copyWith({
     int? rowIndex,
     List<String>? values,
     DateTime? scannedAt,
+    String? barcodeFormat,
   }) {
     return SessionRow(
       rowIndex: rowIndex ?? this.rowIndex,
       values: values ?? this.values,
       scannedAt: scannedAt ?? this.scannedAt,
+      barcodeFormat: barcodeFormat ?? this.barcodeFormat,
     );
   }
 
@@ -75,12 +81,14 @@ class SessionRow {
         'rowIndex': rowIndex,
         'values': values,
         'scannedAt': scannedAt.toIso8601String(),
+        'barcodeFormat': barcodeFormat,
       };
 
   factory SessionRow.fromMap(Map map) => SessionRow(
         rowIndex: map['rowIndex'] as int,
         values: List<String>.from(map['values'] as List),
         scannedAt: DateTime.parse(map['scannedAt'] as String),
+        barcodeFormat: map['barcodeFormat'] as String?,
       );
 }
 
@@ -91,7 +99,11 @@ class ScanSession {
   final DateTime createdAt;
   final DateTime? completedAt;
   final bool isActive;
-  final bool warnDuplicates; // warn-only, not hard-block
+  final bool warnDuplicates;
+  final SessionDestination destination;
+  final String? templateId;
+  final String? spreadsheetId;
+  final String? sheetName;
 
   const ScanSession({
     required this.id,
@@ -101,21 +113,21 @@ class ScanSession {
     this.completedAt,
     this.isActive = true,
     this.warnDuplicates = false,
+    this.destination = SessionDestination.localCsv,
+    this.templateId,
+    this.spreadsheetId,
+    this.sheetName,
   });
 
-  /// Max columns allowed per session.
   static const int maxColumns = 10;
 
   int get columnCount => columns.length;
 
-  /// Scan-type columns only — these drive the camera scan loop.
   List<int> get scanColumnIndices => [
         for (int i = 0; i < columns.length; i++)
           if (columns[i].type == SessionColumnType.scan) i,
       ];
 
-  /// Build a new row with auto-filled values for timestamp/increment/fixed columns.
-  /// Scan and manual columns are left empty — filled during scanning.
   SessionRow buildEmptyRow(int rowIndex) {
     final values = <String>[];
     for (final col in columns) {
@@ -146,6 +158,10 @@ class ScanSession {
     DateTime? completedAt,
     bool? isActive,
     bool? warnDuplicates,
+    SessionDestination? destination,
+    String? templateId,
+    String? spreadsheetId,
+    String? sheetName,
   }) {
     return ScanSession(
       id: id ?? this.id,
@@ -155,6 +171,10 @@ class ScanSession {
       completedAt: completedAt ?? this.completedAt,
       isActive: isActive ?? this.isActive,
       warnDuplicates: warnDuplicates ?? this.warnDuplicates,
+      destination: destination ?? this.destination,
+      templateId: templateId ?? this.templateId,
+      spreadsheetId: spreadsheetId ?? this.spreadsheetId,
+      sheetName: sheetName ?? this.sheetName,
     );
   }
 
@@ -166,6 +186,10 @@ class ScanSession {
         'completedAt': completedAt?.toIso8601String(),
         'isActive': isActive,
         'warnDuplicates': warnDuplicates,
+        'destination': destination.name,
+        'templateId': templateId,
+        'spreadsheetId': spreadsheetId,
+        'sheetName': sheetName,
       };
 
   factory ScanSession.fromMap(Map map) => ScanSession(
@@ -180,10 +204,15 @@ class ScanSession {
             : null,
         isActive: map['isActive'] as bool? ?? false,
         warnDuplicates: map['warnDuplicates'] as bool? ?? false,
+        destination: SessionDestination.values.firstWhere(
+          (e) => e.name == map['destination'],
+          orElse: () => SessionDestination.localCsv,
+        ),
+        templateId: map['templateId'] as String?,
+        spreadsheetId: map['spreadsheetId'] as String?,
+        sheetName: map['sheetName'] as String?,
       );
 
-  /// Returns header row + data rows for CSV/Excel export.
-  /// [rows] must be passed in (loaded separately from the rows Hive box).
   List<List<String>> toTableData(List<SessionRow> rows) {
     final header = columns.map((c) => c.name).toList();
     final data = rows.map((r) => r.values).toList();

@@ -21,6 +21,13 @@ extension AppThemeContext on BuildContext {
   Color get themeWarm => const Color(0xFFF59E0B);
   Color get themeSurfaceHighlight =>
       Theme.of(this).colorScheme.surfaceContainerHighest;
+  // Detection border — camera overlay corner colour
+  Color get themeDetectionBorder =>
+      Theme.of(this).brightness == Brightness.dark
+          ? const Color(0xFF22C55E)
+          : const Color(0xFF16A34A);
+  // Google Sheets brand button
+  Color get themeSheetsBlue => const Color(0xFF1B5FCC);
 }
 
 class ThemeProvider extends ChangeNotifier {
