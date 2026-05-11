@@ -12,6 +12,7 @@ import 'core/services/scan_history_service.dart';
 import 'core/services/scan_session_service.dart';
 import 'core/services/scanning_preferences.dart';
 import 'core/services/sync_queue_service.dart';
+import 'core/services/template_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_router.dart';
 import 'core/utils/review_service.dart';
@@ -37,12 +38,12 @@ void main() async {
   await ScanHistoryService.init();
   await ScanSessionService.init();
   await SyncQueueService.init();
+  await TemplateService.init();
 
   final initialThemeMode = await _loadInitialThemeMode();
   final showOnboarding   = await OnboardingScreen.shouldShow();
   final scanningPrefs    = await ScanningPreferences.load();
 
-  // Restore previous Google Sign-In silently (no UI shown).
   await GoogleSheetsService.instance.init();
 
   await MobileAds.instance.initialize();
