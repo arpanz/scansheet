@@ -23,6 +23,7 @@ import '../../single_gen/models/generator_type.dart';
 import '../../scan/models/scan_session.dart';
 import '../../scan/widgets/session_export_sheet.dart';
 import '../../scan/screens/scan_session_screen.dart';
+import './entry_detail_screen.dart';
 import '../../../core/utils/app_router.dart';
 
 // How many real items between each small native ad in the list.
@@ -1491,6 +1492,127 @@ class _SessionsTabState extends State<_SessionsTab> {
     }
   }
 
+  void _openRowsList(BuildContext context, ScanSession session) {
+    final rows = ScanSessionService.getRows(session.id);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => Scaffold(
+          backgroundColor: ctx.themeBg,
+          appBar: AppBar(
+            backgroundColor: ctx.themeCard,
+            elevation: 0,
+            scrolledUnderElevation: 1,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_rounded, color: ctx.themeTextPrimary),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  session.name,
+                  style: TextStyle(
+                    color: ctx.themeTextPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  '${rows.length} ${rows.length == 1 ? 'row' : 'rows'}',
+                  style: TextStyle(
+                    color: ctx.themeTextSecondary,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          body: rows.isEmpty
+              ? Center(
+                  child: Text(
+                    'No rows yet.',
+                    style: TextStyle(color: ctx.themeTextSecondary),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemCount: rows.length,
+                  itemBuilder: (ctx2, i) {
+                    final row = rows[i];
+                    final primary =
+                        row.values.isNotEmpty ? row.values.first : '—';
+                    return Material(
+                      color: ctx2.themeCard,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => Navigator.push<bool>(
+                          ctx2,
+                          MaterialPageRoute(
+                            builder: (_) => EntryDetailScreen(
+                              session: session,
+                              row: row,
+                            ),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: ctx2.themeAccent
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${row.rowIndex + 1}',
+                                    style: TextStyle(
+                                      color: ctx2.themeAccent,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  primary,
+                                  style: TextStyle(
+                                    color: ctx2.themeTextPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    fontFamily: 'monospace',
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: ctx2.themeTextSecondary,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_sessions.isEmpty) {
@@ -1597,6 +1719,18 @@ class _SessionsTabState extends State<_SessionsTab> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // View rows button
+                  IconButton(
+                    icon: Icon(
+                      Icons.format_list_numbered_rounded,
+                      size: 20,
+                      color: context.themeTextSecondary,
+                    ),
+                    tooltip: 'View rows',
+                    onPressed: rowCount == 0
+                        ? null
+                        : () => _openRowsList(context, session),
+                  ),
                   // Export button
                   IconButton(
                     icon: Icon(

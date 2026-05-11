@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../models/scan_session.dart';
 import '../widgets/session_export_sheet.dart';
 import '../widgets/scanner_overlay_widget.dart';
+import '../../history/screens/entry_detail_screen.dart';
 
 /// Full-screen session scanning experience.
 /// Camera + column indicator + mini table + undo.
@@ -26,7 +27,8 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
 
   List<SessionRow> _rows = [];
   int _activeScanColumnIndex = 0; // index into _session.scanColumnIndices
-  int _activeManualColumnIndex = 0; // index into manualColumnIndices while prompting
+  int _activeManualColumnIndex =
+      0; // index into manualColumnIndices while prompting
   SessionRow? _pendingRow; // row being built for the current scan cycle
 
   bool _isProcessing = false;
@@ -162,7 +164,11 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             color: const Color(0xFF9333EA).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.edit_rounded, color: Color(0xFF9333EA), size: 20),
+          child: const Icon(
+            Icons.edit_rounded,
+            color: Color(0xFF9333EA),
+            size: 20,
+          ),
         ),
         title: Text(
           colName,
@@ -181,7 +187,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   'Field ${_activeManualColumnIndex + 1} of ${manualIndices.length}',
-                  style: TextStyle(color: context.themeTextSecondary, fontSize: 12),
+                  style: TextStyle(
+                    color: context.themeTextSecondary,
+                    fontSize: 12,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -678,10 +687,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             ),
             actions: [
               IconButton(
-                icon: Icon(
-                  Icons.file_download_rounded,
-                  color: ctx.themeAccent,
-                ),
+                icon: Icon(Icons.file_download_rounded, color: ctx.themeAccent),
                 tooltip: 'Export',
                 onPressed: _openExport,
               ),
@@ -698,9 +704,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                   scrollDirection: Axis.horizontal,
                   child: SingleChildScrollView(
                     child: DataTable(
-                      headingRowColor: WidgetStateProperty.all(
-                        ctx.themeCard,
-                      ),
+                      headingRowColor: WidgetStateProperty.all(ctx.themeCard),
                       columns: [
                         const DataColumn(label: Text('#')),
                         for (final col in _session.columns)
@@ -718,22 +722,42 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                                     fontSize: 12,
                                   ),
                                 ),
+                                onTap: () async {
+                                  final deleted = await Navigator.push<bool>(
+                                    ctx,
+                                    MaterialPageRoute(
+                                      builder: (_) => EntryDetailScreen(
+                                        session: _session,
+                                        row: row,
+                                      ),
+                                    ),
+                                  );
+                                  if (deleted == true && ctx.mounted) {
+                                    Navigator.pop(ctx);
+                                    _showAllRows();
+                                  }
+                                },
                               ),
                               for (int i = 0; i < _session.columns.length; i++)
                                 DataCell(
                                   Text(
-                                    i < row.values.length
-                                        ? row.values[i]
-                                        : '',
+                                    i < row.values.length ? row.values[i] : '',
                                     style: TextStyle(
                                       color: ctx.themeTextPrimary,
                                       fontSize: 13,
                                     ),
                                   ),
                                   onTap: () async {
-                                    final edited =
-                                        await _showEditRowDialog(row);
-                                    if (edited && ctx.mounted) {
+                                    final deleted = await Navigator.push<bool>(
+                                      ctx,
+                                      MaterialPageRoute(
+                                        builder: (_) => EntryDetailScreen(
+                                          session: _session,
+                                          row: row,
+                                        ),
+                                      ),
+                                    );
+                                    if (deleted == true && ctx.mounted) {
                                       Navigator.pop(ctx);
                                       _showAllRows();
                                     }
@@ -764,9 +788,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: context.themeError,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: context.themeError),
             onPressed: () {
               Navigator.pop(ctx);
               ScanSessionService.clearRows(_session.id).then((_) {
@@ -1107,14 +1129,13 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                               ],
                             ),
                           ),
-                          Divider(
-                            height: 1,
-                            color: context.themeBorder,
-                          ),
+                          Divider(height: 1, color: context.themeBorder),
                           // Last 5 rows
-                          for (int i = (_rows.length - 1);
-                              i >= 0 && i >= _rows.length - 5;
-                              i--) ...[
+                          for (
+                            int i = (_rows.length - 1);
+                            i >= 0 && i >= _rows.length - 5;
+                            i--
+                          ) ...[
                             InkWell(
                               onTap: () => _showEditRowDialog(_rows[i]),
                               borderRadius: BorderRadius.circular(10),
@@ -1135,9 +1156,11 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                                         ),
                                       ),
                                     ),
-                                    for (int j = 0;
-                                        j < _session.columns.length;
-                                        j++)
+                                    for (
+                                      int j = 0;
+                                      j < _session.columns.length;
+                                      j++
+                                    )
                                       Expanded(
                                         child: Text(
                                           j < _rows[i].values.length
@@ -1176,9 +1199,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                               Icons.table_rows_rounded,
                               size: 16,
                             ),
-                            label: Text(
-                              'View All (${_rows.length})',
-                            ),
+                            label: Text('View All (${_rows.length})'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: context.themeTextSecondary,
                               side: BorderSide(color: context.themeBorder),
@@ -1248,7 +1269,9 @@ class _ColumnChip extends StatelessWidget {
             width: 18,
             height: 18,
             decoration: BoxDecoration(
-              color: isActive ? color : context.themeTextSecondary.withValues(alpha: 0.2),
+              color: isActive
+                  ? color
+                  : context.themeTextSecondary.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Center(
