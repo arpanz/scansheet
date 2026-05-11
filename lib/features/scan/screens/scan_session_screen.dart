@@ -25,6 +25,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
 
   List<SessionRow> _rows = [];
   int _activeScanColumnIndex = 0; // index into _session.scanColumnIndices
+  int _activeManualColumnIndex = 0; // index into manualColumnIndices while prompting
   SessionRow? _pendingRow; // row being built for the current scan cycle
 
   bool _isProcessing = false;
@@ -47,12 +48,13 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     super.dispose();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
   // Scan flow
-  // ─────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
 
   void _resetPendingRow() {
     _activeScanColumnIndex = 0;
+    _activeManualColumnIndex = 0;
     _pendingRow = _session.buildEmptyRow(_rows.length);
   }
 
@@ -104,8 +106,12 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     final isLastScanColumn = _activeScanColumnIndex == scanIndices.length - 1;
 
     if (isLastScanColumn) {
-      // All scan columns filled — commit the row.
-      _commitRow(updatedRow);
+      // All scan columns filled — check for manual columns before committing.
+      setState(() {
+        _pendingRow = updatedRow;
+        _isProcessing = false;
+      });
+      _promptManualColumnsOrCommit(updatedRow);
     } else {
       // Advance to next scan column.
       setState(() {
@@ -114,6 +120,117 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         _isProcessing = false;
       });
     }
+  }
+
+  /// After all scan columns are filled, prompt for each manual column in order.
+  void _promptManualColumnsOrCommit(SessionRow row) {
+    final manualIndices = _session.manualColumnIndices;
+    if (manualIndices.isEmpty) {
+      _commitRow(row);
+      return;
+    }
+    _activeManualColumnIndex = 0;
+    _showManualInputDialog(row, manualIndices);
+  }
+
+  void _showManualInputDialog(SessionRow row, List<int> manualIndices) {
+    if (_activeManualColumnIndex >= manualIndices.length) {
+      _commitRow(row);
+      return;
+    }
+
+    final colIndex = manualIndices[_activeManualColumnIndex];
+    final colName = _session.columns[colIndex].name;
+    final isLast = _activeManualColumnIndex == manualIndices.length - 1;
+    final ctrl = TextEditingController(
+      text: row.values.length > colIndex ? row.values[colIndex] : '',
+    );
+
+    _cameraController.stop();
+
+    showDialog<String?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.themeCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        icon: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: const Color(0xFF9333EA).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.edit_rounded, color: Color(0xFF9333EA), size: 20),
+        ),
+        title: Text(
+          colName,
+          style: TextStyle(
+            color: context.themeTextPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (manualIndices.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Field ${_activeManualColumnIndex + 1} of ${manualIndices.length}',
+                  style: TextStyle(color: context.themeTextSecondary, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText: 'Enter $colName...',
+                hintStyle: TextStyle(color: context.themeTextSecondary),
+              ),
+              onSubmitted: (_) => Navigator.pop(ctx, ctrl.text.trim()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: Text(
+              'Skip',
+              style: TextStyle(
+                color: context.themeTextSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: Text(isLast ? 'Save Row' : 'Next'),
+          ),
+        ],
+      ),
+    ).then((typed) {
+      ctrl.dispose();
+      if (!mounted) return;
+
+      final updatedValues = List<String>.from(row.values);
+      if (updatedValues.length > colIndex) {
+        updatedValues[colIndex] = typed ?? '';
+      }
+      final updatedRow = row.copyWith(values: updatedValues);
+      _activeManualColumnIndex++;
+
+      if (_activeManualColumnIndex >= manualIndices.length) {
+        _cameraController.start();
+        _commitRow(updatedRow);
+      } else {
+        _showManualInputDialog(updatedRow, manualIndices);
+      }
+    });
   }
 
   void _commitRow(SessionRow row) {
@@ -532,9 +649,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
   // Full rows viewer
-  // ─────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
 
   void _showAllRows() {
     Navigator.push(
@@ -558,143 +675,137 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 fontWeight: FontWeight.w700,
               ),
             ),
+            actions: [
+              IconButton(
+                icon: Icon(
+                  Icons.file_download_rounded,
+                  color: ctx.themeAccent,
+                ),
+                tooltip: 'Export',
+                onPressed: _openExport,
+              ),
+            ],
           ),
-          body: StatefulBuilder(
-            builder: (ctx, setPageState) => SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 32),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                child: DataTable(
-                  headingRowHeight: 36,
-                  dataRowMinHeight: 44,
-                  dataRowMaxHeight: 44,
-                  columnSpacing: 20,
-                  horizontalMargin: 12,
-                  headingTextStyle: TextStyle(
-                    color: ctx.themeTextSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+          body: _rows.isEmpty
+              ? Center(
+                  child: Text(
+                    'No rows yet.',
+                    style: TextStyle(color: ctx.themeTextSecondary),
                   ),
-                  dataTextStyle: TextStyle(
-                    color: ctx.themeTextPrimary,
-                    fontSize: 13,
-                  ),
-                  border: TableBorder(
-                    horizontalInside: BorderSide(
-                      color: ctx.themeBorder,
-                      width: 0.5,
-                    ),
-                  ),
-                  columns: [
-                    const DataColumn(label: Text('#')),
-                    ..._session.columns.map(
-                      (col) => DataColumn(
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: _typeColor(col.type),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            Text(col.name),
-                          ],
-                        ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SingleChildScrollView(
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.all(
+                        ctx.themeCard,
                       ),
-                    ),
-                    const DataColumn(label: Text('')),
-                  ],
-                  rows: _rows
-                      .map(
-                        (row) => DataRow(
-                          cells: [
-                            DataCell(
-                              Text(
-                                '${row.rowIndex + 1}',
-                                style: TextStyle(
-                                  color: ctx.themeTextSecondary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            ...row.values.map(
-                              (v) => DataCell(
+                      columns: [
+                        const DataColumn(label: Text('#')),
+                        for (final col in _session.columns)
+                          DataColumn(label: Text(col.name)),
+                      ],
+                      rows: [
+                        for (final row in _rows)
+                          DataRow(
+                            cells: [
+                              DataCell(
                                 Text(
-                                  v.isEmpty ? '—' : v,
+                                  '${row.rowIndex + 1}',
                                   style: TextStyle(
-                                    color: v.isEmpty
-                                        ? ctx.themeTextSecondary
-                                        : ctx.themeTextPrimary,
-                                    fontSize: 13,
-                                    fontStyle: v.isEmpty
-                                        ? FontStyle.italic
-                                        : FontStyle.normal,
+                                    color: ctx.themeTextSecondary,
+                                    fontSize: 12,
                                   ),
                                 ),
                               ),
-                            ),
-                            DataCell(
-                              Icon(
-                                Icons.edit_rounded,
-                                size: 18,
-                                color: ctx.themeAccent,
-                              ),
-                              onTap: () async {
-                                final changed = await _showEditRowDialog(row);
-                                if (changed) setPageState(() {});
-                              },
-                            ),
-                          ],
-                        ),
-                      )
-                      .toList(),
+                              for (int i = 0; i < _session.columns.length; i++)
+                                DataCell(
+                                  Text(
+                                    i < row.values.length
+                                        ? row.values[i]
+                                        : '',
+                                    style: TextStyle(
+                                      color: ctx.themeTextPrimary,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  onTap: () async {
+                                    final edited =
+                                        await _showEditRowDialog(row);
+                                    if (edited && ctx.mounted) {
+                                      Navigator.pop(ctx);
+                                      _showAllRows();
+                                    }
+                                  },
+                                ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
         ),
       ),
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // UI helpers
-  // ─────────────────────────────────────────────────────────────────────────
+  void _showClearConfirm() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear All Rows?'),
+        content: const Text(
+          'All scanned rows in this session will be permanently deleted. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: context.themeError,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScanSessionService.clearRows(_session.id).then((_) {
+                if (!mounted) return;
+                setState(() {
+                  _rows = [];
+                  _resetPendingRow();
+                });
+              });
+            },
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+  }
 
   String get _activeColumnName {
     final scanIndices = _session.scanColumnIndices;
     if (scanIndices.isEmpty) return '';
-    final colIndex = scanIndices[_activeScanColumnIndex];
-    return _session.columns[colIndex].name;
+    if (_activeScanColumnIndex >= scanIndices.length) return '';
+    return _session.columns[scanIndices[_activeScanColumnIndex]].name;
   }
 
   Color _typeColor(SessionColumnType t) => switch (t) {
-    SessionColumnType.scan => const Color(0xFF34A853),
+    SessionColumnType.scan => const Color(0xFF22C55E),
     SessionColumnType.manual => const Color(0xFF9333EA),
-    SessionColumnType.timestamp => const Color(0xFF16A34A),
+    SessionColumnType.timestamp => const Color(0xFF3B82F6),
     SessionColumnType.increment => const Color(0xFFF59E0B),
-    SessionColumnType.fixed => const Color(0xFF64748B),
+    SessionColumnType.fixed => const Color(0xFF6B7280),
   };
-
-  // Last 5 rows for the mini table (most recent at top).
-  List<SessionRow> get _recentRows {
-    if (_rows.length <= 5) return _rows.reversed.toList();
-    return _rows.sublist(_rows.length - 5).reversed.toList();
-  }
 
   Widget _buildScannerToggleButton() {
     final color = _isScannerPaused
-        ? const Color(0xFF16A34A)
-        : const Color(0xFFF59E0B);
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF22C55E);
     final icon = _isScannerPaused
         ? Icons.play_arrow_rounded
         : Icons.pause_rounded;
-    final label = _isScannerPaused ? 'Resume' : 'Pause';
+    final label = _isScannerPaused ? 'Paused' : 'Scanning';
 
     return Padding(
       padding: const EdgeInsets.only(right: 4),
@@ -950,37 +1061,139 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                       ),
                     )
                   else ...[
-                    _MiniTable(
-                      session: _session,
-                      rows: _recentRows,
-                      typeColorFn: _typeColor,
-                    ),
-                    GestureDetector(
-                      onTap: _showAllRows,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _rows.length > 5
-                                  ? 'View all ${_rows.length} rows'
-                                  : 'Edit rows',
-                              style: TextStyle(
-                                color: context.themeAccent,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                    // Header row
+                    Container(
+                      decoration: BoxDecoration(
+                        color: context.themeCard,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: context.themeBorder),
+                      ),
+                      child: Column(
+                        children: [
+                          // Column headers
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 28,
+                                  child: Text(
+                                    '#',
+                                    style: TextStyle(
+                                      color: context.themeTextSecondary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                for (final col in _session.columns)
+                                  Expanded(
+                                    child: Text(
+                                      col.name,
+                                      style: TextStyle(
+                                        color: context.themeTextSecondary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Divider(
+                            height: 1,
+                            color: context.themeBorder,
+                          ),
+                          // Last 5 rows
+                          for (int i = (_rows.length - 1);
+                              i >= 0 && i >= _rows.length - 5;
+                              i--) ...[
+                            InkWell(
+                              onTap: () => _showEditRowDialog(_rows[i]),
+                              borderRadius: BorderRadius.circular(10),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 9,
+                                ),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 28,
+                                      child: Text(
+                                        '${_rows[i].rowIndex + 1}',
+                                        style: TextStyle(
+                                          color: context.themeTextSecondary,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    for (int j = 0;
+                                        j < _session.columns.length;
+                                        j++)
+                                      Expanded(
+                                        child: Text(
+                                          j < _rows[i].values.length
+                                              ? _rows[i].values[j]
+                                              : '',
+                                          style: TextStyle(
+                                            color: context.themeTextPrimary,
+                                            fontSize: 12,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.edit_rounded,
-                              size: 16,
-                              color: context.themeAccent,
-                            ),
+                            if (i > (_rows.length - 5) && i > 0)
+                              Divider(
+                                height: 1,
+                                indent: 12,
+                                endIndent: 12,
+                                color: context.themeBorder,
+                              ),
                           ],
-                        ),
+                        ],
                       ),
+                    ),
+                    const SizedBox(height: 10),
+                    // View all + export row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _showAllRows,
+                            icon: const Icon(
+                              Icons.table_rows_rounded,
+                              size: 16,
+                            ),
+                            label: Text(
+                              'View All (${_rows.length})',
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: context.themeTextSecondary,
+                              side: BorderSide(color: context.themeBorder),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _openExport,
+                            icon: const Icon(
+                              Icons.file_download_rounded,
+                              size: 16,
+                            ),
+                            label: const Text('Export'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],
@@ -989,90 +1202,13 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
           ),
         ],
       ),
-      // ── Sticky bottom action bar ──
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Row(
-            children: [
-              // Export button
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _rows.isEmpty ? null : _openExport,
-                  icon: const Icon(Icons.file_download_outlined, size: 18),
-                  label: Text('Export (${_rows.length})'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              // End session button
-              OutlinedButton.icon(
-                onPressed: _endSession,
-                icon: const Icon(Icons.stop_rounded, size: 18),
-                label: const Text('End'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: context.themeError,
-                  side: BorderSide(
-                    color: context.themeError.withValues(alpha: 0.5),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 18,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showClearConfirm() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Clear All Rows?'),
-        content: const Text(
-          'This will delete all scanned rows from this session. This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScanSessionService.clearRows(_session.id).then((_) {
-                if (mounted) {
-                  setState(() {
-                    _rows = [];
-                    _resetPendingRow();
-                  });
-                }
-              });
-            },
-            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Column step chip
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────
+// Sub-widgets
+// ───────────────────────────────────────────────────────────────────────────
 
 class _ColumnChip extends StatelessWidget {
   final String label;
@@ -1091,42 +1227,39 @@ class _ColumnChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
       margin: const EdgeInsets.only(right: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isActive ? color.withValues(alpha: 0.15) : context.themeSurface,
+        color: isActive ? color.withValues(alpha: 0.12) : context.themeCard,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: isActive ? color : context.themeBorder,
+          color: isActive ? color.withValues(alpha: 0.4) : context.themeBorder,
           width: isActive ? 1.5 : 1,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isActive) ...[
-            Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              child: const Icon(
-                Icons.qr_code_scanner_rounded,
-                size: 10,
-                color: Colors.white,
+          Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              color: isActive ? color : context.themeTextSecondary.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                '$stepNumber',
+                style: TextStyle(
+                  color: isActive ? Colors.white : context.themeTextSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-            const SizedBox(width: 5),
-          ] else ...[
-            Text(
-              '$stepNumber',
-              style: TextStyle(
-                color: context.themeTextSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: 5),
-          ],
+          ),
+          const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
@@ -1141,171 +1274,57 @@ class _ColumnChip extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Mini table widget — shows last N rows
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MiniTable extends StatelessWidget {
-  final ScanSession session;
-  final List<SessionRow> rows;
-  final Color Function(SessionColumnType) typeColorFn;
-
-  const _MiniTable({
-    required this.session,
-    required this.rows,
-    required this.typeColorFn,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: context.themeSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.themeBorder),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            headingRowHeight: 36,
-            dataRowMinHeight: 40,
-            dataRowMaxHeight: 40,
-            columnSpacing: 16,
-            horizontalMargin: 12,
-            headingTextStyle: TextStyle(
-              color: context.themeTextSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-            dataTextStyle: TextStyle(
-              color: context.themeTextPrimary,
-              fontSize: 12,
-            ),
-            border: TableBorder(
-              horizontalInside: BorderSide(
-                color: context.themeBorder,
-                width: 0.5,
-              ),
-            ),
-            columns: session.columns
-                .map(
-                  (col) => DataColumn(
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: typeColorFn(col.type),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(col.name),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(),
-            rows: rows
-                .map(
-                  (row) => DataRow(
-                    cells: row.values
-                        .map(
-                          (v) => DataCell(
-                            Text(
-                              v.isEmpty ? '—' : v,
-                              style: TextStyle(
-                                color: v.isEmpty
-                                    ? context.themeTextSecondary
-                                    : context.themeTextPrimary,
-                                fontSize: 12,
-                                fontStyle: v.isEmpty
-                                    ? FontStyle.italic
-                                    : FontStyle.normal,
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                )
-                .toList(),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Viewfinder overlay for session scanner
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _SessionScannerOverlay extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final double cutoutSize = size.shortestSide * 0.65;
-    final double left = (size.width - cutoutSize) / 2;
-    final double top = (size.height - cutoutSize) / 2;
-    final cutoutRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(left, top, cutoutSize, cutoutSize),
-      const Radius.circular(18),
+    final paint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.45)
+      ..style = PaintingStyle.fill;
+
+    final cutoutSize = size.width * 0.65;
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final halfW = cutoutSize / 2;
+    final halfH = cutoutSize * 0.55;
+    final radius = 14.0;
+
+    final cutout = RRect.fromRectAndRadius(
+      Rect.fromLTWH(cx - halfW, cy - halfH, cutoutSize, cutoutSize * 1.1),
+      Radius.circular(radius),
     );
 
-    final bgPaint = Paint()..color = const Color(0x88000000);
-    final path = Path()
+    final overlay = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..addRRect(cutoutRect)
+      ..addRRect(cutout)
       ..fillType = PathFillType.evenOdd;
-    canvas.drawPath(path, bgPaint);
 
-    const double bracketLen = 24;
-    final bracketPaint = Paint()
-      ..color = const Color(0xFF22C55E)
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
+    canvas.drawPath(overlay, paint);
 
-    final double r = 18;
-    final double x1 = left, y1 = top;
-    final double x2 = left + cutoutSize, y2 = top + cutoutSize;
+    // Corner accents
+    final accentPaint = Paint()
+      ..color = const Color(0xFF34A853)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
 
-    canvas.drawPath(
-      Path()
-        ..moveTo(x1, y1 + bracketLen)
-        ..lineTo(x1, y1 + r)
-        ..quadraticBezierTo(x1, y1, x1 + r, y1)
-        ..lineTo(x1 + bracketLen, y1),
-      bracketPaint,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(x2 - bracketLen, y1)
-        ..lineTo(x2 - r, y1)
-        ..quadraticBezierTo(x2, y1, x2, y1 + r)
-        ..lineTo(x2, y1 + bracketLen),
-      bracketPaint,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(x1, y2 - bracketLen)
-        ..lineTo(x1, y2 - r)
-        ..quadraticBezierTo(x1, y2, x1 + r, y2)
-        ..lineTo(x1 + bracketLen, y2),
-      bracketPaint,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(x2 - bracketLen, y2)
-        ..lineTo(x2 - r, y2)
-        ..quadraticBezierTo(x2, y2, x2, y2 - r)
-        ..lineTo(x2, y2 - bracketLen),
-      bracketPaint,
-    );
+    const cornerLen = 22.0;
+    final l = cx - halfW;
+    final r = cx + halfW;
+    final t = cy - halfH;
+    final b = cy + cutoutSize * 1.1 - halfH;
+
+    // TL
+    canvas.drawLine(Offset(l + radius, t), Offset(l + radius + cornerLen, t), accentPaint);
+    canvas.drawLine(Offset(l, t + radius), Offset(l, t + radius + cornerLen), accentPaint);
+    // TR
+    canvas.drawLine(Offset(r - radius, t), Offset(r - radius - cornerLen, t), accentPaint);
+    canvas.drawLine(Offset(r, t + radius), Offset(r, t + radius + cornerLen), accentPaint);
+    // BL
+    canvas.drawLine(Offset(l + radius, b), Offset(l + radius + cornerLen, b), accentPaint);
+    canvas.drawLine(Offset(l, b - radius), Offset(l, b - radius - cornerLen), accentPaint);
+    // BR
+    canvas.drawLine(Offset(r - radius, b), Offset(r - radius - cornerLen, b), accentPaint);
+    canvas.drawLine(Offset(r, b - radius), Offset(r, b - radius - cornerLen), accentPaint);
   }
 
   @override
