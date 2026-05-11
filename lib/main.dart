@@ -6,10 +6,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/ads/ad_manager.dart';
+import 'core/services/google_sheets_service.dart';
 import 'core/services/history_service.dart';
 import 'core/services/scan_history_service.dart';
 import 'core/services/scan_session_service.dart';
 import 'core/services/scanning_preferences.dart';
+import 'core/services/sync_queue_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_router.dart';
 import 'core/utils/review_service.dart';
@@ -34,10 +36,14 @@ void main() async {
   await HistoryService.init();
   await ScanHistoryService.init();
   await ScanSessionService.init();
+  await SyncQueueService.init();
 
-  final initialThemeMode    = await _loadInitialThemeMode();
-  final showOnboarding      = await OnboardingScreen.shouldShow();
-  final scanningPrefs       = await ScanningPreferences.load();
+  final initialThemeMode = await _loadInitialThemeMode();
+  final showOnboarding   = await OnboardingScreen.shouldShow();
+  final scanningPrefs    = await ScanningPreferences.load();
+
+  // Restore previous Google Sign-In silently (no UI shown).
+  await GoogleSheetsService.instance.init();
 
   await MobileAds.instance.initialize();
   await AdManager.instance.initialize();
