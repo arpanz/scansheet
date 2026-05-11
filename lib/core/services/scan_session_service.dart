@@ -142,6 +142,11 @@ class ScanSessionService {
     await rowsBox.delete(_rowKey(sessionId, last.rowIndex));
   }
 
+  /// Delete a specific row by its index.
+  static Future<void> deleteRow(String sessionId, int rowIndex) async {
+    await rowsBox.delete(_rowKey(sessionId, rowIndex));
+  }
+
   /// Delete all rows for a session (used by "Clear All Rows" in session screen).
   static Future<void> clearRows(String sessionId) async {
     final rowKeys = rowsBox.keys
