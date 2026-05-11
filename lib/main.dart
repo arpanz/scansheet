@@ -9,6 +9,7 @@ import 'core/ads/ad_manager.dart';
 import 'core/services/history_service.dart';
 import 'core/services/scan_history_service.dart';
 import 'core/services/scan_session_service.dart';
+import 'core/services/scanning_preferences.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_router.dart';
 import 'core/utils/review_service.dart';
@@ -33,8 +34,10 @@ void main() async {
   await HistoryService.init();
   await ScanHistoryService.init();
   await ScanSessionService.init();
-  final initialThemeMode = await _loadInitialThemeMode();
-  final showOnboarding = await OnboardingScreen.shouldShow();
+
+  final initialThemeMode    = await _loadInitialThemeMode();
+  final showOnboarding      = await OnboardingScreen.shouldShow();
+  final scanningPrefs       = await ScanningPreferences.load();
 
   await MobileAds.instance.initialize();
   await AdManager.instance.initialize();
@@ -45,8 +48,13 @@ void main() async {
   };
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(initialThemeMode: initialThemeMode),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => ThemeProvider(initialThemeMode: initialThemeMode),
+        ),
+        ChangeNotifierProvider.value(value: scanningPrefs),
+      ],
       child: MyApp(showOnboarding: showOnboarding),
     ),
   );
