@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/services/template_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/scan_session.dart';
 import '../screens/scan_session_screen.dart';
@@ -8,45 +9,72 @@ import '../../../core/utils/app_router.dart';
 import '../../../core/services/scan_session_service.dart';
 
 /// Bottom sheet that lets the user configure a new Scan Session.
-/// Opened from the Scan tab AppBar icon.
+/// Optionally seeded from a [SessionTemplate] chosen in [TemplatePicker].
 class SessionSetupSheet extends StatefulWidget {
-  const SessionSetupSheet({super.key});
+  /// When non-null, the sheet pre-fills name + columns from this template.
+  final SessionTemplate? initialTemplate;
+
+  const SessionSetupSheet({super.key, this.initialTemplate});
 
   @override
   State<SessionSetupSheet> createState() => _SessionSetupSheetState();
 }
 
 class _SessionSetupSheetState extends State<SessionSetupSheet> {
-  final _nameController = TextEditingController(
-    text: 'Sheet ${DateTime.now().day} ${_monthName(DateTime.now().month)}',
-  );
+  late final TextEditingController _nameController;
   bool _warnDuplicates = false;
-
-  // Mutable columns list for UI editing before session creation.
-  final List<_EditableColumn> _columns = [
-    _EditableColumn(
-      name: 'Timestamp',
-      type: SessionColumnType.timestamp,
-      deletable: false,
-    ),
-    _EditableColumn(name: 'Item Code', type: SessionColumnType.scan),
-  ];
+  late final List<_EditableColumn> _columns;
 
   static String _monthName(int m) => const [
-    '',
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ][m];
+        '',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ][m];
+
+  @override
+  void initState() {
+    super.initState();
+    final tmpl = widget.initialTemplate;
+    if (tmpl != null) {
+      // Seed from template
+      _nameController = TextEditingController(text: tmpl.defaultName);
+      _columns = tmpl.columns
+          .map(
+            (c) => _EditableColumn(
+              name: c.name,
+              type: c.type,
+              fixedValue: c.fixedValue,
+              // Timestamp columns are not deletable by convention
+              deletable: c.type != SessionColumnType.timestamp,
+            ),
+          )
+          .toList();
+    } else {
+      // Default blank setup
+      _nameController = TextEditingController(
+        text:
+            'Sheet ${DateTime.now().day} ${_monthName(DateTime.now().month)}',
+      );
+      _columns = [
+        _EditableColumn(
+          name: 'Timestamp',
+          type: SessionColumnType.timestamp,
+          deletable: false,
+        ),
+        _EditableColumn(name: 'Item Code', type: SessionColumnType.scan),
+      ];
+    }
+  }
 
   @override
   void dispose() {
@@ -57,28 +85,28 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
   bool get _canAddColumn => _columns.length < ScanSession.maxColumns;
 
   IconData _iconFor(SessionColumnType t) => switch (t) {
-    SessionColumnType.scan => Icons.qr_code_scanner_rounded,
-    SessionColumnType.manual => Icons.edit_rounded,
-    SessionColumnType.timestamp => Icons.schedule_rounded,
-    SessionColumnType.increment => Icons.tag_rounded,
-    SessionColumnType.fixed => Icons.push_pin_rounded,
-  };
+        SessionColumnType.scan => Icons.qr_code_scanner_rounded,
+        SessionColumnType.manual => Icons.edit_rounded,
+        SessionColumnType.timestamp => Icons.schedule_rounded,
+        SessionColumnType.increment => Icons.tag_rounded,
+        SessionColumnType.fixed => Icons.push_pin_rounded,
+      };
 
   String _labelFor(SessionColumnType t) => switch (t) {
-    SessionColumnType.scan => 'Scan',
-    SessionColumnType.manual => 'Manual',
-    SessionColumnType.timestamp => 'Timestamp',
-    SessionColumnType.increment => 'Increment',
-    SessionColumnType.fixed => 'Fixed',
-  };
+        SessionColumnType.scan => 'Scan',
+        SessionColumnType.manual => 'Manual',
+        SessionColumnType.timestamp => 'Timestamp',
+        SessionColumnType.increment => 'Increment',
+        SessionColumnType.fixed => 'Fixed',
+      };
 
   Color _colorFor(SessionColumnType t) => switch (t) {
-    SessionColumnType.scan => const Color(0xFF34A853),
-    SessionColumnType.manual => const Color(0xFF9333EA),
-    SessionColumnType.timestamp => const Color(0xFF16A34A),
-    SessionColumnType.increment => const Color(0xFFF59E0B),
-    SessionColumnType.fixed => const Color(0xFF64748B),
-  };
+        SessionColumnType.scan => const Color(0xFF34A853),
+        SessionColumnType.manual => const Color(0xFF9333EA),
+        SessionColumnType.timestamp => const Color(0xFF16A34A),
+        SessionColumnType.increment => const Color(0xFFF59E0B),
+        SessionColumnType.fixed => const Color(0xFF64748B),
+      };
 
   void _startSession() {
     HapticFeedback.mediumImpact();
@@ -91,9 +119,8 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
       return;
     }
     if (_columns.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Add at least one column.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Add at least one column.')));
       return;
     }
     if (!_columns.any((c) => c.type == SessionColumnType.scan)) {
@@ -183,7 +210,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Column name
                 TextField(
                   controller: nameCtrl,
                   decoration: InputDecoration(
@@ -207,7 +233,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // Type selector
                 ...types.map((t) {
                   final selected = selectedType == t;
                   final color = _colorFor(t);
@@ -267,7 +292,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                     ),
                   );
                 }),
-                // Fixed value input
                 if (selectedType == SessionColumnType.fixed) ...[
                   const SizedBox(height: 12),
                   TextField(
@@ -333,7 +357,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
         ),
         child: Column(
           children: [
-            // ── Scrollable content ──
             Expanded(
               child: ListView(
                 controller: scrollController,
@@ -384,9 +407,11 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'New Sheet',
-                                style: TextStyle(
+                              Text(
+                                widget.initialTemplate != null
+                                    ? widget.initialTemplate!.name
+                                    : 'New Sheet',
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 18,
@@ -394,7 +419,9 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                'Scan barcodes → collect rows → export to excel',
+                                widget.initialTemplate != null
+                                    ? 'Customise then start scanning'
+                                    : 'Scan barcodes → collect rows → export to excel',
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.8),
                                   fontSize: 13,
@@ -421,9 +448,8 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                     decoration: InputDecoration(
                       hintText: 'e.g. Warehouse Audit',
                       hintStyle: TextStyle(
-                        color: context.themeTextSecondary.withValues(
-                          alpha: 0.5,
-                        ),
+                        color: context.themeTextSecondary
+                            .withValues(alpha: 0.5),
                       ),
                       prefixIcon: const Icon(
                         Icons.label_outline_rounded,
@@ -470,9 +496,8 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                               vertical: 5,
                             ),
                             decoration: BoxDecoration(
-                              color: context.themeAccent.withValues(
-                                alpha: 0.10,
-                              ),
+                              color: context.themeAccent
+                                  .withValues(alpha: 0.10),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
@@ -500,7 +525,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                   ),
                   const SizedBox(height: 10),
 
-                  // Column list with reorder
                   ReorderableListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -610,7 +634,8 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                   const SizedBox(height: 20),
 
                   // ── Step 3: Options ──
-                  _StepHeader(number: '3', title: 'Options', context: context),
+                  _StepHeader(
+                      number: '3', title: 'Options', context: context),
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -648,7 +673,8 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                         ),
                         Switch(
                           value: _warnDuplicates,
-                          onChanged: (v) => setState(() => _warnDuplicates = v),
+                          onChanged: (v) =>
+                              setState(() => _warnDuplicates = v),
                           activeThumbColor: context.themeAccent,
                           materialTapTargetSize:
                               MaterialTapTargetSize.shrinkWrap,

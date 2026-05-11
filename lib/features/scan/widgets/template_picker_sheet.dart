@@ -5,28 +5,40 @@ import '../../../core/services/template_service.dart';
 import '../../../core/theme/app_card.dart';
 import '../../../core/theme/app_theme.dart';
 
+/// Returned by [TemplatePicker.show].
+/// - [dismissed] == true  → user swiped the sheet away; do nothing.
+/// - [dismissed] == false → user made a choice; [template] is null for blank.
+class TemplatePickerResult {
+  final bool dismissed;
+  final SessionTemplate? template;
+  const TemplatePickerResult._({required this.dismissed, this.template});
+
+  factory TemplatePickerResult.blank() =>
+      const TemplatePickerResult._(dismissed: false, template: null);
+  factory TemplatePickerResult.fromTemplate(SessionTemplate t) =>
+      TemplatePickerResult._(dismissed: false, template: t);
+  static const TemplatePickerResult dismiss =
+      TemplatePickerResult._(dismissed: true);
+}
+
 /// Bottom sheet that lets the user pick a template (built-in or custom)
-/// or start a blank session. Returns a [SessionTemplate?].
+/// or start a blank session. Returns a [TemplatePickerResult].
 ///
 /// Usage:
 /// ```dart
-/// final template = await TemplatePicker.show(context);
-/// if (template != null) { /* start session */ }
+/// final result = await TemplatePicker.show(context);
+/// if (!result.dismissed) { /* open SessionSetupSheet */ }
 /// ```
 class TemplatePicker {
-  static Future<_PickerResult?> show(BuildContext context) {
-    return showModalBottomSheet<_PickerResult>(
+  static Future<TemplatePickerResult> show(BuildContext context) async {
+    final result = await showModalBottomSheet<TemplatePickerResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const _TemplatePickerSheet(),
     );
+    return result ?? TemplatePickerResult.dismiss;
   }
-}
-
-class _PickerResult {
-  final SessionTemplate? template; // null = blank session
-  const _PickerResult({this.template});
 }
 
 class _TemplatePickerSheet extends StatefulWidget {
@@ -173,8 +185,7 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
                 child: AppCard(
                   onTap: () {
                     HapticFeedback.selectionClick();
-                    Navigator.pop(
-                        context, const _PickerResult(template: null));
+                    Navigator.pop(context, TemplatePickerResult.blank());
                   },
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 14),
@@ -264,24 +275,21 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
                         itemCount: templates.length,
                         separatorBuilder: (_, __) =>
                             const SizedBox(height: 8),
-                        itemBuilder: (_, i) =>
-                            _TemplateCard(
+                        itemBuilder: (_, i) => _TemplateCard(
                           template: templates[i],
                           iconData: _iconFor(templates[i].icon),
                           onTap: () {
                             HapticFeedback.selectionClick();
                             Navigator.pop(
                               context,
-                              _PickerResult(template: templates[i]),
+                              TemplatePickerResult.fromTemplate(templates[i]),
                             );
                           },
                           onDuplicate: templates[i].isBuiltIn
-                              ? () => _duplicateTemplate(
-                                  context, templates[i])
+                              ? () => _duplicateTemplate(context, templates[i])
                               : null,
                           onDelete: !templates[i].isBuiltIn
-                              ? () =>
-                                  _deleteTemplate(context, templates[i])
+                              ? () => _deleteTemplate(context, templates[i])
                               : null,
                         ),
                       ),
@@ -337,8 +345,8 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: Text('Delete',
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.error))),
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.error))),
         ],
       ),
     );
@@ -379,8 +387,7 @@ class _TemplateCard extends StatelessWidget {
               color: context.themeAccentContainer,
               borderRadius: BorderRadius.circular(10),
             ),
-            child:
-                Icon(iconData, color: context.themeAccent, size: 20),
+            child: Icon(iconData, color: context.themeAccent, size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -452,9 +459,8 @@ class _TemplateCard extends StatelessWidget {
               if (onDelete != null)
                 PopupMenuItem(
                   value: 'delete',
-                  child: Text('Delete',
-                      style: TextStyle(
-                          color: Colors.red)),
+                  child:
+                      Text('Delete', style: TextStyle(color: Colors.red)),
                 ),
             ],
           ),
