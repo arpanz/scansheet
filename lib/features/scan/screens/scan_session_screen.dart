@@ -7,6 +7,7 @@ import '../../../core/services/scan_session_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/scan_session.dart';
 import '../widgets/session_export_sheet.dart';
+import '../widgets/scanner_overlay_widget.dart';
 
 /// Full-screen session scanning experience.
 /// Camera + column indicator + mini table + undo.
@@ -906,8 +907,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                     onDetect: _onDetect,
                   ),
                   // Viewfinder overlay
-                  Positioned.fill(
-                    child: CustomPaint(painter: _SessionScannerOverlay()),
+                  ScannerOverlayWidget(
+                    detectionState: _isProcessing
+                        ? ScannerDetectionState.detected
+                        : ScannerDetectionState.idle,
                   ),
                   // Scanning target indicator
                   Positioned(
@@ -1272,61 +1275,4 @@ class _ColumnChip extends StatelessWidget {
       ),
     );
   }
-}
-
-class _SessionScannerOverlay extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.45)
-      ..style = PaintingStyle.fill;
-
-    final cutoutSize = size.width * 0.65;
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final halfW = cutoutSize / 2;
-    final halfH = cutoutSize * 0.55;
-    final radius = 14.0;
-
-    final cutout = RRect.fromRectAndRadius(
-      Rect.fromLTWH(cx - halfW, cy - halfH, cutoutSize, cutoutSize * 1.1),
-      Radius.circular(radius),
-    );
-
-    final overlay = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..addRRect(cutout)
-      ..fillType = PathFillType.evenOdd;
-
-    canvas.drawPath(overlay, paint);
-
-    // Corner accents
-    final accentPaint = Paint()
-      ..color = const Color(0xFF34A853)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-
-    const cornerLen = 22.0;
-    final l = cx - halfW;
-    final r = cx + halfW;
-    final t = cy - halfH;
-    final b = cy + cutoutSize * 1.1 - halfH;
-
-    // TL
-    canvas.drawLine(Offset(l + radius, t), Offset(l + radius + cornerLen, t), accentPaint);
-    canvas.drawLine(Offset(l, t + radius), Offset(l, t + radius + cornerLen), accentPaint);
-    // TR
-    canvas.drawLine(Offset(r - radius, t), Offset(r - radius - cornerLen, t), accentPaint);
-    canvas.drawLine(Offset(r, t + radius), Offset(r, t + radius + cornerLen), accentPaint);
-    // BL
-    canvas.drawLine(Offset(l + radius, b), Offset(l + radius + cornerLen, b), accentPaint);
-    canvas.drawLine(Offset(l, b - radius), Offset(l, b - radius - cornerLen), accentPaint);
-    // BR
-    canvas.drawLine(Offset(r - radius, b), Offset(r - radius - cornerLen, b), accentPaint);
-    canvas.drawLine(Offset(r, b - radius), Offset(r, b - radius - cornerLen), accentPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -32,6 +32,7 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
   late final TextEditingController _nameController;
   bool _warnDuplicates = false;
   late final List<_EditableColumn> _columns;
+  String _destination = 'csv'; // 'csv', 'xlsx', 'sheets'
 
   static String _monthName(int m) => const [
         '',
@@ -473,11 +474,49 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                   ),
                   const SizedBox(height: 24),
 
+                  _StepHeader(
+                    number: '2',
+                    title: 'Destination',
+                    context: context,
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DestinationCard(
+                          icon: Icons.table_chart_rounded,
+                          title: 'Google Sheets',
+                          isSelected: _destination == 'sheets',
+                          onTap: () => setState(() => _destination = 'sheets'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _DestinationCard(
+                          icon: Icons.insert_drive_file_rounded,
+                          title: 'CSV File',
+                          isSelected: _destination == 'csv',
+                          onTap: () => setState(() => _destination = 'csv'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _DestinationCard(
+                          icon: Icons.grid_on_rounded,
+                          title: 'Excel (XLSX)',
+                          isSelected: _destination == 'xlsx',
+                          onTap: () => setState(() => _destination = 'xlsx'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
                   Row(
                     children: [
                       Expanded(
                         child: _StepHeader(
-                          number: '2',
+                          number: '3',
                           title: 'Columns',
                           context: context,
                         ),
@@ -489,35 +528,52 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                           fontSize: 12,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ..._columns.asMap().entries.map((e) {
+                        final i = e.key;
+                        final col = e.value;
+                        return _ColumnChip(
+                          column: col,
+                          color: _colorFor(col.type),
+                          icon: _iconFor(col.type),
+                          onDelete: col.deletable ? () => setState(() => _columns.removeAt(i)) : null,
+                          onTap: () => _showAddColumnDialog(existing: col, editIndex: i),
+                        );
+                      }),
                       if (_canAddColumn)
-                        GestureDetector(
+                        InkWell(
                           onTap: _addColumn,
+                          borderRadius: BorderRadius.circular(20),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: context.themeAccent
-                                  .withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: context.themeTextSecondary.withValues(alpha: 0.3),
+                                style: BorderStyle.solid,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
                                   Icons.add_rounded,
-                                  size: 14,
-                                  color: context.themeAccent,
+                                  size: 16,
+                                  color: context.themeTextSecondary,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'Add',
+                                  'Add Custom',
                                   style: TextStyle(
-                                    color: context.themeAccent,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: context.themeTextSecondary,
                                   ),
                                 ),
                               ],
@@ -526,118 +582,49 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-
-                  ReorderableListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _columns.length,
-                    onReorder: (oldIndex, newIndex) {
-                      setState(() {
-                        if (newIndex > oldIndex) newIndex--;
-                        final item = _columns.removeAt(oldIndex);
-                        _columns.insert(newIndex, item);
-                      });
-                      HapticFeedback.selectionClick();
-                    },
-                    itemBuilder: (ctx, i) {
-                      final col = _columns[i];
-                      final color = _colorFor(col.type);
-                      return Container(
-                        key: ValueKey('col_$i'),
-                        margin: const EdgeInsets.only(bottom: 6),
-                        decoration: BoxDecoration(
-                          color: context.themeSurface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: context.themeBorder),
-                        ),
-                        child: ListTile(
-                          dense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 0,
-                          ),
-                          leading: Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              _iconFor(col.type),
-                              size: 16,
-                              color: color,
-                            ),
-                          ),
-                          title: Text(
-                            col.name,
-                            style: TextStyle(
-                              color: context.themeTextPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          subtitle: Text(
-                            _labelFor(col.type),
-                            style: TextStyle(
-                              color: context.themeTextSecondary,
-                              fontSize: 11,
-                            ),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.edit_rounded,
-                                  size: 16,
-                                  color: context.themeTextSecondary,
-                                ),
-                                onPressed: () => _showAddColumnDialog(
-                                  existing: col,
-                                  editIndex: i,
-                                ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                  minWidth: 32,
-                                  minHeight: 32,
-                                ),
-                              ),
-                              if (col.deletable)
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.delete_outline_rounded,
-                                    size: 16,
-                                    color: context.themeError,
-                                  ),
-                                  onPressed: () =>
-                                      setState(() => _columns.removeAt(i)),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                    minWidth: 32,
-                                    minHeight: 32,
-                                  ),
-                                ),
-                              const SizedBox(width: 4),
-                              ReorderableDragStartListener(
-                                index: i,
-                                child: Icon(
-                                  Icons.drag_handle_rounded,
-                                  size: 18,
-                                  color: context.themeTextSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
                   _StepHeader(
-                      number: '3', title: 'Options', context: context),
+                    number: '4',
+                    title: 'Table Preview',
+                    context: context,
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: context.themeSurface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: context.themeBorder),
+                    ),
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _columns.length,
+                      separatorBuilder: (ctx, i) => Container(
+                        width: 1,
+                        color: context.themeBorder,
+                      ),
+                      itemBuilder: (ctx, i) {
+                        return Container(
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          constraints: const BoxConstraints(minWidth: 80),
+                          child: Text(
+                            _columns[i].name,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: context.themeTextPrimary,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  _StepHeader(
+                      number: '5', title: 'Options', context: context),
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -781,4 +768,108 @@ class _EditableColumn {
     this.fixedValue,
     this.deletable = true,
   });
+}
+
+class _DestinationCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _DestinationCard({
+    required this.icon,
+    required this.title,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? context.themeAccent.withValues(alpha: 0.1) : context.themeSurface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? context.themeAccent : context.themeBorder,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 24,
+              color: isSelected ? context.themeAccent : context.themeTextSecondary,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? context.themeAccent : context.themeTextSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ColumnChip extends StatelessWidget {
+  final _EditableColumn column;
+  final Color color;
+  final IconData icon;
+  final VoidCallback? onDelete;
+  final VoidCallback onTap;
+
+  const _ColumnChip({
+    required this.column,
+    required this.color,
+    required this.icon,
+    required this.onDelete,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Text(
+              column.name,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+            if (onDelete != null) ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: onDelete,
+                child: Icon(Icons.close_rounded, size: 14, color: color),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }

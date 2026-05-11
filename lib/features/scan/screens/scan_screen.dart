@@ -19,6 +19,7 @@ import 'all_sessions_screen.dart';
 import '../widgets/session_setup_sheet.dart';
 import '../widgets/template_picker_sheet.dart';
 import '../../../core/utils/app_router.dart';
+import '../widgets/scanner_overlay_widget.dart';
 
 enum ScanScreenMode { standalone, pickForClone }
 
@@ -67,6 +68,8 @@ class _ScanScreenState extends State<ScanScreen> {
   bool _isHandlingDetection = false;
   bool _scannerRunning = false;
   bool _isPickingImage = false;
+  bool _isBatchMode = false;
+  int _batchCount = 0;
   late _ScanEntryState _entryState;
 
   static const _kSheetGreen = Color(0xFF16A34A);
@@ -262,14 +265,21 @@ class _ScanScreenState extends State<ScanScreen> {
         ),
       );
 
-      final action = await _showResultSheet(raw);
-      if (!mounted) return;
+      if (_isBatchMode) {
+        if (mounted) {
+          setState(() => _batchCount++);
+          HapticFeedback.heavyImpact();
+          await Future.delayed(const Duration(milliseconds: 600));
+        }
+      } else {
+        final action = await _showResultSheet(raw);
+        if (!mounted) return;
 
-      if (_isPickMode && action == _ScanAction.useForClone) {
-        shouldResume = false;
-        Navigator.pop(context, raw);
-        return;
-      }
+        if (_isPickMode && action == _ScanAction.useForClone) {
+          shouldResume = false;
+          Navigator.pop(context, raw);
+          return;
+        }
 
       switch (action) {
         case _ScanAction.openUrl:
@@ -320,8 +330,9 @@ class _ScanScreenState extends State<ScanScreen> {
           break;
         case _ScanAction.useForClone:
           break;
-        case _ScanAction.rescan:
-          break;
+          case _ScanAction.rescan:
+            break;
+        }
       }
     } finally {
       if (mounted && shouldResume && _isCameraSurfaceActive) {
@@ -681,57 +692,26 @@ class _ScanScreenState extends State<ScanScreen> {
           onDetect: _onDetect,
         ),
         // Overlay
-        _ScannerOverlay(accent: context.themeDetectionBorder),
+        ScannerOverlayWidget(
+          detectionState: _isHandlingDetection
+              ? ScannerDetectionState.detected
+              : ScannerDetectionState.idle,
+        ),
         // Top bar
         SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 IconButton(
-                  onPressed: () => _setEntryState(_ScanEntryState.chooser),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black45,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-                const Spacer(),
-                // Torch toggle
-                ValueListenableBuilder(
-                  valueListenable: _controller,
-                  builder: (_, state, _) {
-                    final torchOn =
-                        state.torchState == TorchState.on;
-                    return IconButton(
-                      onPressed: _controller.toggleTorch,
-                      icon: Icon(
-                        torchOn
-                            ? Icons.flash_on_rounded
-                            : Icons.flash_off_rounded,
-                      ),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.black45,
-                        foregroundColor:
-                            torchOn ? Colors.amber : Colors.white,
-                      ),
-                    );
+                  onPressed: () {
+                    if (_isPickMode) {
+                      Navigator.pop(context);
+                    } else {
+                      _setEntryState(_ScanEntryState.chooser);
+                    }
                   },
-                ),
-                const SizedBox(width: 8),
-                // Gallery button
-                IconButton(
-                  onPressed: _isPickingImage ? null : _scanFromGallery,
-                  icon: _isPickingImage
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.photo_library_outlined),
+                  icon: const Icon(Icons.close_rounded),
                   style: IconButton.styleFrom(
                     backgroundColor: Colors.black45,
                     foregroundColor: Colors.white,
@@ -741,20 +721,149 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           ),
         ),
-        // Bottom label
-        const Positioned(
+        // Bottom controls
+        Positioned(
           left: 0,
           right: 0,
-          bottom: 80,
-          child: Center(
-            child: Text(
-              'Point camera at a barcode or QR code',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+          bottom: 40,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isBatchMode && _batchCount > 0)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: context.themeAccent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$_batchCount scanned',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              // Single / Batch toggle
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black45,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _isBatchMode = false;
+                          _batchCount = 0;
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: !_isBatchMode ? context.themeAccent : Colors.transparent,
+                          borderRadius: BorderRadius.circular(26),
+                        ),
+                        child: Text(
+                          'Single',
+                          style: TextStyle(
+                            color: !_isBatchMode ? Colors.white : Colors.white70,
+                            fontWeight: !_isBatchMode ? FontWeight.bold : FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _isBatchMode = true);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _isBatchMode ? context.themeAccent : Colors.transparent,
+                          borderRadius: BorderRadius.circular(26),
+                        ),
+                        child: Text(
+                          'Batch',
+                          style: TextStyle(
+                            color: _isBatchMode ? Colors.white : Colors.white70,
+                            fontWeight: _isBatchMode ? FontWeight.bold : FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(height: 24),
+              // Action buttons row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Gallery
+                  IconButton(
+                    onPressed: _isPickingImage ? null : _scanFromGallery,
+                    icon: _isPickingImage
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.photo_library_rounded),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black45,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.all(14),
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  // Torch
+                  ValueListenableBuilder(
+                    valueListenable: _controller,
+                    builder: (_, state, _) {
+                      final torchOn = state.torchState == TorchState.on;
+                      return IconButton(
+                        onPressed: _controller.toggleTorch,
+                        icon: Icon(
+                          torchOn
+                              ? Icons.flash_on_rounded
+                              : Icons.flash_off_rounded,
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.black45,
+                          foregroundColor: torchOn ? Colors.amber : Colors.white,
+                          padding: const EdgeInsets.all(14),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 24),
+                  // Flip
+                  IconButton(
+                    onPressed: () => _controller.switchCamera(),
+                    icon: const Icon(Icons.flip_camera_ios_rounded),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black45,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.all(14),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ],
@@ -793,79 +902,6 @@ class _ScanScreenState extends State<ScanScreen> {
         );
     }
   }
-}
-
-// ── Scanner corner overlay ────────────────────────────────────────────────────
-
-class _ScannerOverlay extends StatelessWidget {
-  final Color accent;
-  const _ScannerOverlay({required this.accent});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _ScannerOverlayPainter(accent: accent),
-      child: const SizedBox.expand(),
-    );
-  }
-}
-
-class _ScannerOverlayPainter extends CustomPainter {
-  final Color accent;
-  const _ScannerOverlayPainter({required this.accent});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const cutoutSize = 260.0;
-    const cornerLen = 28.0;
-    const cornerRadius = 6.0;
-    const strokeW = 3.5;
-
-    final cx = size.width / 2;
-    final cy = size.height / 2 - 20;
-    final left = cx - cutoutSize / 2;
-    final top = cy - cutoutSize / 2;
-    final right = cx + cutoutSize / 2;
-    final bottom = cy + cutoutSize / 2;
-
-    // Dim overlay
-    final dimPaint = Paint()..color = Colors.black.withValues(alpha: 0.55);
-    final fullRect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final cutout = RRect.fromRectAndRadius(
-      Rect.fromLTRB(left, top, right, bottom),
-      const Radius.circular(cornerRadius),
-    );
-    canvas.drawPath(
-      Path()
-        ..addRect(fullRect)
-        ..addRRect(cutout)
-        ..fillType = PathFillType.evenOdd,
-      dimPaint,
-    );
-
-    // Corner lines
-    final linePaint = Paint()
-      ..color = accent
-      ..strokeWidth = strokeW
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    // Top-left
-    canvas.drawLine(Offset(left, top + cornerLen), Offset(left, top), linePaint);
-    canvas.drawLine(Offset(left, top), Offset(left + cornerLen, top), linePaint);
-    // Top-right
-    canvas.drawLine(Offset(right - cornerLen, top), Offset(right, top), linePaint);
-    canvas.drawLine(Offset(right, top), Offset(right, top + cornerLen), linePaint);
-    // Bottom-left
-    canvas.drawLine(Offset(left, bottom - cornerLen), Offset(left, bottom), linePaint);
-    canvas.drawLine(Offset(left, bottom), Offset(left + cornerLen, bottom), linePaint);
-    // Bottom-right
-    canvas.drawLine(Offset(right - cornerLen, bottom), Offset(right, bottom), linePaint);
-    canvas.drawLine(Offset(right, bottom), Offset(right, bottom - cornerLen), linePaint);
-  }
-
-  @override
-  bool shouldRepaint(_ScannerOverlayPainter old) => old.accent != accent;
 }
 
 // ── Result bottom sheet ───────────────────────────────────────────────────────
