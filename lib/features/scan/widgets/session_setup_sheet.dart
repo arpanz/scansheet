@@ -14,7 +14,15 @@ class SessionSetupSheet extends StatefulWidget {
   /// When non-null, the sheet pre-fills name + columns from this template.
   final SessionTemplate? initialTemplate;
 
-  const SessionSetupSheet({super.key, this.initialTemplate});
+  /// Called when the user returns from [ScanSessionScreen] back to the caller.
+  /// Use this to trigger a rebuild on the parent (e.g. scan_screen).
+  final VoidCallback? onSessionEnded;
+
+  const SessionSetupSheet({
+    super.key,
+    this.initialTemplate,
+    this.onSessionEnded,
+  });
 
   @override
   State<SessionSetupSheet> createState() => _SessionSetupSheetState();
@@ -46,7 +54,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
     super.initState();
     final tmpl = widget.initialTemplate;
     if (tmpl != null) {
-      // Seed from template
       _nameController = TextEditingController(text: tmpl.defaultName);
       _columns = tmpl.columns
           .map(
@@ -54,13 +61,11 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
               name: c.name,
               type: c.type,
               fixedValue: c.fixedValue,
-              // Timestamp columns are not deletable by convention
               deletable: c.type != SessionColumnType.timestamp,
             ),
           )
           .toList();
     } else {
-      // Default blank setup
       _nameController = TextEditingController(
         text:
             'Sheet ${DateTime.now().day} ${_monthName(DateTime.now().month)}',
@@ -151,7 +156,9 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
     ScanSessionService.saveSession(session).then((_) {
       if (!mounted) return;
       navigator.pop(); // close sheet
-      navigator.push(FadeSlideRoute(page: ScanSessionScreen(session: session)));
+      navigator
+          .push(FadeSlideRoute(page: ScanSessionScreen(session: session)))
+          .then((_) => widget.onSessionEnded?.call());
     });
   }
 
@@ -367,7 +374,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                   bottom: MediaQuery.of(context).viewInsets.bottom + 16,
                 ),
                 children: [
-                  // Drag handle
                   Center(
                     child: Container(
                       width: 44,
@@ -380,7 +386,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ── Hero Header ──
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -435,7 +440,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                   ),
                   const SizedBox(height: 24),
 
-                  // ── Step 1: Session Name ──
                   _StepHeader(
                     number: '1',
                     title: 'Sheet Name',
@@ -469,7 +473,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                   ),
                   const SizedBox(height: 24),
 
-                  // ── Step 2: Columns ──
                   Row(
                     children: [
                       Expanded(
@@ -633,7 +636,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
                   ),
                   const SizedBox(height: 20),
 
-                  // ── Step 3: Options ──
                   _StepHeader(
                       number: '3', title: 'Options', context: context),
                   const SizedBox(height: 10),
@@ -687,7 +689,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
               ),
             ),
 
-            // ── Sticky bottom start button ──
             SafeArea(
               top: false,
               child: Padding(
@@ -721,7 +722,6 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
   }
 }
 
-/// Step indicator widget for the setup flow.
 class _StepHeader extends StatelessWidget {
   final String number;
   final String title;
@@ -769,7 +769,6 @@ class _StepHeader extends StatelessWidget {
   }
 }
 
-/// Local mutable model for editing columns in the setup sheet.
 class _EditableColumn {
   String name;
   SessionColumnType type;

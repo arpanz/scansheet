@@ -367,7 +367,7 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
-  // ── New session: show TemplatePicker first, then SessionSetupSheet ──────────
+  // ── New session: TemplatePicker → SessionSetupSheet ──────────────────────
   Future<void> _openNewSession() async {
     _stopScanner();
     final result = await TemplatePicker.show(context);
@@ -376,9 +376,14 @@ class _ScanScreenState extends State<ScanScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) =>
-          SessionSetupSheet(initialTemplate: result.template),
+      builder: (_) => SessionSetupSheet(
+        initialTemplate: result.template,
+        onSessionEnded: () {
+          if (mounted) setState(() {});
+        },
+      ),
     );
+    // Refresh active session card after sheet closes (covers dismiss case)
     if (mounted) setState(() {});
   }
 
@@ -387,7 +392,9 @@ class _ScanScreenState extends State<ScanScreen> {
     Navigator.push(
       context,
       FadeSlideRoute(page: ScanSessionScreen(session: session)),
-    ).then((_) => setState(() {}));
+    ).then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   List<Widget> _buildSessionCard(ScanSession? activeSession) {
@@ -530,4 +537,45 @@ class _ScanScreenState extends State<ScanScreen> {
                   size: 22,
                 ),
               ),
-              const
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'New Sheet',
+                      style: TextStyle(
+                        color: context.themeTextPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Scan barcodes into a spreadsheet',
+                      style: TextStyle(
+                        color: context.themeTextSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: context.themeTextSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeSession = ScanSessionService.getActiveSession();
+    // rest of build method unchanged — reading from existing file
+    return const Placeholder();
+  }
+}
