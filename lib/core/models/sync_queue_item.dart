@@ -1,4 +1,4 @@
-/// Offline sync queue item — stored as plain Map in Hive (no TypeAdapter needed).
+// Offline sync queue item — stored as plain Map in Hive (no TypeAdapter needed).
 
 enum SyncStatus { pending, syncing, failed, synced }
 

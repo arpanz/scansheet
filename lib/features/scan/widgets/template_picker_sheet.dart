@@ -273,7 +273,7 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
                         controller: scrollController,
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                         itemCount: templates.length,
-                        separatorBuilder: (_, __) =>
+                        separatorBuilder: (_, _) =>
                             const SizedBox(height: 8),
                         itemBuilder: (_, i) => _TemplateCard(
                           template: templates[i],

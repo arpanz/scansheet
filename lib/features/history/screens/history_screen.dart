@@ -14,7 +14,6 @@ import 'package:gal/gal.dart';
 
 import '../../../core/ads/ad_manager.dart';
 import '../../../core/widgets/pro_crown.dart';
-import '../../../core/services/history_service.dart';
 import '../../../core/services/scan_history_service.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/theme/app_card.dart';
@@ -1314,44 +1313,6 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 }
 
-// ── Shared small widgets ──────────────────────────────────────────────────────
-class _MiniCode extends StatelessWidget {
-  final HistoryEntry entry;
-  const _MiniCode({required this.entry});
-
-  @override
-  Widget build(BuildContext context) {
-    if (entry.thumbnailBytes != null && entry.thumbnailBytes!.isNotEmpty) {
-      return Image.memory(
-        entry.thumbnailBytes!,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-      );
-    }
-    final genType = GeneratorType.values.firstWhere(
-      (g) => g.name == entry.generatorType,
-      orElse: () => GeneratorType.qrCode,
-    );
-    final data = entry.data.isEmpty ? '.' : entry.data;
-    if (genType == GeneratorType.qrCode) {
-      return QrImageView(data: data, version: QrVersions.auto, size: 52);
-    }
-    try {
-      return BarcodeWidget(
-        barcode: Barcode.code128(),
-        data: data,
-        width: 52,
-        height: 52,
-      );
-    } catch (_) {
-      return Icon(
-        Icons.qr_code_rounded,
-        size: 28,
-        color: context.themeTextSecondary,
-      );
-    }
-  }
-}
 
 class _TypeBadge extends StatelessWidget {
   final String dataType;

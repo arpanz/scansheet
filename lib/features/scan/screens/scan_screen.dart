@@ -8,9 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:provider/provider.dart';
 
-import '../../../core/ads/ad_manager.dart';
 import '../../../core/theme/app_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/scan_history_service.dart';
@@ -69,7 +67,6 @@ class _ScanScreenState extends State<ScanScreen> {
   bool _isHandlingDetection = false;
   bool _scannerRunning = false;
   bool _isPickingImage = false;
-  String? _lastValue;
   late _ScanEntryState _entryState;
 
   static const _kSheetGreen = Color(0xFF16A34A);
@@ -145,21 +142,6 @@ class _ScanScreenState extends State<ScanScreen> {
     _updateCameraState();
   }
 
-  Future<void> _toggleScanner() async {
-    if (!_isCameraSurfaceActive || _isCameraActionPending) return;
-    _isCameraActionPending = true;
-
-    try {
-      if (_scannerRunning) {
-        await _controller.stop();
-      } else {
-        await _controller.start();
-      }
-      if (mounted) setState(() => _scannerRunning = !_scannerRunning);
-    } catch (_) {}
-
-    _isCameraActionPending = false;
-  }
 
   Future<void> _scanFromGallery() async {
     if (_isPickingImage) return;
@@ -266,7 +248,6 @@ class _ScanScreenState extends State<ScanScreen> {
   }) async {
     if (_isHandlingDetection) return;
     _isHandlingDetection = true;
-    _lastValue = raw;
     var shouldResume = resumeAfter;
 
     try {
@@ -719,7 +700,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 // Torch toggle
                 ValueListenableBuilder(
                   valueListenable: _controller,
-                  builder: (_, state, __) {
+                  builder: (_, state, _) {
                     final torchOn =
                         state.torchState == TorchState.on;
                     return IconButton(

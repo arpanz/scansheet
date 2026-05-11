@@ -54,7 +54,7 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
     super.initState();
     final tmpl = widget.initialTemplate;
     if (tmpl != null) {
-      _nameController = TextEditingController(text: tmpl.defaultName);
+      _nameController = TextEditingController(text: tmpl.name);
       _columns = tmpl.columns
           .map(
             (c) => _EditableColumn(

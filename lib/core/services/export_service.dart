@@ -214,8 +214,9 @@ class ExportService {
                         onTap: () async {
                           Navigator.pop(ctx);
                           await _handleOpen(context, filePath, fileExtension);
-                          if (context.mounted)
+                          if (context.mounted) {
                             AdManager.instance.showInterstitial(context);
+                          }
                         },
                       ),
                     ),
@@ -233,8 +234,9 @@ class ExportService {
                             fileBytes,
                             fileExtension,
                           );
-                          if (context.mounted)
+                          if (context.mounted) {
                             AdManager.instance.showInterstitial(context);
+                          }
                         },
                       ),
                     ),
@@ -252,8 +254,9 @@ class ExportService {
                               text: shareText,
                             ),
                           );
-                          if (context.mounted)
+                          if (context.mounted) {
                             AdManager.instance.showInterstitial(context);
+                          }
                         },
                       ),
                     ),

@@ -304,7 +304,7 @@ class _ThemeTile extends StatelessWidget {
                 selected: provider.themeMode == ThemeMode.light,
                 onTap: () {
                   HapticFeedback.selectionClick();
-                  provider.setThemeMode(ThemeMode.light);
+                  provider.setTheme(ThemeMode.light);
                 },
               ),
               const SizedBox(width: 8),
@@ -314,7 +314,7 @@ class _ThemeTile extends StatelessWidget {
                 selected: provider.themeMode == ThemeMode.dark,
                 onTap: () {
                   HapticFeedback.selectionClick();
-                  provider.setThemeMode(ThemeMode.dark);
+                  provider.setTheme(ThemeMode.dark);
                 },
               ),
               const SizedBox(width: 8),
@@ -324,7 +324,7 @@ class _ThemeTile extends StatelessWidget {
                 selected: provider.themeMode == ThemeMode.system,
                 onTap: () {
                   HapticFeedback.selectionClick();
-                  provider.setThemeMode(ThemeMode.system);
+                  provider.setTheme(ThemeMode.system);
                 },
               ),
             ],
@@ -694,7 +694,7 @@ class _SwitchTile extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: context.themeAccent,
+            activeThumbColor: context.themeAccent,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ],
