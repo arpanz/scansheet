@@ -11,6 +11,7 @@ import '../../../core/ads/ad_manager.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/export_service.dart';
+import '../../../core/services/google_sheets_service.dart';
 import '../models/scan_session.dart';
 
 /// Bottom sheet with CSV / Excel export options for a completed or in-progress session.
@@ -170,8 +171,20 @@ class SessionExportSheet extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Google Sheets — PRO teaser
-              _SheetsTeaser(context: context),
+              if (session.destination == SessionDestination.googleSheets &&
+                  session.spreadsheetId != null)
+                _ExportCard(
+                  icon: Icons.table_chart_rounded,
+                  label: 'Google Sheets',
+                  sublabel: 'Sync all rows',
+                  color: const Color(0xFF16A34A),
+                  enabled: rowCount > 0,
+                  onTap: rowCount > 0
+                      ? () => _exportGoogleSheets(context, session, rows)
+                      : null,
+                )
+              else
+                _SheetsTeaser(context: context),
             ],
           ),
         ),
@@ -265,6 +278,81 @@ class SessionExportSheet extends StatelessWidget {
         return (file.path, bytes);
       },
     );
+  }
+
+  static void _exportGoogleSheets(
+    BuildContext context,
+    ScanSession session,
+    List<SessionRow> rows,
+  ) async {
+    final parentContext = Navigator.of(context).context;
+    Navigator.pop(context); // close sheet
+
+    showDialog(
+      context: parentContext,
+      barrierDismissible: false,
+      builder: (ctx) => Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          decoration: BoxDecoration(
+            color: ctx.themeCard,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Syncing to Sheets…',
+                style: TextStyle(
+                  color: ctx.themeTextPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final tableData = session.toTableData(rows);
+      final headers = tableData.isNotEmpty ? tableData.first : <String>[];
+      final dataRows = tableData.length > 1 ? tableData.sublist(1) : <List<String>>[];
+
+      await GoogleSheetsService.instance.appendWithHeaders(
+        session.spreadsheetId!,
+        session.sheetName!,
+        headers,
+        dataRows,
+      );
+
+      if (!parentContext.mounted) return;
+      Navigator.pop(parentContext); // dismiss dialog
+      
+      ScaffoldMessenger.of(parentContext).showSnackBar(
+        SnackBar(
+          content: const Text('Successfully synced to Google Sheets.'),
+          backgroundColor: const Color(0xFF16A34A),
+        ),
+      );
+    } catch (e) {
+      if (!parentContext.mounted) return;
+      Navigator.pop(parentContext); // dismiss dialog
+      ScaffoldMessenger.of(parentContext).showSnackBar(
+        SnackBar(
+          content: Text('Failed to sync: $e'),
+          backgroundColor: parentContext.themeError,
+        ),
+      );
+    }
   }
 }
 

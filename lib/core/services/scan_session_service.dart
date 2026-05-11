@@ -1,5 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../features/scan/models/scan_session.dart';
+import '../models/sync_queue_item.dart';
+import 'sync_queue_service.dart';
 
 /// Dedicated service for Scan Session CRUD.
 /// Uses two Hive boxes:
@@ -111,6 +113,23 @@ class ScanSessionService {
   /// Append a new row to the session.
   static Future<void> addRow(String sessionId, SessionRow row) async {
     await rowsBox.put(_rowKey(sessionId, row.rowIndex), row.toMap());
+
+    final session = getSession(sessionId);
+    if (session != null &&
+        session.destination == SessionDestination.googleSheets &&
+        session.spreadsheetId != null) {
+      final item = SyncQueueItem(
+        id: '${sessionId}_${row.rowIndex}',
+        sessionId: sessionId,
+        rowIndex: row.rowIndex,
+        rowData: row.values,
+        destination: SyncDestination.googleSheets,
+        spreadsheetId: session.spreadsheetId,
+        sheetName: session.sheetName,
+        createdAt: DateTime.now(),
+      );
+      await SyncQueueService.enqueue(item);
+    }
   }
 
   /// Replace an existing row. Used when correcting scanned values.

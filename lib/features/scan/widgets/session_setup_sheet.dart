@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/services/template_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../settings/screens/connect_sheets_screen.dart';
 import '../models/scan_session.dart';
 import '../screens/scan_session_screen.dart';
 import '../../../core/utils/app_router.dart';
@@ -114,7 +115,7 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
         SessionColumnType.fixed => const Color(0xFF64748B),
       };
 
-  void _startSession() {
+  void _startSession() async {
     HapticFeedback.mediumImpact();
     final name = _nameController.text.trim();
     final navigator = Navigator.of(context);
@@ -136,6 +137,24 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
       return;
     }
 
+    final destinationEnum = switch (_destination) {
+      'sheets' => SessionDestination.googleSheets,
+      'xlsx' => SessionDestination.localXlsx,
+      _ => SessionDestination.localCsv,
+    };
+
+    String? spreadsheetId;
+    String? sheetName;
+
+    if (destinationEnum == SessionDestination.googleSheets) {
+      final dest = await navigator.push<SheetDestination>(
+        MaterialPageRoute(builder: (_) => const ConnectSheetsScreen()),
+      );
+      if (dest == null) return; // User canceled
+      spreadsheetId = dest.spreadsheetId;
+      sheetName = dest.sheetName;
+    }
+
     final sessionId = DateTime.now().millisecondsSinceEpoch.toString();
     final session = ScanSession(
       id: sessionId,
@@ -152,6 +171,9 @@ class _SessionSetupSheetState extends State<SessionSetupSheet> {
       createdAt: DateTime.now(),
       isActive: true,
       warnDuplicates: _warnDuplicates,
+      destination: destinationEnum,
+      spreadsheetId: spreadsheetId,
+      sheetName: sheetName,
     );
 
     ScanSessionService.saveSession(session).then((_) {
