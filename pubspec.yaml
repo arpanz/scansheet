@@ -38,6 +38,10 @@ dependencies:
   image_picker: ^1.2.2
   qr_flutter: ^4.1.0
   barcode_widget: ^2.0.4
+  google_sign_in: ^6.2.2
+  googleapis: ^14.0.0
+  googleapis_auth: ^2.0.0
+  connectivity_plus: ^6.1.4
 
 dev_dependencies:
   flutter_test:
