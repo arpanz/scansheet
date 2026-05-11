@@ -1,1 +1,39 @@
-{"installed":{"client_id":"1099311415728-c1cocfovr2o6qravo7ir6tpsqver9qdf.apps.googleusercontent.com","project_id":"scansheet-496017","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs"}}
+{
+    "project_info": {
+        "project_number": "1099311415728",
+        "project_id": "scansheet-496017",
+        "storage_bucket": "scansheet-496017.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:1099311415728:android:7ecf9d60d24db272c85675",
+                "android_client_info": {
+                    "package_name": "com.livinlabs.scansheet"
+                }
+            },
+            "oauth_client": [
+                {
+                    "client_id": "1099311415728-f0cc3ol0107e6s69ia0n20bp3mg210ct.apps.googleusercontent.com",
+                    "client_type": 3
+                }
+            ],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyBpcHGohkU2AVB8JHS6dkihF47sxO-4PXI"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": [
+                        {
+                            "client_id": "1099311415728-f0cc3ol0107e6s69ia0n20bp3mg210ct.apps.googleusercontent.com",
+                            "client_type": 3
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}
