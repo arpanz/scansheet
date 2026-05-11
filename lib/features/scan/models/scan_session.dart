@@ -128,6 +128,11 @@ class ScanSession {
           if (columns[i].type == SessionColumnType.scan) i,
       ];
 
+  List<int> get manualColumnIndices => [
+        for (int i = 0; i < columns.length; i++)
+          if (columns[i].type == SessionColumnType.manual) i,
+      ];
+
   SessionRow buildEmptyRow(int rowIndex) {
     final values = <String>[];
     for (final col in columns) {
