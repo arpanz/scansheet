@@ -34,63 +34,62 @@ class SyncQueueItem {
   });
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'sessionId': sessionId,
-        'rowIndex': rowIndex,
-        'rowData': rowData,
-        'destination': destination.name,
-        'spreadsheetId': spreadsheetId,
-        'sheetName': sheetName,
-        'status': status.name,
-        'createdAt': createdAt.toIso8601String(),
-        'lastAttemptAt': lastAttemptAt?.toIso8601String(),
-        'errorMessage': errorMessage,
-        'attemptCount': attemptCount,
-      };
+    'id': id,
+    'sessionId': sessionId,
+    'rowIndex': rowIndex,
+    'rowData': rowData,
+    'destination': destination.name,
+    'spreadsheetId': spreadsheetId,
+    'sheetName': sheetName,
+    'status': status.name,
+    'createdAt': createdAt.toIso8601String(),
+    'lastAttemptAt': lastAttemptAt?.toIso8601String(),
+    'errorMessage': errorMessage,
+    'attemptCount': attemptCount,
+  };
 
   factory SyncQueueItem.fromMap(Map map) => SyncQueueItem(
-        id: map['id'] as String,
-        sessionId: map['sessionId'] as String,
-        rowIndex: map['rowIndex'] as int,
-        rowData: List<String>.from(map['rowData'] as List),
-        destination: SyncDestination.values.firstWhere(
-          (e) => e.name == map['destination'],
-          orElse: () => SyncDestination.googleSheets,
-        ),
-        spreadsheetId: map['spreadsheetId'] as String?,
-        sheetName: map['sheetName'] as String?,
-        status: SyncStatus.values.firstWhere(
-          (e) => e.name == map['status'],
-          orElse: () => SyncStatus.pending,
-        ),
-        createdAt: DateTime.parse(map['createdAt'] as String),
-        lastAttemptAt: map['lastAttemptAt'] != null
-            ? DateTime.parse(map['lastAttemptAt'] as String)
-            : null,
-        errorMessage: map['errorMessage'] as String?,
-        attemptCount: map['attemptCount'] as int? ?? 0,
-      );
+    id: map['id'] as String,
+    sessionId: map['sessionId'] as String,
+    rowIndex: map['rowIndex'] as int,
+    rowData: List<String>.from(map['rowData'] as List),
+    destination: SyncDestination.values.firstWhere(
+      (e) => e.name == map['destination'],
+      orElse: () => SyncDestination.googleSheets,
+    ),
+    spreadsheetId: map['spreadsheetId'] as String?,
+    sheetName: map['sheetName'] as String?,
+    status: SyncStatus.values.firstWhere(
+      (e) => e.name == map['status'],
+      orElse: () => SyncStatus.pending,
+    ),
+    createdAt: DateTime.parse(map['createdAt'] as String),
+    lastAttemptAt: map['lastAttemptAt'] != null
+        ? DateTime.parse(map['lastAttemptAt'] as String)
+        : null,
+    errorMessage: map['errorMessage'] as String?,
+    attemptCount: map['attemptCount'] as int? ?? 0,
+  );
 
   SyncQueueItem copyWith({
     SyncStatus? status,
     DateTime? lastAttemptAt,
     String? errorMessage,
     int? attemptCount,
-  }) =>
-      SyncQueueItem(
-        id: id,
-        sessionId: sessionId,
-        rowIndex: rowIndex,
-        rowData: rowData,
-        destination: destination,
-        spreadsheetId: spreadsheetId,
-        sheetName: sheetName,
-        status: status ?? this.status,
-        createdAt: createdAt,
-        lastAttemptAt: lastAttemptAt ?? this.lastAttemptAt,
-        errorMessage: errorMessage ?? this.errorMessage,
-        attemptCount: attemptCount ?? this.attemptCount,
-      );
+  }) => SyncQueueItem(
+    id: id,
+    sessionId: sessionId,
+    rowIndex: rowIndex,
+    rowData: rowData,
+    destination: destination,
+    spreadsheetId: spreadsheetId,
+    sheetName: sheetName,
+    status: status ?? this.status,
+    createdAt: createdAt,
+    lastAttemptAt: lastAttemptAt ?? this.lastAttemptAt,
+    errorMessage: errorMessage ?? this.errorMessage,
+    attemptCount: attemptCount ?? this.attemptCount,
+  );
 }
 
 class SyncQueueStats {

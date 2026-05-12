@@ -50,6 +50,10 @@ class GoogleSheetsService {
       final account = await _googleSignIn.signIn();
       return account;
     } catch (e) {
+      debugPrint('┌── GOOGLE SIGN-IN ERROR ──────────────────────');
+      debugPrint('│ $e');
+      debugPrint('│ Type: ${e.runtimeType}');
+      debugPrint('└──────────────────────────────────────────────');
       throw GSheetsException('Sign-in failed: $e');
     }
   }
