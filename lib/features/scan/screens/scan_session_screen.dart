@@ -559,6 +559,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     SessionColumnType.timestamp => Icons.schedule_rounded,
     SessionColumnType.increment => Icons.tag_rounded,
     SessionColumnType.fixed => Icons.push_pin_rounded,
+    SessionColumnType.location => Icons.location_on_rounded,
   };
 
   String _labelFor(SessionColumnType t) => switch (t) {
@@ -567,6 +568,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     SessionColumnType.timestamp => 'Timestamp',
     SessionColumnType.increment => 'Increment',
     SessionColumnType.fixed => 'Fixed',
+    SessionColumnType.location => 'Location',
   };
 
   void _openExport() {
@@ -824,6 +826,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     SessionColumnType.timestamp => const Color(0xFF3B82F6),
     SessionColumnType.increment => const Color(0xFFF59E0B),
     SessionColumnType.fixed => const Color(0xFF6B7280),
+    SessionColumnType.location => const Color(0xFFEF4444),
   };
 
   Widget _buildScannerToggleButton() {

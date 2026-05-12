@@ -869,7 +869,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                   ),
                 ),
               ),
-              if (trailing != null) trailing,
+              ?trailing,
             ],
           ),
           const SizedBox(height: 14),

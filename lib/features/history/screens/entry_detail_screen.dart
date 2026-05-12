@@ -42,9 +42,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
     _notesCtrl = TextEditingController(text: _getFieldValue('Notes'));
     _editCtrls = [
       for (int i = 0; i < widget.session.columns.length; i++)
-        TextEditingController(
-          text: i < _values.length ? _values[i] : '',
-        ),
+        TextEditingController(text: i < _values.length ? _values[i] : ''),
     ];
   }
 
@@ -125,8 +123,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
             ),
           ),
           FilledButton(
-            style:
-                FilledButton.styleFrom(backgroundColor: context.themeError),
+            style: FilledButton.styleFrom(backgroundColor: context.themeError),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete'),
           ),
@@ -134,8 +131,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
       ),
     );
     if (confirmed != true) return;
-    await ScanSessionService.deleteRow(
-        widget.session.id, widget.row.rowIndex);
+    await ScanSessionService.deleteRow(widget.session.id, widget.row.rowIndex);
     if (!mounted) return;
     HapticFeedback.mediumImpact();
     Navigator.pop(context, true); // Signal that a row was deleted
@@ -239,11 +235,14 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                         child: OutlinedButton(
                           onPressed: () {
                             // Reset edit controllers to current saved values
-                            for (int i = 0;
-                                i < widget.session.columns.length;
-                                i++) {
-                              _editCtrls[i].text =
-                                  i < _values.length ? _values[i] : '';
+                            for (
+                              int i = 0;
+                              i < widget.session.columns.length;
+                              i++
+                            ) {
+                              _editCtrls[i].text = i < _values.length
+                                  ? _values[i]
+                                  : '';
                             }
                             setState(() => _isEditing = false);
                           },
@@ -263,9 +262,11 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                               ? null
                               : () {
                                   // Apply edited values from controllers
-                                  for (int i = 0;
-                                      i < widget.session.columns.length;
-                                      i++) {
+                                  for (
+                                    int i = 0;
+                                    i < widget.session.columns.length;
+                                    i++
+                                  ) {
                                     if (i < _values.length) {
                                       _values[i] = _editCtrls[i].text.trim();
                                     }
@@ -389,10 +390,7 @@ class _DuplicateBanner extends StatelessWidget {
           Expanded(
             child: Text(
               'This value was already scanned earlier in this session.',
-              style: TextStyle(
-                color: context.themeTextPrimary,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: context.themeTextPrimary, fontSize: 13),
             ),
           ),
         ],
@@ -420,8 +418,8 @@ class _BarcodeVisual extends StatelessWidget {
     final displayFormat = barcodeFormat?.isNotEmpty == true
         ? _formatLabel(barcodeFormat!)
         : isQr
-            ? 'QR Code'
-            : 'Barcode';
+        ? 'QR Code'
+        : 'Barcode';
 
     return AppCard(
       padding: const EdgeInsets.all(20),
@@ -443,19 +441,14 @@ class _BarcodeVisual extends StatelessWidget {
                     color: context.themeTextSecondary.withValues(alpha: 0.3),
                   )
                 : isQr
-                    ? QrImageView(
-                        data: value,
-                        version: QrVersions.auto,
-                        size: 104,
-                      )
-                    : _tryBarcode(value),
+                ? QrImageView(data: value, version: QrVersions.auto, size: 104)
+                : _tryBarcode(value),
           ),
           const SizedBox(height: 16),
 
           // Format label
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: teal.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
@@ -523,11 +516,7 @@ class _BarcodeVisual extends StatelessWidget {
         color: Colors.black,
       );
     } catch (_) {
-      return Icon(
-        Icons.qr_code_rounded,
-        size: 64,
-        color: Colors.black54,
-      );
+      return Icon(Icons.qr_code_rounded, size: 64, color: Colors.black54);
     }
   }
 }
@@ -558,17 +547,15 @@ class _FieldCard extends StatelessWidget {
             _FieldRow(
               column: session.columns[i],
               value: i < values.length ? values[i] : '',
-              isEditing: isEditing &&
+              isEditing:
+                  isEditing &&
                   (session.columns[i].type == SessionColumnType.manual ||
                       session.columns[i].type == SessionColumnType.scan),
               controller: controllers[i],
               onChanged: (v) => onValueChanged(i, v),
             ),
             if (i < session.columns.length - 1)
-              Divider(
-                height: 1,
-                color: context.themeBorder,
-              ),
+              Divider(height: 1, color: context.themeBorder),
           ],
           // Scanned-at timestamp (always shown)
           Divider(height: 1, color: context.themeBorder),
@@ -589,8 +576,18 @@ class _FieldCard extends StatelessWidget {
     final m = local.minute.toString().padLeft(2, '0');
     final d = local.day;
     final months = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '$d ${months[local.month - 1]} ${local.year}, $h:$m';
   }
@@ -656,13 +653,17 @@ class _FieldRow extends StatelessWidget {
                     decoration: InputDecoration(
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(
-                          vertical: 4, horizontal: 0),
+                        vertical: 4,
+                        horizontal: 0,
+                      ),
                       border: UnderlineInputBorder(
                         borderSide: BorderSide(color: context.themeAccent),
                       ),
                       focusedBorder: UnderlineInputBorder(
-                        borderSide:
-                            BorderSide(color: context.themeAccent, width: 2),
+                        borderSide: BorderSide(
+                          color: context.themeAccent,
+                          width: 2,
+                        ),
                       ),
                     ),
                   )
@@ -689,20 +690,22 @@ class _FieldRow extends StatelessWidget {
   }
 
   Color _typeColor(SessionColumnType t) => switch (t) {
-        SessionColumnType.scan => const Color(0xFF22C55E),
-        SessionColumnType.manual => const Color(0xFF9333EA),
-        SessionColumnType.timestamp => const Color(0xFF3B82F6),
-        SessionColumnType.increment => const Color(0xFFF59E0B),
-        SessionColumnType.fixed => const Color(0xFF6B7280),
-      };
+    SessionColumnType.scan => const Color(0xFF22C55E),
+    SessionColumnType.manual => const Color(0xFF9333EA),
+    SessionColumnType.timestamp => const Color(0xFF3B82F6),
+    SessionColumnType.increment => const Color(0xFFF59E0B),
+    SessionColumnType.fixed => const Color(0xFF6B7280),
+    SessionColumnType.location => const Color(0xFFEF4444),
+  };
 
   IconData _typeIcon(SessionColumnType t) => switch (t) {
-        SessionColumnType.scan => Icons.qr_code_scanner_rounded,
-        SessionColumnType.manual => Icons.edit_rounded,
-        SessionColumnType.timestamp => Icons.schedule_rounded,
-        SessionColumnType.increment => Icons.tag_rounded,
-        SessionColumnType.fixed => Icons.push_pin_rounded,
-      };
+    SessionColumnType.scan => Icons.qr_code_scanner_rounded,
+    SessionColumnType.manual => Icons.edit_rounded,
+    SessionColumnType.timestamp => Icons.schedule_rounded,
+    SessionColumnType.increment => Icons.tag_rounded,
+    SessionColumnType.fixed => Icons.push_pin_rounded,
+    SessionColumnType.location => Icons.location_on_rounded,
+  };
 }
 
 class _StaticFieldRow extends StatelessWidget {
@@ -770,8 +773,7 @@ class _DestinationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSheets =
-        session.destination == SessionDestination.googleSheets;
+    final isSheets = session.destination == SessionDestination.googleSheets;
 
     return AppCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -787,9 +789,7 @@ class _DestinationCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
-              isSheets
-                  ? Icons.table_chart_rounded
-                  : Icons.description_rounded,
+              isSheets ? Icons.table_chart_rounded : Icons.description_rounded,
               size: 18,
               color: isSheets
                   ? const Color(0xFF0F9D58)
@@ -831,8 +831,7 @@ class _DestinationCard extends StatelessWidget {
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: const Color(0xFF22C55E).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
