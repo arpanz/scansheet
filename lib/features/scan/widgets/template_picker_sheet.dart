@@ -27,7 +27,7 @@ class TemplatePickerResult {
 /// Usage:
 /// ```dart
 /// final result = await TemplatePicker.show(context);
-/// if (!result.dismissed) { /* open SessionSetupSheet */ }
+/// if (!result.dismissed) { /* open SessionSetupScreen */ }
 /// ```
 class TemplatePicker {
   static Future<TemplatePickerResult> show(BuildContext context) async {

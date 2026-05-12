@@ -16,7 +16,7 @@ import '../../../core/services/scan_session_service.dart';
 import '../models/scan_session.dart';
 import 'scan_session_screen.dart';
 import 'all_sessions_screen.dart';
-import '../widgets/session_setup_sheet.dart';
+import 'session_setup_screen.dart';
 import '../widgets/template_picker_sheet.dart';
 import '../../../core/utils/app_router.dart';
 import '../widgets/scanner_overlay_widget.dart';
@@ -372,20 +372,19 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
-  // ── New session: TemplatePicker → SessionSetupSheet ──────────────────────
   Future<void> _openNewSession() async {
     _stopScanner();
     final result = await TemplatePicker.show(context);
     if (result.dismissed || !mounted) return;
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => SessionSetupSheet(
-        initialTemplate: result.template,
-        onSessionEnded: () {
-          if (mounted) setState(() {});
-        },
+    await Navigator.push(
+      context,
+      FadeSlideRoute(
+        page: SessionSetupScreen(
+          initialTemplate: result.template,
+          onSessionEnded: () {
+            if (mounted) setState(() {});
+          },
+        ),
       ),
     );
     if (mounted) setState(() {});
