@@ -218,156 +218,248 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
       SessionColumnType.fixed: 'Same value for every row',
     };
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: context.themeCard,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
           ),
-          title: Text(
-            editIndex != null ? 'Edit Column' : 'Add Column',
-            style: TextStyle(
-              color: context.themeTextPrimary,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
+          child: Container(
+            decoration: BoxDecoration(
+              color: context.themeBg,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
             ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Column name',
-                    labelStyle: TextStyle(
-                      color: context.themeTextSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                  textCapitalization: TextCapitalization.sentences,
-                  autofocus: true,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'TYPE',
-                  style: TextStyle(
-                    color: context.themeTextSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ...types.map((t) {
-                  final selected = selectedType == t;
-                  final color = _colorFor(t);
-                  return GestureDetector(
-                    onTap: () => setDialogState(() => selectedType = t),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? color.withValues(alpha: 0.08)
-                            : context.themeSurface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: selected ? color : context.themeBorder,
-                          width: selected ? 1.5 : 1,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: context.themeBorder,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(_iconFor(t), size: 18, color: color),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _labelFor(t),
-                                  style: TextStyle(
-                                    color: context.themeTextPrimary,
-                                    fontSize: 13.5,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          editIndex != null ? 'Edit Column' : 'Add Column',
+                          style: TextStyle(
+                            color: context.themeTextPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: context.themeTextPrimary,
+                          ),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextField(
+                              controller: nameCtrl,
+                              decoration: InputDecoration(
+                                labelText: 'Column name',
+                                labelStyle: TextStyle(
+                                  color: context.themeTextSecondary,
+                                  fontSize: 13,
+                                ),
+                                filled: true,
+                                fillColor: context.themeSurface,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: context.themeBorder,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: context.themeBorder,
+                                  ),
+                                ),
+                              ),
+                              textCapitalization: TextCapitalization.sentences,
+                              autofocus: true,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'TYPE',
+                              style: TextStyle(
+                                color: context.themeTextSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ...types.map((t) {
+                              final selected = selectedType == t;
+                              final color = _colorFor(t);
+                              return GestureDetector(
+                                onTap: () =>
+                                    setSheetState(() => selectedType = t),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  margin: const EdgeInsets.only(bottom: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: selected
+                                        ? color.withValues(alpha: 0.08)
+                                        : context.themeSurface,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: selected
+                                          ? color
+                                          : context.themeBorder,
+                                      width: selected ? 1.5 : 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(_iconFor(t), size: 18, color: color),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _labelFor(t),
+                                              style: TextStyle(
+                                                color: context.themeTextPrimary,
+                                                fontSize: 13.5,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            Text(
+                                              descriptions[t]!,
+                                              style: TextStyle(
+                                                color:
+                                                    context.themeTextSecondary,
+                                                fontSize: 11.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (selected)
+                                        Icon(
+                                          Icons.check_circle_rounded,
+                                          size: 18,
+                                          color: color,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                            if (selectedType == SessionColumnType.fixed) ...[
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: fixedCtrl,
+                                decoration: InputDecoration(
+                                  labelText: 'Fixed value',
+                                  labelStyle: TextStyle(
+                                    color: context.themeTextSecondary,
+                                    fontSize: 13,
+                                  ),
+                                  filled: true,
+                                  fillColor: context.themeSurface,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: context.themeBorder,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: context.themeBorder,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 20),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                onPressed: () {
+                                  final colName = nameCtrl.text.trim();
+                                  if (colName.isEmpty) return;
+                                  final col = _EditableColumn(
+                                    name: colName,
+                                    type: selectedType,
+                                    fixedValue:
+                                        selectedType == SessionColumnType.fixed
+                                        ? fixedCtrl.text.trim()
+                                        : null,
+                                  );
+                                  Navigator.pop(ctx);
+                                  setState(() {
+                                    if (editIndex != null) {
+                                      _columns[editIndex] = col;
+                                    } else {
+                                      _columns.add(col);
+                                    }
+                                  });
+                                },
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  editIndex != null
+                                      ? 'Save Changes'
+                                      : 'Add Column',
+                                  style: const TextStyle(
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                Text(
-                                  descriptions[t]!,
-                                  style: TextStyle(
-                                    color: context.themeTextSecondary,
-                                    fontSize: 11.5,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
-                          if (selected)
-                            Icon(
-                              Icons.check_circle_rounded,
-                              size: 18,
-                              color: color,
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  );
-                }),
-                if (selectedType == SessionColumnType.fixed) ...[
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: fixedCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Fixed value',
-                      labelStyle: TextStyle(
-                        color: context.themeTextSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                'Cancel',
-                style: TextStyle(color: context.themeTextSecondary),
+                  ],
+                ),
               ),
             ),
-            FilledButton(
-              onPressed: () {
-                final colName = nameCtrl.text.trim();
-                if (colName.isEmpty) return;
-                final col = _EditableColumn(
-                  name: colName,
-                  type: selectedType,
-                  fixedValue: selectedType == SessionColumnType.fixed
-                      ? fixedCtrl.text.trim()
-                      : null,
-                );
-                Navigator.pop(ctx);
-                setState(() {
-                  if (editIndex != null) {
-                    _columns[editIndex] = col;
-                  } else {
-                    _columns.add(col);
-                  }
-                });
-              },
-              child: Text(editIndex != null ? 'Save' : 'Add'),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -520,115 +612,115 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                             itemBuilder: (context, index) {
                               final col = _columns[index];
                               final color = _colorFor(col.type);
-                              return Column(
-                                key: ValueKey('column_\${col.name}_\$index'),
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (index > 0)
-                                    Divider(
-                                      height: 1,
-                                      color: context.themeBorder,
-                                    ),
-                                  Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: () => _showAddColumnDialog(
-                                        existing: col,
-                                        editIndex: index,
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 12,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            ReorderableDragStartListener(
-                                              index: index,
-                                              child: Padding(
-                                                padding: const EdgeInsets.only(
-                                                  right: 12,
-                                                  left: 4,
-                                                ),
-                                                child: Icon(
-                                                  Icons.drag_handle_rounded,
-                                                  color: context
-                                                      .themeTextSecondary
-                                                      .withValues(alpha: 0.5),
-                                                  size: 20,
-                                                ),
+                              final isLast = index == _columns.length - 1;
+                              return Material(
+                                key: ValueKey(index),
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () => _showAddColumnDialog(
+                                    existing: col,
+                                    editIndex: index,
+                                  ),
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      border: isLast
+                                          ? null
+                                          : Border(
+                                              bottom: BorderSide(
+                                                color: context.themeBorder,
+                                                width: 0.5,
                                               ),
                                             ),
-                                            Container(
-                                              width: 32,
-                                              height: 32,
-                                              decoration: BoxDecoration(
-                                                color: color.withValues(
-                                                  alpha: 0.15,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 12,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          ReorderableDragStartListener(
+                                            index: index,
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(
+                                                right: 12,
+                                                left: 4,
                                               ),
                                               child: Icon(
-                                                _iconFor(col.type),
-                                                size: 16,
-                                                color: color,
+                                                Icons.drag_handle_rounded,
+                                                color: context
+                                                    .themeTextSecondary
+                                                    .withValues(alpha: 0.5),
+                                                size: 20,
                                               ),
                                             ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    col.name,
-                                                    style: TextStyle(
-                                                      color: context
-                                                          .themeTextPrimary,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    col.type ==
-                                                            SessionColumnType
-                                                                .fixed
-                                                        ? '\${_labelFor(col.type)}: \${col.fixedValue}'
-                                                        : _labelFor(col.type),
-                                                    style: TextStyle(
-                                                      color: context
-                                                          .themeTextSecondary,
-                                                      fontSize: 11.5,
-                                                    ),
-                                                  ),
-                                                ],
+                                          ),
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: color.withValues(
+                                                alpha: 0.15,
                                               ),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
-                                            if (col.deletable)
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.close_rounded,
-                                                  size: 18,
+                                            child: Icon(
+                                              _iconFor(col.type),
+                                              size: 16,
+                                              color: color,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  col.name,
+                                                  style: TextStyle(
+                                                    color: context
+                                                        .themeTextPrimary,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                  ),
                                                 ),
-                                                color:
-                                                    context.themeTextSecondary,
-                                                onPressed: () {
-                                                  setState(
-                                                    () => _columns.removeAt(
-                                                      index,
-                                                    ),
-                                                  );
-                                                },
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  col.type ==
+                                                          SessionColumnType
+                                                              .fixed
+                                                      ? '${_labelFor(col.type)}: ${col.fixedValue}'
+                                                      : _labelFor(col.type),
+                                                  style: TextStyle(
+                                                    color: context
+                                                        .themeTextSecondary,
+                                                    fontSize: 11.5,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          if (col.deletable)
+                                            IconButton(
+                                              icon: Icon(
+                                                Icons.close_rounded,
+                                                size: 18,
                                               ),
-                                          ],
-                                        ),
+                                              color: context.themeTextSecondary,
+                                              onPressed: () {
+                                                setState(
+                                                  () =>
+                                                      _columns.removeAt(index),
+                                                );
+                                              },
+                                            ),
+                                        ],
                                       ),
                                     ),
                                   ),
-                                ],
+                                ),
                               );
                             },
                           ),

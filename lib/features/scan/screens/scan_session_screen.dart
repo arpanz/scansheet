@@ -155,7 +155,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: context.themeCard,
+        backgroundColor: ctx.themeCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         icon: Container(
           width: 44,
@@ -173,7 +173,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         title: Text(
           colName,
           style: TextStyle(
-            color: context.themeTextPrimary,
+            color: ctx.themeTextPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
@@ -188,7 +188,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 child: Text(
                   'Field ${_activeManualColumnIndex + 1} of ${manualIndices.length}',
                   style: TextStyle(
-                    color: context.themeTextSecondary,
+                    color: ctx.themeTextSecondary,
                     fontSize: 12,
                   ),
                   textAlign: TextAlign.center,
@@ -200,7 +200,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
                 hintText: 'Enter $colName...',
-                hintStyle: TextStyle(color: context.themeTextSecondary),
+                hintStyle: TextStyle(color: ctx.themeTextSecondary),
               ),
               onSubmitted: (_) => Navigator.pop(ctx, ctrl.text.trim()),
             ),
@@ -212,7 +212,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             child: Text(
               'Skip',
               style: TextStyle(
-                color: context.themeTextSecondary,
+                color: ctx.themeTextSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -224,7 +224,12 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         ],
       ),
     ).then((typed) {
-      ctrl.dispose();
+      // Delay disposal to allow the dialog's pop animation to finish, 
+      // preventing the TextField from crashing when accessing a disposed controller.
+      Future.delayed(const Duration(milliseconds: 400), () {
+        ctrl.dispose();
+      });
+
       if (!mounted) return;
 
       final updatedValues = List<String>.from(row.values);
@@ -333,7 +338,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: context.themeCard,
+        backgroundColor: ctx.themeCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         icon: Container(
           width: 48,
@@ -351,7 +356,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         title: Text(
           'Duplicate Detected',
           style: TextStyle(
-            color: context.themeTextPrimary,
+            color: ctx.themeTextPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
@@ -361,7 +366,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
           children: [
             Text(
               '"$value" already exists in this session.',
-              style: TextStyle(color: context.themeTextSecondary, fontSize: 13),
+              style: TextStyle(color: ctx.themeTextSecondary, fontSize: 13),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -369,14 +374,14 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: context.themeSurface,
+                color: ctx.themeSurface,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: context.themeBorder),
+                border: Border.all(color: ctx.themeBorder),
               ),
               child: Text(
                 value,
                 style: TextStyle(
-                  color: context.themeTextPrimary,
+                  color: ctx.themeTextPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   fontFamily: 'monospace',
@@ -398,7 +403,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             child: Text(
               'Skip',
               style: TextStyle(
-                color: context.themeTextSecondary,
+                color: ctx.themeTextSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -420,12 +425,12 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: context.themeCard,
+        backgroundColor: ctx.themeCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Text(
           'Session Columns',
           style: TextStyle(
-            color: context.themeTextPrimary,
+            color: ctx.themeTextPrimary,
             fontSize: 17,
             fontWeight: FontWeight.w700,
           ),
@@ -457,7 +462,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 title: Text(
                   col.name,
                   style: TextStyle(
-                    color: context.themeTextPrimary,
+                    color: ctx.themeTextPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -465,7 +470,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 subtitle: Text(
                   _labelFor(col.type),
                   style: TextStyle(
-                    color: context.themeTextSecondary,
+                    color: ctx.themeTextSecondary,
                     fontSize: 12,
                   ),
                 ),
@@ -473,7 +478,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                   icon: Icon(
                     Icons.edit_rounded,
                     size: 18,
-                    color: context.themeTextSecondary,
+                    color: ctx.themeTextSecondary,
                   ),
                   onPressed: () {
                     Navigator.pop(ctx);
@@ -500,12 +505,12 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: context.themeCard,
+        backgroundColor: ctx.themeCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Rename Column',
           style: TextStyle(
-            color: context.themeTextPrimary,
+            color: ctx.themeTextPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
@@ -516,7 +521,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
           textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(
             hintText: 'Column name',
-            hintStyle: TextStyle(color: context.themeTextSecondary),
+            hintStyle: TextStyle(color: ctx.themeTextSecondary),
           ),
         ),
         actions: [
@@ -524,7 +529,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             onPressed: () => Navigator.pop(ctx),
             child: Text(
               'Cancel',
-              style: TextStyle(color: context.themeTextSecondary),
+              style: TextStyle(color: ctx.themeTextSecondary),
             ),
           ),
           FilledButton(
@@ -583,14 +588,14 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       final updatedRow = await showDialog<SessionRow>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: context.themeCard,
+          backgroundColor: ctx.themeCard,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           title: Text(
             'Edit Row ${row.rowIndex + 1}',
             style: TextStyle(
-              color: context.themeTextPrimary,
+              color: ctx.themeTextPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
@@ -627,7 +632,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
               onPressed: () => Navigator.pop(ctx),
               child: Text(
                 'Cancel',
-                style: TextStyle(color: context.themeTextSecondary),
+                style: TextStyle(color: ctx.themeTextSecondary),
               ),
             ),
             FilledButton(
@@ -788,7 +793,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: context.themeError),
+            style: FilledButton.styleFrom(backgroundColor: ctx.themeError),
             onPressed: () {
               Navigator.pop(ctx);
               ScanSessionService.clearRows(_session.id).then((_) {
