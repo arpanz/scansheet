@@ -95,6 +95,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
     SessionColumnType.timestamp => Icons.schedule_rounded,
     SessionColumnType.increment => Icons.tag_rounded,
     SessionColumnType.fixed => Icons.push_pin_rounded,
+    SessionColumnType.location => Icons.location_on_rounded,
   };
 
   String _labelFor(SessionColumnType t) => switch (t) {
@@ -103,6 +104,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
     SessionColumnType.timestamp => 'Timestamp',
     SessionColumnType.increment => 'Increment',
     SessionColumnType.fixed => 'Fixed Value',
+    SessionColumnType.location => 'Location',
   };
 
   Color _colorFor(SessionColumnType t) => switch (t) {
@@ -111,6 +113,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
     SessionColumnType.timestamp => const Color(0xFF16A34A),
     SessionColumnType.increment => const Color(0xFFF59E0B),
     SessionColumnType.fixed => const Color(0xFF64748B),
+    SessionColumnType.location => const Color(0xFF3B82F6),
   };
 
   void _startSession() async {
@@ -208,6 +211,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
       SessionColumnType.timestamp,
       SessionColumnType.increment,
       SessionColumnType.fixed,
+      SessionColumnType.location,
     ];
 
     final descriptions = {
@@ -216,6 +220,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
       SessionColumnType.timestamp: 'Auto-filled with current time',
       SessionColumnType.increment: 'Auto-numbered: 1, 2, 3…',
       SessionColumnType.fixed: 'Same value for every row',
+      SessionColumnType.location: 'Auto-filled with GPS coordinates',
     };
 
     showModalBottomSheet(
@@ -597,8 +602,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                           child: ReorderableListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            buildDefaultDragHandles:
-                                false, // We'll build custom handles
+                            buildDefaultDragHandles: false,
                             itemCount: _columns.length,
                             onReorder: (oldIndex, newIndex) {
                               setState(() {
@@ -704,7 +708,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                                           ),
                                           if (col.deletable)
                                             IconButton(
-                                              icon: Icon(
+                                              icon: const Icon(
                                                 Icons.close_rounded,
                                                 size: 18,
                                               ),
@@ -865,7 +869,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                   ),
                 ),
               ),
-              ?trailing,
+              if (trailing != null) trailing,
             ],
           ),
           const SizedBox(height: 14),
