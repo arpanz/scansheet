@@ -7,6 +7,7 @@ enum SessionColumnType {
   timestamp,  // Auto-filled with DateTime.now()
   increment,  // Auto-numbered: 1, 2, 3…
   fixed,      // Same value every row
+  location,   // Auto-filled with GPS lat,lng at scan time
 }
 
 enum SessionDestination { localCsv, localXlsx, googleSheets }
@@ -133,6 +134,9 @@ class ScanSession {
           if (columns[i].type == SessionColumnType.manual) i,
       ];
 
+  /// Builds a row synchronously. For location columns, inserts a placeholder
+  /// ('…') that must be replaced by calling LocationService asynchronously
+  /// before saving the row. Use [buildRowAsync] when possible.
   SessionRow buildEmptyRow(int rowIndex) {
     final values = <String>[];
     for (final col in columns) {
@@ -143,6 +147,9 @@ class ScanSession {
           values.add('${rowIndex + 1}');
         case SessionColumnType.fixed:
           values.add(col.fixedValue ?? '');
+        case SessionColumnType.location:
+          // Placeholder — caller must patch this via LocationService
+          values.add('…');
         case SessionColumnType.scan:
         case SessionColumnType.manual:
           values.add('');
