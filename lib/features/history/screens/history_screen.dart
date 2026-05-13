@@ -16,6 +16,8 @@ import '../../../core/ads/ad_manager.dart';
 import '../../../core/widgets/pro_crown.dart';
 import '../../../core/services/scan_history_service.dart';
 import '../../../core/services/scan_session_service.dart';
+import '../../../core/services/sync_queue_service.dart';
+import '../../../core/models/sync_queue_item.dart';
 import '../../../core/theme/app_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../history/models/history_entry.dart';
@@ -1345,6 +1347,32 @@ class _TypeBadge extends StatelessWidget {
   }
 }
 
+class _SyncBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _SyncBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+}
+
 class _NoSearchResults extends StatelessWidget {
   final String query;
   const _NoSearchResults({required this.query});
@@ -1453,11 +1481,13 @@ class _SessionsTabState extends State<_SessionsTab> {
     _loadSessions();
     // Listen to metadata box changes.
     ScanSessionService.metaBox.listenable().addListener(_loadSessions);
+    SyncQueueService.stats.addListener(_loadSessions);
   }
 
   @override
   void dispose() {
     ScanSessionService.metaBox.listenable().removeListener(_loadSessions);
+    SyncQueueService.stats.removeListener(_loadSessions);
     super.dispose();
   }
 
@@ -1475,8 +1505,10 @@ class _SessionsTabState extends State<_SessionsTab> {
                 s.createdAt.month == now.month &&
                 s.createdAt.day == now.day;
           case _SessionFilter.unsynced:
+            final items = SyncQueueService.getAll()
+                .where((i) => i.sessionId == s.id).toList();
             return s.destination == SessionDestination.googleSheets &&
-                s.spreadsheetId == null;
+                items.any((i) => i.status != SyncStatus.synced);
           case _SessionFilter.csv:
             return s.destination == SessionDestination.localCsv ||
                 s.destination == SessionDestination.localXlsx;
@@ -1710,6 +1742,17 @@ class _SessionsTabState extends State<_SessionsTab> {
     final formatLabel = isSheets ? 'Sheets' : (session.destination ==
             SessionDestination.localXlsx ? 'XLSX' : 'CSV');
 
+    final sessionQueueItems = SyncQueueService.getAll()
+        .where((i) => i.sessionId == session.id)
+        .toList();
+
+    final pendingCount = sessionQueueItems
+        .where((i) => i.status == SyncStatus.pending || i.status == SyncStatus.syncing)
+        .length;
+    final hasFailed = sessionQueueItems.any((i) => i.status == SyncStatus.failed);
+    final allSynced = sessionQueueItems.isNotEmpty &&
+        sessionQueueItems.every((i) => i.status == SyncStatus.synced);
+
     // Product name preview: first values of each row's first scan column
     final rows = ScanSessionService.getRows(session.id);
     final previewNames = rows
@@ -1778,6 +1821,15 @@ class _SessionsTabState extends State<_SessionsTab> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (isSheets) ...[
+                const SizedBox(width: 8),
+                if (allSynced)
+                  const _SyncBadge(label: 'Synced', color: Color(0xFF16A34A))
+                else if (hasFailed)
+                  const _SyncBadge(label: 'Failed', color: Color(0xFFEF4444))
+                else if (pendingCount > 0)
+                  _SyncBadge(label: 'Queued • $pendingCount', color: const Color(0xFFF59E0B))
+              ],
             ],
           ),
           subtitle: Column(

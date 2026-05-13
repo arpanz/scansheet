@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Sheet -->
+  <path d="M156 40C128 40 106 62 106 90V422C106 450 128 472 156 472H356C384 472 406 450 406 422V176L292 40H156Z"
+        fill="#0F9D58"/>
+
+  <!-- Fold -->
+  <path d="M292 40V146C292 162 306 176 322 176H406L292 40Z"
+        fill="#34A853"/>
+
+  <!-- White box -->
+  <rect x="156" y="214" width="180" height="180" rx="16" fill="white"/>
+
+  <!-- Perfect centered grid -->
+  <rect x="186" y="244" width="44" height="44" rx="4" fill="#0F9D58"/>
+  <rect x="262" y="244" width="44" height="44" rx="4" fill="#0F9D58"/>
+
+  <rect x="186" y="320" width="44" height="44" rx="4" fill="#0F9D58"/>
+  <rect x="262" y="320" width="44" height="44" rx="4" fill="#0F9D58"/>
+
+</svg>
