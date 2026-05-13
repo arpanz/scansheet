@@ -1,9 +1,15 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/services/location_service.dart';
@@ -14,6 +20,7 @@ import '../widgets/scanner_overlay_widget.dart';
 import '../../history/screens/entry_detail_screen.dart';
 import '../models/scan_session.dart';
 import '../widgets/session_export_sheet.dart';
+import 'export_templates_screen.dart';
 
 class ScanSessionScreen extends StatefulWidget {
   final ScanSession session;
@@ -575,40 +582,189 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     HapticFeedback.mediumImpact();
   }
 
-  void _endSession() async {
-    final confirm = await showDialog<bool>(
+  void _endSession() {
+    final rowCount = _rows.length;
+
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ctx.themeCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'End Session?',
-          style: TextStyle(
-            color: ctx.themeTextPrimary,
-            fontWeight: FontWeight.w700,
-          ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: ctx.themeCard,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
         ),
-        content: Text(
-          'This will mark the session as complete. You can still export it from history.',
-          style: TextStyle(color: ctx.themeTextSecondary, fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: ctx.themeTextSecondary),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: ctx.themeBorder,
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: ctx.themeWarm.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.stop_circle_rounded,
+                    color: ctx.themeWarm,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'End Session',
+                  style: TextStyle(
+                    color: ctx.themeTextPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '"${_session.name}" \u00b7 $rowCount ${rowCount == 1 ? 'row' : 'rows'}',
+                  style: TextStyle(
+                    color: ctx.themeTextSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _EndSessionOption(
+                  icon: Icons.file_download_rounded,
+                  color: const Color(0xFF16A34A),
+                  label: 'Export',
+                  subtitle: 'Choose format and export before ending',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _exportThenEnd();
+                  },
+                ),
+                const SizedBox(height: 10),
+                _EndSessionOption(
+                  icon: Icons.save_alt_rounded,
+                  color: const Color(0xFF3B82F6),
+                  label: 'Save Locally',
+                  subtitle: 'Save as CSV file, then end session',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _saveLocallyThenEnd();
+                  },
+                ),
+                const SizedBox(height: 10),
+                _EndSessionOption(
+                  icon: Icons.delete_outline_rounded,
+                  color: ctx.themeError,
+                  label: 'Discard',
+                  subtitle: 'End session without exporting',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _discardThenEnd();
+                  },
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: ctx.themeTextSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('End Session'),
-          ),
-        ],
+        ),
       ),
     );
-    if (confirm != true || !mounted) return;
+  }
 
+  Future<void> _exportThenEnd() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ExportTemplatesScreen(session: _session),
+      ),
+    );
+    if (!mounted) return;
+    await ScanSessionService.endSession(_session.id);
+    if (!mounted) return;
+    Navigator.pop(context);
+  }
+
+  Future<void> _saveLocallyThenEnd() async {
+    final tableData = _session.toTableData(_rows);
+    final csvString = const ListToCsvConverter().convert(tableData);
+
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final file = File('${dir.path}/scansheet_$ts.csv');
+      final bytes = Uint8List.fromList([
+        0xEF, 0xBB, 0xBF,
+        ...utf8.encode(csvString),
+      ]);
+      await file.writeAsBytes(bytes);
+
+      if (Platform.isAndroid || Platform.isIOS) {
+        final savedPath = await FlutterFileDialog.saveFile(
+          params: SaveFileDialogParams(
+            data: bytes,
+            fileName: 'scansheet_$ts.csv',
+            mimeTypesFilter: ['text/csv'],
+          ),
+        );
+        if (savedPath == null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Save cancelled.')),
+          );
+          return;
+        }
+      }
+
+      if (!mounted) return;
+      await ScanSessionService.endSession(_session.id);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Saved to ${file.path}'),
+          backgroundColor: const Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Save failed: $e'),
+            backgroundColor: context.themeError,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _discardThenEnd() async {
     await ScanSessionService.endSession(_session.id);
     if (!mounted) return;
     Navigator.pop(context);
@@ -1676,6 +1832,80 @@ class _ColumnChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── End Session Option ────────────────────────────────────────────────────────
+
+class _EndSessionOption extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _EndSessionOption({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: context.themeSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.themeBorder),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: context.themeTextPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: context.themeTextSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: context.themeTextSecondary,
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }

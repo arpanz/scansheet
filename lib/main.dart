@@ -156,7 +156,10 @@ class _MainHomeScreenState extends State<MainHomeScreen>
             key: ValueKey(_currentIndex),
             index: _currentIndex,
             children: [
-              ScanScreen(isActive: _currentIndex == 0),
+              ScanScreen(
+                isActive: _currentIndex == 0,
+                onNavigateToHistory: () => setState(() => _currentIndex = 1),
+              ),
               const HistoryScreen(),
               const SettingsScreen(),
             ],

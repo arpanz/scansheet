@@ -1,12 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:io';
 
+import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -18,6 +24,7 @@ import '../models/scan_session.dart';
 import 'scan_session_screen.dart';
 import 'all_sessions_screen.dart';
 import 'session_setup_screen.dart';
+import 'export_templates_screen.dart';
 import '../widgets/template_picker_sheet.dart';
 import '../../../core/utils/app_router.dart';
 import '../widgets/scanner_overlay_widget.dart';
@@ -42,16 +49,19 @@ enum _ScanAction {
 class ScanScreen extends StatefulWidget {
   final ScanScreenMode mode;
   final bool isActive;
+  final VoidCallback? onNavigateToHistory;
 
   const ScanScreen({
     super.key,
     this.mode = ScanScreenMode.standalone,
     this.isActive = true,
+    this.onNavigateToHistory,
   });
 
   const ScanScreen.pickForClone({super.key})
       : mode = ScanScreenMode.pickForClone,
-        isActive = true;
+        isActive = true,
+        onNavigateToHistory = null;
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -401,107 +411,331 @@ class _ScanScreenState extends State<ScanScreen> {
     });
   }
 
-  List<Widget> _buildSessionCard(ScanSession? activeSession) {
-    if (activeSession != null) {
-      final rowCount = ScanSessionService.getRowCount(activeSession.id);
-      return [
-        const SizedBox(height: 10),
-        GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            _openExistingSession(activeSession);
-          },
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF15803D), Color(0xFF16A34A)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: _kSheetGreen.withValues(alpha: 0.35),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Row(
+  void _showEndSessionSheet(ScanSession session) {
+    final rows = ScanSessionService.getRows(session.id);
+    final rowCount = rows.length;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: ctx.themeCard,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: SvgPicture.asset('assets/sheets.svg', width: 22, height: 22),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF4ADE80),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'SHEET ACTIVE',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${activeSession.name} \u00b7 $rowCount ${rowCount == 1 ? 'row' : 'rows'}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: ctx.themeBorder,
+                      borderRadius: BorderRadius.circular(100),
+                    ),
                   ),
                 ),
+                const SizedBox(height: 20),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(999),
+                    color: ctx.themeWarm.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Text(
-                    'Resume',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
+                  child: Icon(
+                    Icons.stop_circle_rounded,
+                    color: ctx.themeWarm,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'End Session',
+                  style: TextStyle(
+                    color: ctx.themeTextPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '"${session.name}" \u00b7 $rowCount ${rowCount == 1 ? 'row' : 'rows'}',
+                  style: TextStyle(
+                    color: ctx.themeTextSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _EndSessionOption(
+                  icon: Icons.file_download_rounded,
+                  color: const Color(0xFF16A34A),
+                  label: 'Export',
+                  subtitle: 'Choose format and export before ending',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _exportThenEnd(session);
+                  },
+                ),
+                const SizedBox(height: 10),
+                _EndSessionOption(
+                  icon: Icons.save_alt_rounded,
+                  color: const Color(0xFF3B82F6),
+                  label: 'Save Locally',
+                  subtitle: 'Save as CSV file, then end session',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _saveLocallyThenEnd(session);
+                  },
+                ),
+                const SizedBox(height: 10),
+                _EndSessionOption(
+                  icon: Icons.delete_outline_rounded,
+                  color: ctx.themeError,
+                  label: 'Discard',
+                  subtitle: 'End session without exporting',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _discardThenEnd(session);
+                  },
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: ctx.themeTextSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportThenEnd(ScanSession session) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ExportTemplatesScreen(session: session),
+      ),
+    );
+    if (!mounted) return;
+    await ScanSessionService.endSession(session.id);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _saveLocallyThenEnd(ScanSession session) async {
+    final rows = ScanSessionService.getRows(session.id);
+    final tableData = session.toTableData(rows);
+    final csvString = const ListToCsvConverter().convert(tableData);
+
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final file = File('${dir.path}/scansheet_$ts.csv');
+      final bytes = Uint8List.fromList([
+        0xEF, 0xBB, 0xBF,
+        ...utf8.encode(csvString),
+      ]);
+      await file.writeAsBytes(bytes);
+
+      if (Platform.isAndroid || Platform.isIOS) {
+        final savedPath = await FlutterFileDialog.saveFile(
+          params: SaveFileDialogParams(
+            data: bytes,
+            fileName: 'scansheet_$ts.csv',
+            mimeTypesFilter: ['text/csv'],
+          ),
+        );
+        if (savedPath == null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Save cancelled.')),
+          );
+          return;
+        }
+      }
+
+      if (!mounted) return;
+      await ScanSessionService.endSession(session.id);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Saved to ${file.path}'),
+          backgroundColor: const Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Save failed: $e'),
+            backgroundColor: context.themeError,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _discardThenEnd(ScanSession session) async {
+    await ScanSessionService.endSession(session.id);
+    if (mounted) setState(() {});
+  }
+
+  List<Widget> _buildSessionCard(ScanSession? activeSession) {
+    if (activeSession != null) {
+      final rowCount = ScanSessionService.getRowCount(activeSession.id);
+      return [
+        const SizedBox(height: 10),
+        Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF15803D), Color(0xFF16A34A)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: _kSheetGreen.withValues(alpha: 0.35),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: SvgPicture.asset('assets/sheets.svg', width: 22, height: 22),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF4ADE80),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'SHEET ACTIVE',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${activeSession.name} \u00b7 $rowCount ${rowCount == 1 ? 'row' : 'rows'}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        _openExistingSession(activeSession);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'Resume',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        _showEndSessionSheet(activeSession);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'End',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ];
@@ -575,7 +809,7 @@ class _ScanScreenState extends State<ScanScreen> {
   // ── Chooser UI ────────────────────────────────────────────────────────────
   Widget _buildChooser(ScanSession? activeSession) {
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -650,7 +884,13 @@ class _ScanScreenState extends State<ScanScreen> {
             const SizedBox(height: 10),
             // Session card (active or new)
             ..._buildSessionCard(activeSession),
-            const Spacer(),
+
+            const SizedBox(height: 24),
+            // ── Recent Scans ──────────────────────────────────────────────
+            _RecentScansSection(
+              onViewAll: widget.onNavigateToHistory ?? () {},
+            ),
+
             // Past sessions link
             Center(
               child: TextButton(
@@ -868,8 +1108,6 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final activeSession = ScanSessionService.getActiveSession();
-
     // In pick-for-clone mode, go straight to camera
     if (_isPickMode) {
       return Scaffold(
@@ -882,7 +1120,13 @@ class _ScanScreenState extends State<ScanScreen> {
       case _ScanEntryState.chooser:
         return Scaffold(
           backgroundColor: context.themeBg,
-          body: _buildChooser(activeSession),
+          body: ValueListenableBuilder(
+            valueListenable: ScanSessionService.metaBox.listenable(),
+            builder: (context, _, _) {
+              final activeSession = ScanSessionService.getActiveSession();
+              return _buildChooser(activeSession);
+            },
+          ),
         );
       case _ScanEntryState.quickScan:
         return Scaffold(
@@ -890,7 +1134,6 @@ class _ScanScreenState extends State<ScanScreen> {
           body: _buildQuickScanCamera(),
         );
       case _ScanEntryState.scanToSheet:
-        // Phase 3 will replace this with the live scanning overlay
         return Scaffold(
           backgroundColor: context.themeBg,
           appBar: AppBar(title: const Text('Scan to Sheet')),
@@ -1099,6 +1342,235 @@ class _ActionTile extends StatelessWidget {
                 fontWeight: FontWeight.w500,
                 color: context.themeTextPrimary,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Recent Scans Section ─────────────────────────────────────────────────────
+
+String _vcardField(String raw, String mecardKey, String vcardKey) {
+  final meMatch = RegExp('$mecardKey:(.*?);').firstMatch(raw);
+  if (meMatch != null) return meMatch.group(1)!.trim();
+  final vcMatch = RegExp(
+    '$vcardKey[^:]*:(.*?)(?:\r?\n|\$)',
+    caseSensitive: false,
+  ).firstMatch(raw);
+  return vcMatch?.group(1)?.trim() ?? '';
+}
+
+class _RecentScansSection extends StatelessWidget {
+  final VoidCallback onViewAll;
+
+  const _RecentScansSection({required this.onViewAll});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: ScanHistoryService.box.listenable(),
+      builder: (context, _, _) {
+        final allScans = ScanHistoryService.getAll();
+        final recent = allScans.take(5).toList();
+
+        if (recent.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Recent Scans',
+                  style: TextStyle(
+                    color: context.themeTextSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: onViewAll,
+                  child: Text(
+                    'View All',
+                    style: TextStyle(
+                      color: context.themeAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...recent.map((entry) => _RecentScanTile(entry: entry)),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _RecentScanTile extends StatelessWidget {
+  final ScanEntry entry;
+
+  const _RecentScanTile({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color) = _iconAndColorFor(entry.type);
+    final displayLabel = entry.type == 'vcard'
+        ? (_vcardField(entry.raw, 'N', 'FN').isNotEmpty
+            ? _vcardField(entry.raw, 'N', 'FN')
+            : 'Contact')
+        : (entry.raw.length > 32 ? '${entry.raw.substring(0, 32)}…' : entry.raw);
+
+    final timeStr = _formatTimeAgo(entry.scannedAt);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: context.themeCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.themeBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayLabel,
+                  style: TextStyle(
+                    color: context.themeTextPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  timeStr,
+                  style: TextStyle(
+                    color: context.themeTextSecondary,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatTimeAgo(DateTime dt) {
+  final now = DateTime.now();
+  final diff = now.difference(dt);
+  if (diff.inSeconds < 60) return 'Just now';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+  if (diff.inHours < 24) return '${diff.inHours}h ago';
+  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  return DateFormat('MMM d').format(dt);
+}
+
+(IconData, Color) _iconAndColorFor(String type) {
+  return switch (type) {
+    'url' => (Icons.open_in_browser_rounded, const Color(0xFF3B82F6)),
+    'wifi' => (Icons.wifi_rounded, const Color(0xFF10B981)),
+    'vcard' => (Icons.person_rounded, const Color(0xFF8B5CF6)),
+    'email' => (Icons.email_rounded, const Color(0xFFEF4444)),
+    'phone' => (Icons.phone_rounded, const Color(0xFFF59E0B)),
+    'sms' => (Icons.sms_rounded, const Color(0xFF06B6D4)),
+    'geo' => (Icons.map_rounded, const Color(0xFFEC4899)),
+    _ => (Icons.qr_code_rounded, const Color(0xFF6B7280)),
+  };
+}
+
+// ── End Session Option ────────────────────────────────────────────────────────
+
+class _EndSessionOption extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _EndSessionOption({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: context.themeSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.themeBorder),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: context.themeTextPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: context.themeTextSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: context.themeTextSecondary,
+              size: 20,
             ),
           ],
         ),
