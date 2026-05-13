@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../../../core/services/location_service.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/scan_session.dart';
@@ -42,6 +44,13 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     WakelockPlus.enable();
     _rows = ScanSessionService.getRows(_session.id);
     _resetPendingRow();
+
+    final hasLocationCol = _session.columns.any(
+      (c) => c.type == SessionColumnType.location,
+    );
+    if (hasLocationCol) {
+      LocationService.instance.warmUp();
+    }
   }
 
   @override
@@ -187,10 +196,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   'Field ${_activeManualColumnIndex + 1} of ${manualIndices.length}',
-                  style: TextStyle(
-                    color: ctx.themeTextSecondary,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: ctx.themeTextSecondary, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -224,7 +230,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         ],
       ),
     ).then((typed) {
-      // Delay disposal to allow the dialog's pop animation to finish, 
+      // Delay disposal to allow the dialog's pop animation to finish,
       // preventing the TextField from crashing when accessing a disposed controller.
       Future.delayed(const Duration(milliseconds: 400), () {
         ctrl.dispose();
@@ -248,11 +254,48 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     });
   }
 
-  void _commitRow(SessionRow row) {
-    ScanSessionService.addRow(_session.id, row).then((_) {
+  void _commitRow(SessionRow row) async {
+    final locationIndices = [
+      for (int i = 0; i < _session.columns.length; i++)
+        if (_session.columns[i].type == SessionColumnType.location) i,
+    ];
+
+    SessionRow finalRow = row;
+
+    if (locationIndices.isNotEmpty) {
+      final locationString = await LocationService.instance.getLocationString();
+
+      if (mounted &&
+          (locationString == 'Location denied' ||
+              locationString == 'Location blocked' ||
+              locationString == 'Location off')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Location unavailable: $locationString. Enable it in device settings.',
+            ),
+            action: SnackBarAction(
+              label: 'Settings',
+              onPressed: () => Geolocator.openLocationSettings(),
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+
+      final patchedValues = List<String>.from(row.values);
+      for (final idx in locationIndices) {
+        if (idx < patchedValues.length) {
+          patchedValues[idx] = locationString;
+        }
+      }
+      finalRow = row.copyWith(values: patchedValues);
+    }
+
+    ScanSessionService.addRow(_session.id, finalRow).then((_) {
       if (!mounted) return;
       setState(() {
-        _rows = [..._rows, row];
+        _rows = [..._rows, finalRow];
         _isProcessing = false;
         _resetPendingRow();
       });
@@ -469,10 +512,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 ),
                 subtitle: Text(
                   _labelFor(col.type),
-                  style: TextStyle(
-                    color: ctx.themeTextSecondary,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: ctx.themeTextSecondary, fontSize: 12),
                 ),
                 trailing: IconButton(
                   icon: Icon(

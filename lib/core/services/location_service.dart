@@ -65,6 +65,13 @@ class LocationService {
     _lastFetch = null;
   }
 
+  /// Call this at session start when the session has location columns.
+  /// Triggers permission check + initial GPS fetch in the background,
+  /// so the first scan doesn't have to wait.
+  Future<void> warmUp() async {
+    await getLocationString();
+  }
+
   String _format(Position p) =>
       '${p.latitude.toStringAsFixed(6)},${p.longitude.toStringAsFixed(6)}';
 }

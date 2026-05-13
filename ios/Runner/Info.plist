@@ -47,6 +47,10 @@
 		<true/>
 		<key>NSCameraUsageDescription</key>
 		<string>Camera access is required to scan barcodes and QR codes for cloning and batch ingestion.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>ScanSheet uses your location to auto-fill the Location column in scan sessions.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>ScanSheet uses your location to auto-fill the Location column in scan sessions.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>
