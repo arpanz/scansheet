@@ -1,7 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,15 +7,13 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/services/location_service.dart';
-import '../../../core/services/scan_history_service.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/services/scanning_preferences.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/scanner_overlay_widget.dart';
+import '../widgets/scanner_overlay_widget.dart';
 import '../../history/screens/entry_detail_screen.dart';
 import '../models/scan_session.dart';
-import '../screens/export_screen.dart';
+import '../widgets/session_export_sheet.dart';
 
 class ScanSessionScreen extends StatefulWidget {
   final ScanSession session;
@@ -34,8 +30,6 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   List<SessionRow> _rows = [];
 
   int _activeScanColumnIndex = 0;
-  int _activeManualColumnIndex =
-      0; // index into manualColumnIndices while prompting
 
   bool _isProcessing = false;
   bool _isScannerPaused = false;
@@ -50,9 +44,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     // Pre-warm location if session has location columns.
     // clearCache() is called inside warmUp() so each session always gets
     // a fresh GPS fix and the permission dialog is shown upfront.
-    if (_session.columns.any(
-      (c) => c.type == SessionColumnType.location,
-    )) {
+    if (_session.columns.any((c) => c.type == SessionColumnType.location)) {
       LocationService.instance.warmUp();
     }
   }
@@ -65,7 +57,6 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
 
   void _resetPendingRow() {
     _activeScanColumnIndex = 0;
-    _activeManualColumnIndex = 0;
     _pendingRow = _session.buildEmptyRow(_rows.length);
   }
 
@@ -134,8 +125,8 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         : -1;
     final scannedValue =
         lastScanColIndex >= 0 && row.values.length > lastScanColIndex
-            ? row.values[lastScanColIndex]
-            : '';
+        ? row.values[lastScanColIndex]
+        : '';
     final scannedColumnName = lastScanColIndex >= 0
         ? _session.columns[lastScanColIndex].name
         : 'Scanned';
@@ -162,8 +153,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: ctx.themeCard,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
               child: SafeArea(
@@ -304,8 +296,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                         Expanded(
                           child: FilledButton.icon(
                             onPressed: () {
-                              final updatedValues =
-                                  List<String>.from(row.values);
+                              final updatedValues = List<String>.from(
+                                row.values,
+                              );
                               for (final ci in manualIndices) {
                                 final col = _session.columns[ci];
                                 final val = col.isNumeric
@@ -315,8 +308,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                                   updatedValues[ci] = val;
                                 }
                               }
-                              final updatedRow =
-                                  row.copyWith(values: updatedValues);
+                              final updatedRow = row.copyWith(
+                                values: updatedValues,
+                              );
                               Navigator.pop(ctx);
                               Future.delayed(
                                 const Duration(milliseconds: 50),
@@ -337,8 +331,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                               ),
                             ),
                             style: FilledButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                           ),
                         ),
@@ -384,10 +377,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 const SizedBox(height: 2),
                 Text(
                   'Default: ${col.defaultValue ?? col.stepSize}, Step: ${col.stepSize}',
-                  style: TextStyle(
-                    color: ctx.themeTextSecondary,
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: ctx.themeTextSecondary, fontSize: 11),
                 ),
               ],
             ),
@@ -404,9 +394,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 IconButton(
                   onPressed: current > col.stepSize
                       ? () => setSt(
-                            () => numericValues[colIndex] =
-                                current - col.stepSize,
-                          )
+                          () =>
+                              numericValues[colIndex] = current - col.stepSize,
+                        )
                       : null,
                   icon: const Icon(Icons.remove_rounded, size: 18),
                   padding: const EdgeInsets.all(8),
@@ -563,23 +553,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       _rows.add(finalRow);
       _resetPendingRow();
     });
-
-    if (_session.destination == SessionDestination.googleSheets &&
-        _session.spreadsheetId != null) {
-      _syncRowToSheets(finalRow);
-    }
-  }
-
-  void _syncRowToSheets(SessionRow row) {
-    // Fire and forget — errors are silent in background
-    ScanSessionService.syncRowToSheets(
-      session: _session,
-      row: row,
-    ).catchError((_) {});
   }
 
   Future<void> _loadRows() async {
-    final rows = await ScanSessionService.getRows(_session.id);
+    final rows = ScanSessionService.getRows(_session.id);
     if (!mounted) return;
     setState(() {
       _rows = rows;
@@ -606,7 +583,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'End Session?',
-          style: TextStyle(color: ctx.themeTextPrimary, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: ctx.themeTextPrimary,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         content: Text(
           'This will mark the session as complete. You can still export it from history.',
@@ -615,7 +595,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: ctx.themeTextSecondary)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: ctx.themeTextSecondary),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -636,7 +619,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ExportScreen(session: _session, rows: _rows),
+      builder: (_) => SessionExportSheet(session: _session),
     );
   }
 
@@ -1042,17 +1025,11 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 ),
                 title: Text(
                   col.name,
-                  style: TextStyle(
-                    color: ctx.themeTextPrimary,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: ctx.themeTextPrimary, fontSize: 14),
                 ),
                 subtitle: Text(
                   col.type.name,
-                  style: TextStyle(
-                    color: ctx.themeTextSecondary,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: ctx.themeTextSecondary, fontSize: 12),
                 ),
                 trailing: IconButton(
                   icon: Icon(
@@ -1096,9 +1073,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Column name',
-          ),
+          decoration: const InputDecoration(hintText: 'Column name'),
           onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
         ),
         actions: [
@@ -1236,9 +1211,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                         color: Colors.black.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                          color: const Color(
-                            0xFF34A853,
-                          ).withValues(alpha: 0.6),
+                          color: const Color(0xFF34A853).withValues(alpha: 0.6),
                         ),
                       ),
                       child: Text(
@@ -1455,10 +1428,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 5,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: context.themeAccent.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(8),
@@ -1497,9 +1467,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                   Icon(
                     Icons.qr_code_scanner_rounded,
                     size: 40,
-                    color: context.themeTextSecondary.withValues(
-                      alpha: 0.4,
-                    ),
+                    color: context.themeTextSecondary.withValues(alpha: 0.4),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -1584,11 +1552,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                               ),
                             ),
                           ),
-                          for (
-                            int j = 0;
-                            j < _session.columns.length;
-                            j++
-                          )
+                          for (int j = 0; j < _session.columns.length; j++)
                             Expanded(
                               child: Text(
                                 j < _rows[i].values.length
@@ -1623,10 +1587,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _showAllRows,
-                  icon: const Icon(
-                    Icons.table_rows_rounded,
-                    size: 16,
-                  ),
+                  icon: const Icon(Icons.table_rows_rounded, size: 16),
                   label: Text('View All (${_rows.length})'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: context.themeTextSecondary,
@@ -1638,10 +1599,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: _openExport,
-                  icon: const Icon(
-                    Icons.file_download_rounded,
-                    size: 16,
-                  ),
+                  icon: const Icon(Icons.file_download_rounded, size: 16),
                   label: const Text('Export'),
                 ),
               ),

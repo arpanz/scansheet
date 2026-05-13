@@ -26,6 +26,8 @@ import '../../scan/screens/scan_session_screen.dart';
 import './entry_detail_screen.dart';
 import '../../../core/utils/app_router.dart';
 
+enum _SessionFilter { all, today, unsynced, csv, sheets }
+
 // How many real items between each small native ad in the list.
 const int _kAdInterval = 3;
 
@@ -1443,6 +1445,7 @@ class _SessionsTab extends StatefulWidget {
 
 class _SessionsTabState extends State<_SessionsTab> {
   List<ScanSession> _sessions = [];
+  _SessionFilter _filter = _SessionFilter.all;
 
   @override
   void initState() {
@@ -1460,8 +1463,27 @@ class _SessionsTabState extends State<_SessionsTab> {
 
   void _loadSessions() {
     if (!mounted) return;
+    final all = ScanSessionService.getAllSessions();
     setState(() {
-      _sessions = ScanSessionService.getAllSessions();
+      _sessions = all.where((s) {
+        switch (_filter) {
+          case _SessionFilter.all:
+            return true;
+          case _SessionFilter.today:
+            final now = DateTime.now();
+            return s.createdAt.year == now.year &&
+                s.createdAt.month == now.month &&
+                s.createdAt.day == now.day;
+          case _SessionFilter.unsynced:
+            return s.destination == SessionDestination.googleSheets &&
+                s.spreadsheetId == null;
+          case _SessionFilter.csv:
+            return s.destination == SessionDestination.localCsv ||
+                s.destination == SessionDestination.localXlsx;
+          case _SessionFilter.sheets:
+            return s.destination == SessionDestination.googleSheets;
+        }
+      }).toList();
     });
   }
 
@@ -1613,180 +1635,300 @@ class _SessionsTabState extends State<_SessionsTab> {
     );
   }
 
+  String _filterLabel(_SessionFilter f) => switch (f) {
+    _SessionFilter.all => 'All',
+    _SessionFilter.today => 'Today',
+    _SessionFilter.unsynced => 'Unsynced',
+    _SessionFilter.csv => 'CSV / XLSX',
+    _SessionFilter.sheets => 'Sheets',
+  };
+
+  Widget _buildGroupedList(BuildContext context) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    // Build ordered groups: each entry is (headerLabel, [sessions])
+    final Map<String, List<ScanSession>> groups = {};
+    for (final s in _sessions) {
+      final d = DateTime(s.createdAt.year, s.createdAt.month, s.createdAt.day);
+      final String key;
+      if (d == today) {
+        key = 'TODAY';
+      } else if (d == yesterday) {
+        key = 'YESTERDAY';
+      } else {
+        key = DateFormat('d MMM yyyy').format(s.createdAt).toUpperCase();
+      }
+      groups.putIfAbsent(key, () => []).add(s);
+    }
+
+    return CustomScrollView(
+      slivers: [
+        for (final entry in groups.entries) ...[
+          // Date group header
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+              child: Text(
+                entry.key,
+                style: TextStyle(
+                  color: context.themeTextSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+          ),
+          // Cards for this group
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList.separated(
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemCount: entry.value.length,
+              itemBuilder: (ctx, i) =>
+                  _buildSessionCard(ctx, entry.value[i]),
+            ),
+          ),
+        ],
+        const SliverToBoxAdapter(child: SizedBox(height: 80)),
+      ],
+    );
+  }
+
+  Widget _buildSessionCard(BuildContext ctx, ScanSession session) {
+    final rowCount = ScanSessionService.getRowCount(session.id);
+    final timeStr = DateFormat('h:mm a').format(session.createdAt);
+
+    // Format icon + color
+    final bool isSheets = session.destination == SessionDestination.googleSheets;
+    final formatIcon =
+        isSheets ? Icons.table_chart_rounded : Icons.grid_on_rounded;
+    final formatColor =
+        isSheets ? const Color(0xFF16A34A) : const Color(0xFF6B7280);
+    final formatLabel = isSheets ? 'Sheets' : (session.destination ==
+            SessionDestination.localXlsx ? 'XLSX' : 'CSV');
+
+    // Product name preview: first values of each row's first scan column
+    final rows = ScanSessionService.getRows(session.id);
+    final previewNames = rows
+        .take(3)
+        .map((r) => r.values.isNotEmpty ? r.values.first : null)
+        .whereType<String>()
+        .where((v) => v.isNotEmpty && v != '…')
+        .toList();
+    final previewStr = previewNames.isNotEmpty
+        ? previewNames.join(', ') + (rowCount > 3 ? '…' : '')
+        : null;
+
+    return Dismissible(
+      key: Key(session.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: Colors.redAccent.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+      ),
+      confirmDismiss: (_) async {
+        await _deleteSession(session);
+        return false;
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: ctx.themeCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: ctx.themeBorder),
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+          leading: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: formatColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: formatColor.withValues(alpha: 0.25)),
+            ),
+            child: Icon(formatIcon, color: formatColor, size: 20),
+          ),
+          title: Row(
+            children: [
+              if (session.isActive) ...[
+                Container(
+                  width: 7, height: 7,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF4F8EF7), shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Expanded(
+                child: Text(
+                  session.name,
+                  style: TextStyle(
+                    color: ctx.themeTextPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 3),
+              // Row count + format + time
+              Row(
+                children: [
+                  Text(
+                    '$rowCount ${rowCount == 1 ? 'item' : 'items'}',
+                    style: TextStyle(
+                      color: ctx.themeTextSecondary, fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    ' · $formatLabel · $timeStr',
+                    style: TextStyle(
+                      color: ctx.themeTextSecondary, fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              // Product name preview
+              if (previewStr != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  previewStr,
+                  style: TextStyle(
+                    color: ctx.themeTextSecondary, fontSize: 11,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(Icons.format_list_numbered_rounded,
+                    size: 20, color: ctx.themeTextSecondary),
+                tooltip: 'View rows',
+                onPressed:
+                    rowCount == 0 ? null : () => _openRowsList(ctx, session),
+              ),
+              IconButton(
+                icon: Icon(Icons.file_download_outlined,
+                    size: 20, color: ctx.themeAccent),
+                tooltip: 'Export',
+                onPressed: () => showModalBottomSheet(
+                  context: ctx,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => SessionExportSheet(session: session),
+                ),
+              ),
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert_rounded,
+                    size: 20, color: ctx.themeTextSecondary),
+                onSelected: (v) async {
+                  if (v == 'end') {
+                    await ScanSessionService.endSession(session.id);
+                    _loadSessions();
+                  }
+                  if (v == 'delete') _deleteSession(session);
+                },
+                itemBuilder: (_) => [
+                  if (session.isActive)
+                    const PopupMenuItem(
+                      value: 'end', child: Text('End Session'),
+                    ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Delete',
+                        style: TextStyle(color: Colors.redAccent)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          onTap: () => Navigator.push(
+            ctx, FadeSlideRoute(page: ScanSessionScreen(session: session)),
+          ).then((_) => _loadSessions()),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_sessions.isEmpty) {
+    if (ScanSessionService.getAllSessions().isEmpty) {
       return _emptyState(context);
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
-      itemCount: _sessions.length,
-      itemBuilder: (ctx, i) {
-        final session = _sessions[i];
-        final rowCount = ScanSessionService.getRowCount(session.id);
-        final dateStr = DateFormat('MMM d, yyyy').format(session.createdAt);
-
-        return Dismissible(
-          key: Key(session.id),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: Colors.redAccent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.delete_outline_rounded,
-              color: Colors.redAccent,
-            ),
-          ),
-          confirmDismiss: (_) async {
-            await _deleteSession(session);
-            return false; // We handle deletion ourselves.
-          },
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: context.themeCard,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: context.themeBorder),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-              leading: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: session.isActive
-                      ? const Color(0xFF4F8EF7).withValues(alpha: 0.12)
-                      : context.themeSurface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: session.isActive
-                        ? const Color(0xFF4F8EF7).withValues(alpha: 0.3)
-                        : context.themeBorder,
-                  ),
-                ),
-                child: Icon(
-                  Icons.table_chart_rounded,
-                  color: session.isActive
-                      ? const Color(0xFF4F8EF7)
-                      : context.themeTextSecondary,
-                  size: 20,
-                ),
-              ),
-              title: Row(
-                children: [
-                  if (session.isActive) ...[
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF4F8EF7),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Expanded(
-                    child: Text(
-                      session.name,
-                      style: TextStyle(
-                        color: context.themeTextPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  '$rowCount ${rowCount == 1 ? 'row' : 'rows'} · '
-                  '${session.columnCount} columns · $dateStr'
-                  '${session.isActive ? ' · Active' : ''}',
-                  style: TextStyle(
-                    color: context.themeTextSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // View rows button
-                  IconButton(
-                    icon: Icon(
-                      Icons.format_list_numbered_rounded,
-                      size: 20,
-                      color: context.themeTextSecondary,
-                    ),
-                    tooltip: 'View rows',
-                    onPressed: rowCount == 0
-                        ? null
-                        : () => _openRowsList(context, session),
-                  ),
-                  // Export button
-                  IconButton(
-                    icon: Icon(
-                      Icons.file_download_outlined,
-                      size: 20,
-                      color: context.themeAccent,
-                    ),
-                    tooltip: 'Export',
-                    onPressed: () => showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => SessionExportSheet(session: session),
-                    ),
-                  ),
-                  // Overflow
-                  PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.more_vert_rounded,
-                      size: 20,
-                      color: context.themeTextSecondary,
-                    ),
-                    onSelected: (v) async {
-                      if (v == 'end') {
-                        await ScanSessionService.endSession(session.id);
-                        _loadSessions();
-                      }
-                      if (v == 'delete') _deleteSession(session);
+    return Column(
+      children: [
+        // ── Filter chips ────────────────────────────────────
+        SizedBox(
+          height: 44,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              for (final f in _SessionFilter.values)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(_filterLabel(f)),
+                    selected: _filter == f,
+                    onSelected: (_) {
+                      setState(() => _filter = f);
+                      _loadSessions();
                     },
-                    itemBuilder: (_) => [
-                      if (session.isActive)
-                        const PopupMenuItem(
-                          value: 'end',
-                          child: Text('End Session'),
-                        ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text(
-                          'Delete',
-                          style: TextStyle(color: Colors.redAccent),
-                        ),
-                      ),
-                    ],
+                    selectedColor: context.themeAccent.withValues(alpha: 0.15),
+                    checkmarkColor: context.themeAccent,
+                    labelStyle: TextStyle(
+                      color: _filter == f
+                          ? context.themeAccent
+                          : context.themeTextSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    side: BorderSide(
+                      color: _filter == f
+                          ? context.themeAccent.withValues(alpha: 0.4)
+                          : context.themeBorder,
+                    ),
+                    backgroundColor: context.themeCard,
+                    shape: const StadiumBorder(),
+                    showCheckmark: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                   ),
-                ],
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  FadeSlideRoute(page: ScanSessionScreen(session: session)),
-                ).then((_) => _loadSessions());
-              },
-            ),
+                ),
+            ],
           ),
-        );
-      },
+        ),
+
+        // ── Grouped list ────────────────────────────────────
+        Expanded(
+          child: _sessions.isEmpty
+              ? Center(
+                  child: Text(
+                    'No sessions match this filter.',
+                    style: TextStyle(color: context.themeTextSecondary),
+                  ),
+                )
+              : _buildGroupedList(context),
+        ),
+      ],
     );
   }
 
