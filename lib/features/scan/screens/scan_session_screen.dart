@@ -47,7 +47,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     _cameraController = MobileScannerController();
     _session = widget.session;
     _loadRows();
-    // Pre-warm location if session has location columns
+    // Pre-warm location if session has location columns.
+    // clearCache() is called inside warmUp() so each session always gets
+    // a fresh GPS fix and the permission dialog is shown upfront.
     if (_session.columns.any(
       (c) => c.type == SessionColumnType.location,
     )) {
@@ -489,8 +491,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
 
     final isLastScanColumn = _activeScanColumnIndex == scanIndices.length - 1;
 
-    if (_session.showScanConfirmation && isLastScanColumn) {
-      // All scan columns filled — show confirmation sheet (handles manual fields too)
+    if (isLastScanColumn) {
+      // All scan columns filled — always show the rich confirmation sheet.
+      // It handles manual fields inline (if any) and has Save & Next / Skip.
       _isScannerPaused = true;
       setState(() {
         _pendingRow = updatedRow;
@@ -501,147 +504,19 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       return;
     }
 
-    if (isLastScanColumn) {
-      // All scan columns filled — go to manual dialogs or commit
-      setState(() {
-        _pendingRow = updatedRow;
-        _isProcessing = false;
-      });
-      _promptManualColumnsOrCommit(updatedRow);
-    } else {
-      // Advance to next scan column
-      setState(() {
-        _pendingRow = updatedRow;
-        _activeScanColumnIndex++;
-        _isProcessing = false;
-      });
-    }
-  }
-
-  /// After all scan columns are filled, prompt for each manual column in order.
-  /// When showScanConfirmation is true, manual columns are handled in the sheet
-  /// so we go straight to commit.
-  void _promptManualColumnsOrCommit(SessionRow row) {
-    if (_session.showScanConfirmation) {
-      _commitRow(row);
-      return;
-    }
-    final manualIndices = _session.manualColumnIndices;
-    if (manualIndices.isEmpty) {
-      _commitRow(row);
-      return;
-    }
-    _activeManualColumnIndex = 0;
-    _showManualInputDialog(row, manualIndices);
-  }
-
-  void _showManualInputDialog(SessionRow row, List<int> manualIndices) {
-    if (_activeManualColumnIndex >= manualIndices.length) {
-      _commitRow(row);
-      return;
-    }
-
-    final colIndex = manualIndices[_activeManualColumnIndex];
-    final colName = _session.columns[colIndex].name;
-    final isLast = _activeManualColumnIndex == manualIndices.length - 1;
-    final ctrl = TextEditingController(
-      text: row.values.length > colIndex ? row.values[colIndex] : '',
-    );
-
-    _cameraController.stop();
-
-    showDialog<String?>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ctx.themeCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        icon: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: const Color(0xFF9333EA).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.edit_rounded,
-            color: Color(0xFF9333EA),
-            size: 20,
-          ),
-        ),
-        title: Text(
-          colName,
-          style: TextStyle(
-            color: ctx.themeTextPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (manualIndices.length > 1)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  'Field ${_activeManualColumnIndex + 1} of ${manualIndices.length}',
-                  style: TextStyle(color: ctx.themeTextSecondary, fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            TextField(
-              controller: ctrl,
-              autofocus: true,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                hintText: 'Enter $colName...',
-                hintStyle: TextStyle(color: ctx.themeTextSecondary),
-              ),
-              onSubmitted: (_) => Navigator.pop(ctx, ctrl.text.trim()),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, null),
-            child: Text(
-              'Skip',
-              style: TextStyle(
-                color: ctx.themeTextSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: Text(isLast ? 'Save Row' : 'Next'),
-          ),
-        ],
-      ),
-    ).then((typed) {
-      // Delay disposal to allow the dialog's pop animation to finish,
-      // preventing the TextField from crashing when accessing a disposed controller.
-      Future.delayed(const Duration(milliseconds: 400), () {
-        ctrl.dispose();
-      });
-
-      if (!mounted) return;
-
-      final updatedValues = List<String>.from(row.values);
-      if (updatedValues.length > colIndex) {
-        updatedValues[colIndex] = typed ?? '';
-      }
-      final updatedRow = row.copyWith(values: updatedValues);
-      _activeManualColumnIndex++;
-
-      if (_activeManualColumnIndex >= manualIndices.length) {
-        _cameraController.start();
-        _commitRow(updatedRow);
-      } else {
-        _showManualInputDialog(updatedRow, manualIndices);
-      }
+    // Advance to next scan column
+    setState(() {
+      _pendingRow = updatedRow;
+      _activeScanColumnIndex++;
+      _isProcessing = false;
     });
+  }
+
+  /// After all scan columns are filled, the confirmation sheet handles
+  /// manual fields and commit. This method is kept for the Skip path
+  /// where the sheet is bypassed and we go straight to commit.
+  void _promptManualColumnsOrCommit(SessionRow row) {
+    _commitRow(row);
   }
 
   void _commitRow(SessionRow row) async {

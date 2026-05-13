@@ -66,9 +66,11 @@ class LocationService {
   }
 
   /// Call this at session start when the session has location columns.
-  /// Triggers permission check + initial GPS fetch in the background,
-  /// so the first scan doesn't have to wait.
+  /// Clears stale cache from a previous session, then triggers a fresh
+  /// permission check + GPS fetch in the background so the first scan
+  /// doesn't have to wait.
   Future<void> warmUp() async {
+    clearCache(); // always start fresh for each new session
     await getLocationString();
   }
 
