@@ -20,6 +20,7 @@ import '../../../core/theme/app_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/scan_history_service.dart';
 import '../../../core/services/scan_session_service.dart';
+import '../../../core/services/template_service.dart';
 import '../models/scan_session.dart';
 import 'scan_session_screen.dart';
 import 'all_sessions_screen.dart';
@@ -59,9 +60,9 @@ class ScanScreen extends StatefulWidget {
   });
 
   const ScanScreen.pickForClone({super.key})
-      : mode = ScanScreenMode.pickForClone,
-        isActive = true,
-        onNavigateToHistory = null;
+    : mode = ScanScreenMode.pickForClone,
+      isActive = true,
+      onNavigateToHistory = null;
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -93,8 +94,9 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   void initState() {
     super.initState();
-    _entryState =
-        _isPickMode ? _ScanEntryState.quickScan : _ScanEntryState.chooser;
+    _entryState = _isPickMode
+        ? _ScanEntryState.quickScan
+        : _ScanEntryState.chooser;
     if (_isCameraSurfaceActive) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _startScanner());
     }
@@ -156,7 +158,6 @@ class _ScanScreenState extends State<ScanScreen> {
     _updateCameraState();
   }
 
-
   Future<void> _scanFromGallery() async {
     if (_isPickingImage) return;
     setState(() => _isPickingImage = true);
@@ -188,8 +189,9 @@ class _ScanScreenState extends State<ScanScreen> {
       }
 
       dev.log('[GalleryScan] calling analyzeImage...', name: 'ScanScreen');
-      final BarcodeCapture? capture =
-          await _controller.analyzeImage(picked.path);
+      final BarcodeCapture? capture = await _controller.analyzeImage(
+        picked.path,
+      );
 
       dev.log(
         '[GalleryScan] capture=$capture  count=${capture?.barcodes.length ?? 0}',
@@ -292,55 +294,55 @@ class _ScanScreenState extends State<ScanScreen> {
           return;
         }
 
-      switch (action) {
-        case _ScanAction.openUrl:
-          final uri = Uri.tryParse(raw);
-          if (uri == null) {
-            _snack('Invalid URL', isError: true);
-          } else {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          }
-          break;
-        case _ScanAction.copyText:
-          await Clipboard.setData(ClipboardData(text: raw));
-          _snack('Copied to clipboard.');
-          break;
-        case _ScanAction.copyWifiPassword:
-          final password = _extractWifiPassword(raw);
-          if (password == null || password.isEmpty) {
-            _snack('No Wi-Fi password found.', isError: true);
-          } else {
-            await Clipboard.setData(ClipboardData(text: password));
-            _snack('Wi-Fi password copied.');
-          }
-          break;
-        case _ScanAction.connectWifi:
-          _snack('Open Settings → Wi-Fi to connect manually.',
-              isError: false);
-          break;
-        case _ScanAction.callPhone:
-          final phone =
-              raw.startsWith('tel:') ? raw : 'tel:${raw.trim()}';
-          final uri = Uri.tryParse(phone);
-          if (uri != null) await launchUrl(uri);
-          break;
-        case _ScanAction.sendEmail:
-          final email =
-              raw.startsWith('mailto:') ? raw : 'mailto:$raw';
-          final uri = Uri.tryParse(email);
-          if (uri != null) await launchUrl(uri);
-          break;
-        case _ScanAction.openMap:
-          final uri = Uri.tryParse(raw);
-          if (uri != null) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          }
-          break;
-        case _ScanAction.shareText:
-          await SharePlus.instance.share(ShareParams(text: raw));
-          break;
-        case _ScanAction.useForClone:
-          break;
+        switch (action) {
+          case _ScanAction.openUrl:
+            final uri = Uri.tryParse(raw);
+            if (uri == null) {
+              _snack('Invalid URL', isError: true);
+            } else {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            }
+            break;
+          case _ScanAction.copyText:
+            await Clipboard.setData(ClipboardData(text: raw));
+            _snack('Copied to clipboard.');
+            break;
+          case _ScanAction.copyWifiPassword:
+            final password = _extractWifiPassword(raw);
+            if (password == null || password.isEmpty) {
+              _snack('No Wi-Fi password found.', isError: true);
+            } else {
+              await Clipboard.setData(ClipboardData(text: password));
+              _snack('Wi-Fi password copied.');
+            }
+            break;
+          case _ScanAction.connectWifi:
+            _snack(
+              'Open Settings → Wi-Fi to connect manually.',
+              isError: false,
+            );
+            break;
+          case _ScanAction.callPhone:
+            final phone = raw.startsWith('tel:') ? raw : 'tel:${raw.trim()}';
+            final uri = Uri.tryParse(phone);
+            if (uri != null) await launchUrl(uri);
+            break;
+          case _ScanAction.sendEmail:
+            final email = raw.startsWith('mailto:') ? raw : 'mailto:$raw';
+            final uri = Uri.tryParse(email);
+            if (uri != null) await launchUrl(uri);
+            break;
+          case _ScanAction.openMap:
+            final uri = Uri.tryParse(raw);
+            if (uri != null) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            }
+            break;
+          case _ScanAction.shareText:
+            await SharePlus.instance.share(ShareParams(text: raw));
+            break;
+          case _ScanAction.useForClone:
+            break;
           case _ScanAction.rescan:
             break;
         }
@@ -377,8 +379,7 @@ class _ScanScreenState extends State<ScanScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor:
-            isError ? context.themeError : context.themeAccent,
+        backgroundColor: isError ? context.themeError : context.themeAccent,
       ),
     );
   }
@@ -467,10 +468,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 const SizedBox(height: 4),
                 Text(
                   '"${session.name}" \u00b7 $rowCount ${rowCount == 1 ? 'row' : 'rows'}',
-                  style: TextStyle(
-                    color: ctx.themeTextSecondary,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: ctx.themeTextSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 20),
                 _EndSessionOption(
@@ -549,7 +547,9 @@ class _ScanScreenState extends State<ScanScreen> {
       final ts = DateTime.now().millisecondsSinceEpoch;
       final file = File('${dir.path}/scansheet_$ts.csv');
       final bytes = Uint8List.fromList([
-        0xEF, 0xBB, 0xBF,
+        0xEF,
+        0xBB,
+        0xBF,
         ...utf8.encode(csvString),
       ]);
       await file.writeAsBytes(bytes);
@@ -563,9 +563,9 @@ class _ScanScreenState extends State<ScanScreen> {
           ),
         );
         if (savedPath == null && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Save cancelled.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Save cancelled.')));
           return;
         }
       }
@@ -605,8 +605,7 @@ class _ScanScreenState extends State<ScanScreen> {
       return [
         const SizedBox(height: 10),
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF15803D), Color(0xFF16A34A)],
@@ -634,7 +633,11 @@ class _ScanScreenState extends State<ScanScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
-                      child: SvgPicture.asset('assets/sheets.svg', width: 22, height: 22),
+                      child: SvgPicture.asset(
+                        'assets/sheets.svg',
+                        width: 22,
+                        height: 22,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -749,14 +752,11 @@ class _ScanScreenState extends State<ScanScreen> {
           _openNewSession();
         },
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
             color: context.themeCard,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _kSheetGreen.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: _kSheetGreen.withValues(alpha: 0.2)),
           ),
           child: Row(
             children: [
@@ -768,7 +768,11 @@ class _ScanScreenState extends State<ScanScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
-                  child: SvgPicture.asset('assets/sheets.svg', width: 22, height: 22),
+                  child: SvgPicture.asset(
+                    'assets/sheets.svg',
+                    width: 22,
+                    height: 22,
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -886,8 +890,8 @@ class _ScanScreenState extends State<ScanScreen> {
             ..._buildSessionCard(activeSession),
 
             const SizedBox(height: 24),
-            // ── Recent Scans ──────────────────────────────────────────────
-            _RecentScansSection(
+            // ── Recent Sessions ──────────────────────────────────────────
+            _RecentSessionsSection(
               onViewAll: widget.onNavigateToHistory ?? () {},
             ),
 
@@ -923,10 +927,7 @@ class _ScanScreenState extends State<ScanScreen> {
     return Stack(
       children: [
         // Full-screen camera
-        MobileScanner(
-          controller: _controller,
-          onDetect: _onDetect,
-        ),
+        MobileScanner(controller: _controller, onDetect: _onDetect),
         // Overlay
         ScannerOverlayWidget(
           detectionState: _isHandlingDetection
@@ -968,7 +969,10 @@ class _ScanScreenState extends State<ScanScreen> {
               if (_isBatchMode && _batchCount > 0)
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: context.themeAccent,
                     borderRadius: BorderRadius.circular(20),
@@ -1001,16 +1005,25 @@ class _ScanScreenState extends State<ScanScreen> {
                       },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
-                          color: !_isBatchMode ? context.themeAccent : Colors.transparent,
+                          color: !_isBatchMode
+                              ? context.themeAccent
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(26),
                         ),
                         child: Text(
                           'Single',
                           style: TextStyle(
-                            color: !_isBatchMode ? Colors.white : Colors.white70,
-                            fontWeight: !_isBatchMode ? FontWeight.bold : FontWeight.w500,
+                            color: !_isBatchMode
+                                ? Colors.white
+                                : Colors.white70,
+                            fontWeight: !_isBatchMode
+                                ? FontWeight.bold
+                                : FontWeight.w500,
                             fontSize: 13,
                           ),
                         ),
@@ -1023,16 +1036,23 @@ class _ScanScreenState extends State<ScanScreen> {
                       },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
-                          color: _isBatchMode ? context.themeAccent : Colors.transparent,
+                          color: _isBatchMode
+                              ? context.themeAccent
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(26),
                         ),
                         child: Text(
                           'Batch',
                           style: TextStyle(
                             color: _isBatchMode ? Colors.white : Colors.white70,
-                            fontWeight: _isBatchMode ? FontWeight.bold : FontWeight.w500,
+                            fontWeight: _isBatchMode
+                                ? FontWeight.bold
+                                : FontWeight.w500,
                             fontSize: 13,
                           ),
                         ),
@@ -1080,7 +1100,9 @@ class _ScanScreenState extends State<ScanScreen> {
                         ),
                         style: IconButton.styleFrom(
                           backgroundColor: Colors.black45,
-                          foregroundColor: torchOn ? Colors.amber : Colors.white,
+                          foregroundColor: torchOn
+                              ? Colors.amber
+                              : Colors.white,
                           padding: const EdgeInsets.all(14),
                         ),
                       );
@@ -1156,13 +1178,11 @@ class _ScanResultSheet extends StatelessWidget {
     required this.isPickMode,
   });
 
-  bool get _isUrl =>
-      raw.startsWith('http://') || raw.startsWith('https://');
+  bool get _isUrl => raw.startsWith('http://') || raw.startsWith('https://');
   bool get _isWifi => raw.startsWith('WIFI:');
-  bool get _isPhone => raw.startsWith('tel:') ||
-      RegExp(r'^\+?[0-9\s\-().]{7,}$').hasMatch(raw);
-  bool get _isEmail =>
-      raw.startsWith('mailto:') || raw.contains('@');
+  bool get _isPhone =>
+      raw.startsWith('tel:') || RegExp(r'^\+?[0-9\s\-().]{7,}$').hasMatch(raw);
+  bool get _isEmail => raw.startsWith('mailto:') || raw.contains('@');
   bool get _isGeoOrMap =>
       raw.startsWith('geo:') || raw.startsWith('https://maps.');
 
@@ -1209,7 +1229,11 @@ class _ScanResultSheet extends StatelessWidget {
                     color: context.themeAccent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(_typeIcon(), color: context.themeAccent, size: 22),
+                  child: Icon(
+                    _typeIcon(),
+                    color: context.themeAccent,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -1269,8 +1293,7 @@ class _ScanResultSheet extends StatelessWidget {
               _ActionTile(
                 icon: Icons.settings_rounded,
                 label: 'Connect to Wi-Fi',
-                onTap: () =>
-                    Navigator.pop(context, _ScanAction.connectWifi),
+                onTap: () => Navigator.pop(context, _ScanAction.connectWifi),
               ),
             ],
             if (_isPhone)
@@ -1350,30 +1373,24 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-// ── Recent Scans Section ─────────────────────────────────────────────────────
+// ── Recent Sessions Section ──────────────────────────────────────────────────
 
-String _vcardField(String raw, String mecardKey, String vcardKey) {
-  final meMatch = RegExp('$mecardKey:(.*?);').firstMatch(raw);
-  if (meMatch != null) return meMatch.group(1)!.trim();
-  final vcMatch = RegExp(
-    '$vcardKey[^:]*:(.*?)(?:\r?\n|\$)',
-    caseSensitive: false,
-  ).firstMatch(raw);
-  return vcMatch?.group(1)?.trim() ?? '';
-}
-
-class _RecentScansSection extends StatelessWidget {
+class _RecentSessionsSection extends StatelessWidget {
   final VoidCallback onViewAll;
 
-  const _RecentScansSection({required this.onViewAll});
+  const _RecentSessionsSection({required this.onViewAll});
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
-      valueListenable: ScanHistoryService.box.listenable(),
+      valueListenable: ScanSessionService.metaBox.listenable(),
       builder: (context, _, _) {
-        final allScans = ScanHistoryService.getAll();
-        final recent = allScans.take(5).toList();
+        final allSessions = ScanSessionService.getAllSessions();
+        final activeSession = ScanSessionService.getActiveSession();
+        final recent = allSessions
+            .where((s) => s.id != activeSession?.id)
+            .take(5)
+            .toList();
 
         if (recent.isEmpty) {
           return const SizedBox.shrink();
@@ -1385,7 +1402,7 @@ class _RecentScansSection extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  'Recent Scans',
+                  'Recent Sessions',
                   style: TextStyle(
                     color: context.themeTextSecondary,
                     fontSize: 11,
@@ -1408,7 +1425,7 @@ class _RecentScansSection extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            ...recent.map((entry) => _RecentScanTile(entry: entry)),
+            ...recent.map((s) => _RecentSessionTile(session: s)),
           ],
         );
       },
@@ -1416,21 +1433,32 @@ class _RecentScansSection extends StatelessWidget {
   }
 }
 
-class _RecentScanTile extends StatelessWidget {
-  final ScanEntry entry;
+class _RecentSessionTile extends StatelessWidget {
+  final ScanSession session;
 
-  const _RecentScanTile({required this.entry});
+  const _RecentSessionTile({required this.session});
 
   @override
   Widget build(BuildContext context) {
-    final (icon, color) = _iconAndColorFor(entry.type);
-    final displayLabel = entry.type == 'vcard'
-        ? (_vcardField(entry.raw, 'N', 'FN').isNotEmpty
-            ? _vcardField(entry.raw, 'N', 'FN')
-            : 'Contact')
-        : (entry.raw.length > 32 ? '${entry.raw.substring(0, 32)}…' : entry.raw);
+    final rowCount = ScanSessionService.getRowCount(session.id);
+    final isSheets = session.destination == SessionDestination.googleSheets;
+    final formatLabel = isSheets
+        ? 'Sheets'
+        : (session.destination == SessionDestination.localXlsx
+              ? 'XLSX'
+              : 'CSV');
+    final formatColor = isSheets
+        ? const Color(0xFF16A34A)
+        : const Color(0xFF6B7280);
 
-    final timeStr = _formatTimeAgo(entry.scannedAt);
+    final template = session.templateId != null
+        ? TemplateService.getTemplate(session.templateId!)
+        : null;
+    final cardIcon = _templateIconForTile(template?.icon);
+    final cardColor = template != null
+        ? const Color(0xFF006A6B)
+        : formatColor;
+    final timeStr = _formatTimeAgo(session.createdAt);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1446,28 +1474,45 @@ class _RecentScanTile extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: cardColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 18),
+            child: Icon(cardIcon, color: cardColor, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  displayLabel,
-                  style: TextStyle(
-                    color: context.themeTextPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        session.name,
+                        style: TextStyle(
+                          color: context.themeTextPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (session.isActive)
+                      Container(
+                        width: 6,
+                        height: 6,
+                        margin: const EdgeInsets.only(left: 6),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF4F8EF7),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                  ],
                 ),
+                const SizedBox(height: 2),
                 Text(
-                  timeStr,
+                  '$rowCount ${rowCount == 1 ? 'item' : 'items'} \u00b7 $formatLabel \u00b7 $timeStr',
                   style: TextStyle(
                     color: context.themeTextSecondary,
                     fontSize: 11,
@@ -1475,6 +1520,11 @@ class _RecentScanTile extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 16,
+            color: context.themeTextSecondary,
           ),
         ],
       ),
@@ -1492,16 +1542,14 @@ String _formatTimeAgo(DateTime dt) {
   return DateFormat('MMM d').format(dt);
 }
 
-(IconData, Color) _iconAndColorFor(String type) {
-  return switch (type) {
-    'url' => (Icons.open_in_browser_rounded, const Color(0xFF3B82F6)),
-    'wifi' => (Icons.wifi_rounded, const Color(0xFF10B981)),
-    'vcard' => (Icons.person_rounded, const Color(0xFF8B5CF6)),
-    'email' => (Icons.email_rounded, const Color(0xFFEF4444)),
-    'phone' => (Icons.phone_rounded, const Color(0xFFF59E0B)),
-    'sms' => (Icons.sms_rounded, const Color(0xFF06B6D4)),
-    'geo' => (Icons.map_rounded, const Color(0xFFEC4899)),
-    _ => (Icons.qr_code_rounded, const Color(0xFF6B7280)),
+IconData _templateIconForTile(String? iconName) {
+  return switch (iconName) {
+    'inventory_2_rounded' => Icons.inventory_2_rounded,
+    'people_rounded' => Icons.people_rounded,
+    'confirmation_number_rounded' => Icons.confirmation_number_rounded,
+    'devices_rounded' => Icons.devices_rounded,
+    'sell_rounded' => Icons.sell_rounded,
+    _ => Icons.grid_view_rounded,
   };
 }
 

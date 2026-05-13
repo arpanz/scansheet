@@ -18,6 +18,7 @@ import '../../../core/widgets/pro_crown.dart';
 import '../../../core/services/scan_history_service.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/services/sync_queue_service.dart';
+import '../../../core/services/template_service.dart';
 import '../../../core/models/sync_queue_item.dart';
 import '../../../core/theme/app_card.dart';
 import '../../../core/theme/app_theme.dart';
@@ -207,6 +208,17 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
     return ok == true;
   }
+}
+
+IconData _templateIcon(String? iconName) {
+  return switch (iconName) {
+    'inventory_2_rounded' => Icons.inventory_2_rounded,
+    'people_rounded' => Icons.people_rounded,
+    'confirmation_number_rounded' => Icons.confirmation_number_rounded,
+    'devices_rounded' => Icons.devices_rounded,
+    'sell_rounded' => Icons.sell_rounded,
+    _ => Icons.grid_view_rounded,
+  };
 }
 
 // ── helpers shared across tabs ────────────────────────────────────────────────
@@ -1729,21 +1741,25 @@ class _SessionsTabState extends State<_SessionsTab> {
   Widget _buildSessionCard(BuildContext ctx, ScanSession session) {
     final rowCount = ScanSessionService.getRowCount(session.id);
     final timeStr = DateFormat('h:mm a').format(session.createdAt);
+    final dateStr = DateFormat('MMM d, yyyy').format(session.createdAt);
 
-    // Format icon + color
     final bool isSheets =
         session.destination == SessionDestination.googleSheets;
-    final formatIcon = isSheets
-        ? Icons.table_chart_rounded
-        : Icons.grid_on_rounded;
-    final formatColor = isSheets
-        ? const Color(0xFF16A34A)
-        : const Color(0xFF6B7280);
     final formatLabel = isSheets
         ? 'Sheets'
         : (session.destination == SessionDestination.localXlsx
               ? 'XLSX'
               : 'CSV');
+    final formatColor = isSheets
+        ? const Color(0xFF16A34A)
+        : const Color(0xFF6B7280);
+
+    final template = session.templateId != null
+        ? TemplateService.getTemplate(session.templateId!)
+        : null;
+    final cardIcon = _templateIcon(template?.icon);
+    final cardColor = template != null ? const Color(0xFF006A6B) : formatColor;
+    final useSheetsSvg = template == null && isSheets;
 
     final sessionQueueItems = SyncQueueService.getAll()
         .where((i) => i.sessionId == session.id)
@@ -1761,18 +1777,6 @@ class _SessionsTabState extends State<_SessionsTab> {
     final allSynced =
         sessionQueueItems.isNotEmpty &&
         sessionQueueItems.every((i) => i.status == SyncStatus.synced);
-
-    // Product name preview: first values of each row's first scan column
-    final rows = ScanSessionService.getRows(session.id);
-    final previewNames = rows
-        .take(3)
-        .map((r) => r.values.isNotEmpty ? r.values.first : null)
-        .whereType<String>()
-        .where((v) => v.isNotEmpty && v != '…')
-        .toList();
-    final previewStr = previewNames.isNotEmpty
-        ? previewNames.join(', ') + (rowCount > 3 ? '…' : '')
-        : null;
 
     return Dismissible(
       key: Key(session.id),
@@ -1793,131 +1797,141 @@ class _SessionsTabState extends State<_SessionsTab> {
         await _deleteSession(session);
         return false;
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: ctx.themeCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: ctx.themeBorder),
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-          leading: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: formatColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: formatColor.withValues(alpha: 0.25)),
-            ),
-            child: isSheets
-                ? Center(
-                    child: SvgPicture.asset(
-                      'assets/sheets.svg',
-                      width: 20,
-                      height: 20,
-                    ),
-                  )
-                : Icon(formatIcon, color: formatColor, size: 20),
+      child: GestureDetector(
+        onTap: () => Navigator.push(
+          ctx,
+          FadeSlideRoute(page: ScanSessionScreen(session: session)),
+        ).then((_) => _loadSessions()),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+          decoration: BoxDecoration(
+            color: ctx.themeCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: ctx.themeBorder),
           ),
-          title: Row(
+          child: Row(
             children: [
-              if (session.isActive) ...[
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF4F8EF7),
-                    shape: BoxShape.circle,
-                  ),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: cardColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: cardColor.withValues(alpha: 0.25)),
                 ),
-                const SizedBox(width: 6),
-              ],
+                child: useSheetsSvg
+                    ? Center(
+                        child: SvgPicture.asset(
+                          'assets/sheets.svg',
+                          width: 20,
+                          height: 20,
+                        ),
+                      )
+                    : Icon(cardIcon, color: cardColor, size: 20),
+              ),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  session.name,
-                  style: TextStyle(
-                    color: ctx.themeTextPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (isSheets) ...[
-                const SizedBox(width: 8),
-                if (allSynced)
-                  const _SyncBadge(label: 'Synced', color: Color(0xFF16A34A))
-                else if (hasFailed)
-                  const _SyncBadge(label: 'Failed', color: Color(0xFFEF4444))
-                else if (pendingCount > 0)
-                  _SyncBadge(
-                    label: 'Queued • $pendingCount',
-                    color: const Color(0xFFF59E0B),
-                  ),
-              ],
-            ],
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 3),
-              // Row count + format + time
-              Row(
-                children: [
-                  Text(
-                    '$rowCount ${rowCount == 1 ? 'item' : 'items'}',
-                    style: TextStyle(
-                      color: ctx.themeTextSecondary,
-                      fontSize: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            session.name,
+                            style: TextStyle(
+                              color: ctx.themeTextPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        if (session.isActive)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF4F8EF7,
+                              ).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: const Text(
+                              'Active',
+                              style: TextStyle(
+                                color: Color(0xFF4F8EF7),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                  Text(
-                    ' · $formatLabel · $timeStr',
-                    style: TextStyle(
-                      color: ctx.themeTextSecondary,
-                      fontSize: 12,
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: formatColor.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            formatLabel,
+                            style: TextStyle(
+                              color: formatColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$rowCount ${rowCount == 1 ? 'item' : 'items'}',
+                          style: TextStyle(
+                            color: ctx.themeTextSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '\u00b7 $dateStr \u00b7 $timeStr',
+                            style: TextStyle(
+                              color: ctx.themeTextSecondary,
+                              fontSize: 11,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isSheets) ...[
+                          const SizedBox(width: 4),
+                          if (allSynced)
+                            const _SyncBadge(
+                              label: 'Synced',
+                              color: Color(0xFF16A34A),
+                            )
+                          else if (hasFailed)
+                            const _SyncBadge(
+                              label: 'Failed',
+                              color: Color(0xFFEF4444),
+                            )
+                          else if (pendingCount > 0)
+                            _SyncBadge(
+                              label: '$pendingCount',
+                              color: const Color(0xFFF59E0B),
+                            ),
+                        ],
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              // Product name preview
-              if (previewStr != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  previewStr,
-                  style: TextStyle(color: ctx.themeTextSecondary, fontSize: 11),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ],
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Icon(
-                  Icons.format_list_numbered_rounded,
-                  size: 20,
-                  color: ctx.themeTextSecondary,
-                ),
-                tooltip: 'View rows',
-                onPressed: rowCount == 0
-                    ? null
-                    : () => _openRowsList(ctx, session),
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.file_download_outlined,
-                  size: 20,
-                  color: ctx.themeAccent,
-                ),
-                tooltip: 'Export',
-                onPressed: () => showModalBottomSheet(
-                  context: ctx,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => SessionExportSheet(session: session),
+                  ],
                 ),
               ),
               PopupMenuButton<String>(
@@ -1927,6 +1941,15 @@ class _SessionsTabState extends State<_SessionsTab> {
                   color: ctx.themeTextSecondary,
                 ),
                 onSelected: (v) async {
+                  if (v == 'export') {
+                    showModalBottomSheet(
+                      context: ctx,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => SessionExportSheet(session: session),
+                    );
+                  }
+                  if (v == 'rows') _openRowsList(ctx, session);
                   if (v == 'end') {
                     await ScanSessionService.endSession(session.id);
                     _loadSessions();
@@ -1934,6 +1957,8 @@ class _SessionsTabState extends State<_SessionsTab> {
                   if (v == 'delete') _deleteSession(session);
                 },
                 itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'rows', child: Text('View Rows')),
+                  const PopupMenuItem(value: 'export', child: Text('Export')),
                   if (session.isActive)
                     const PopupMenuItem(
                       value: 'end',
@@ -1950,10 +1975,6 @@ class _SessionsTabState extends State<_SessionsTab> {
               ),
             ],
           ),
-          onTap: () => Navigator.push(
-            ctx,
-            FadeSlideRoute(page: ScanSessionScreen(session: session)),
-          ).then((_) => _loadSessions()),
         ),
       ),
     );
