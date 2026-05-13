@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -1318,7 +1319,6 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 }
 
-
 class _TypeBadge extends StatelessWidget {
   final String dataType;
   final bool isGenType;
@@ -1506,7 +1506,8 @@ class _SessionsTabState extends State<_SessionsTab> {
                 s.createdAt.day == now.day;
           case _SessionFilter.unsynced:
             final items = SyncQueueService.getAll()
-                .where((i) => i.sessionId == s.id).toList();
+                .where((i) => i.sessionId == s.id)
+                .toList();
             return s.destination == SessionDestination.googleSheets &&
                 items.any((i) => i.status != SyncStatus.synced);
           case _SessionFilter.csv:
@@ -1574,10 +1575,7 @@ class _SessionsTabState extends State<_SessionsTab> {
                 ),
                 Text(
                   '${rows.length} ${rows.length == 1 ? 'row' : 'rows'}',
-                  style: TextStyle(
-                    color: ctx.themeTextSecondary,
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: ctx.themeTextSecondary, fontSize: 11),
                 ),
               ],
             ),
@@ -1595,8 +1593,9 @@ class _SessionsTabState extends State<_SessionsTab> {
                   itemCount: rows.length,
                   itemBuilder: (ctx2, i) {
                     final row = rows[i];
-                    final primary =
-                        row.values.isNotEmpty ? row.values.first : '—';
+                    final primary = row.values.isNotEmpty
+                        ? row.values.first
+                        : '—';
                     return Material(
                       color: ctx2.themeCard,
                       borderRadius: BorderRadius.circular(12),
@@ -1605,10 +1604,8 @@ class _SessionsTabState extends State<_SessionsTab> {
                         onTap: () => Navigator.push<bool>(
                           ctx2,
                           MaterialPageRoute(
-                            builder: (_) => EntryDetailScreen(
-                              session: session,
-                              row: row,
-                            ),
+                            builder: (_) =>
+                                EntryDetailScreen(session: session, row: row),
                           ),
                         ),
                         child: Padding(
@@ -1622,8 +1619,9 @@ class _SessionsTabState extends State<_SessionsTab> {
                                 width: 32,
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: ctx2.themeAccent
-                                      .withValues(alpha: 0.1),
+                                  color: ctx2.themeAccent.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Center(
@@ -1719,8 +1717,7 @@ class _SessionsTabState extends State<_SessionsTab> {
             sliver: SliverList.separated(
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemCount: entry.value.length,
-              itemBuilder: (ctx, i) =>
-                  _buildSessionCard(ctx, entry.value[i]),
+              itemBuilder: (ctx, i) => _buildSessionCard(ctx, entry.value[i]),
             ),
           ),
         ],
@@ -1734,23 +1731,35 @@ class _SessionsTabState extends State<_SessionsTab> {
     final timeStr = DateFormat('h:mm a').format(session.createdAt);
 
     // Format icon + color
-    final bool isSheets = session.destination == SessionDestination.googleSheets;
-    final formatIcon =
-        isSheets ? Icons.table_chart_rounded : Icons.grid_on_rounded;
-    final formatColor =
-        isSheets ? const Color(0xFF16A34A) : const Color(0xFF6B7280);
-    final formatLabel = isSheets ? 'Sheets' : (session.destination ==
-            SessionDestination.localXlsx ? 'XLSX' : 'CSV');
+    final bool isSheets =
+        session.destination == SessionDestination.googleSheets;
+    final formatIcon = isSheets
+        ? Icons.table_chart_rounded
+        : Icons.grid_on_rounded;
+    final formatColor = isSheets
+        ? const Color(0xFF16A34A)
+        : const Color(0xFF6B7280);
+    final formatLabel = isSheets
+        ? 'Sheets'
+        : (session.destination == SessionDestination.localXlsx
+              ? 'XLSX'
+              : 'CSV');
 
     final sessionQueueItems = SyncQueueService.getAll()
         .where((i) => i.sessionId == session.id)
         .toList();
 
     final pendingCount = sessionQueueItems
-        .where((i) => i.status == SyncStatus.pending || i.status == SyncStatus.syncing)
+        .where(
+          (i) =>
+              i.status == SyncStatus.pending || i.status == SyncStatus.syncing,
+        )
         .length;
-    final hasFailed = sessionQueueItems.any((i) => i.status == SyncStatus.failed);
-    final allSynced = sessionQueueItems.isNotEmpty &&
+    final hasFailed = sessionQueueItems.any(
+      (i) => i.status == SyncStatus.failed,
+    );
+    final allSynced =
+        sessionQueueItems.isNotEmpty &&
         sessionQueueItems.every((i) => i.status == SyncStatus.synced);
 
     // Product name preview: first values of each row's first scan column
@@ -1775,7 +1784,10 @@ class _SessionsTabState extends State<_SessionsTab> {
           color: Colors.redAccent.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: Colors.redAccent,
+        ),
       ),
       confirmDismiss: (_) async {
         await _deleteSession(session);
@@ -1797,15 +1809,25 @@ class _SessionsTabState extends State<_SessionsTab> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: formatColor.withValues(alpha: 0.25)),
             ),
-            child: Icon(formatIcon, color: formatColor, size: 20),
+            child: isSheets
+                ? Center(
+                    child: SvgPicture.asset(
+                      'assets/sheets.svg',
+                      width: 20,
+                      height: 20,
+                    ),
+                  )
+                : Icon(formatIcon, color: formatColor, size: 20),
           ),
           title: Row(
             children: [
               if (session.isActive) ...[
                 Container(
-                  width: 7, height: 7,
+                  width: 7,
+                  height: 7,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF4F8EF7), shape: BoxShape.circle,
+                    color: Color(0xFF4F8EF7),
+                    shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -1828,7 +1850,10 @@ class _SessionsTabState extends State<_SessionsTab> {
                 else if (hasFailed)
                   const _SyncBadge(label: 'Failed', color: Color(0xFFEF4444))
                 else if (pendingCount > 0)
-                  _SyncBadge(label: 'Queued • $pendingCount', color: const Color(0xFFF59E0B))
+                  _SyncBadge(
+                    label: 'Queued • $pendingCount',
+                    color: const Color(0xFFF59E0B),
+                  ),
               ],
             ],
           ),
@@ -1842,13 +1867,15 @@ class _SessionsTabState extends State<_SessionsTab> {
                   Text(
                     '$rowCount ${rowCount == 1 ? 'item' : 'items'}',
                     style: TextStyle(
-                      color: ctx.themeTextSecondary, fontSize: 12,
+                      color: ctx.themeTextSecondary,
+                      fontSize: 12,
                     ),
                   ),
                   Text(
                     ' · $formatLabel · $timeStr',
                     style: TextStyle(
-                      color: ctx.themeTextSecondary, fontSize: 12,
+                      color: ctx.themeTextSecondary,
+                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -1858,9 +1885,7 @@ class _SessionsTabState extends State<_SessionsTab> {
                 const SizedBox(height: 2),
                 Text(
                   previewStr,
-                  style: TextStyle(
-                    color: ctx.themeTextSecondary, fontSize: 11,
-                  ),
+                  style: TextStyle(color: ctx.themeTextSecondary, fontSize: 11),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1871,15 +1896,22 @@ class _SessionsTabState extends State<_SessionsTab> {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: Icon(Icons.format_list_numbered_rounded,
-                    size: 20, color: ctx.themeTextSecondary),
+                icon: Icon(
+                  Icons.format_list_numbered_rounded,
+                  size: 20,
+                  color: ctx.themeTextSecondary,
+                ),
                 tooltip: 'View rows',
-                onPressed:
-                    rowCount == 0 ? null : () => _openRowsList(ctx, session),
+                onPressed: rowCount == 0
+                    ? null
+                    : () => _openRowsList(ctx, session),
               ),
               IconButton(
-                icon: Icon(Icons.file_download_outlined,
-                    size: 20, color: ctx.themeAccent),
+                icon: Icon(
+                  Icons.file_download_outlined,
+                  size: 20,
+                  color: ctx.themeAccent,
+                ),
                 tooltip: 'Export',
                 onPressed: () => showModalBottomSheet(
                   context: ctx,
@@ -1889,8 +1921,11 @@ class _SessionsTabState extends State<_SessionsTab> {
                 ),
               ),
               PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert_rounded,
-                    size: 20, color: ctx.themeTextSecondary),
+                icon: Icon(
+                  Icons.more_vert_rounded,
+                  size: 20,
+                  color: ctx.themeTextSecondary,
+                ),
                 onSelected: (v) async {
                   if (v == 'end') {
                     await ScanSessionService.endSession(session.id);
@@ -1901,19 +1936,23 @@ class _SessionsTabState extends State<_SessionsTab> {
                 itemBuilder: (_) => [
                   if (session.isActive)
                     const PopupMenuItem(
-                      value: 'end', child: Text('End Session'),
+                      value: 'end',
+                      child: Text('End Session'),
                     ),
                   const PopupMenuItem(
                     value: 'delete',
-                    child: Text('Delete',
-                        style: TextStyle(color: Colors.redAccent)),
+                    child: Text(
+                      'Delete',
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
                   ),
                 ],
               ),
             ],
           ),
           onTap: () => Navigator.push(
-            ctx, FadeSlideRoute(page: ScanSessionScreen(session: session)),
+            ctx,
+            FadeSlideRoute(page: ScanSessionScreen(session: session)),
           ).then((_) => _loadSessions()),
         ),
       ),

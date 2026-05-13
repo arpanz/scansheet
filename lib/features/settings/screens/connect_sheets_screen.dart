@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/services/google_sheets_service.dart';
 import '../../../core/theme/app_card.dart';
@@ -253,10 +254,14 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 60),
-                  Icon(
-                    Icons.table_chart_rounded,
-                    size: 64,
-                    color: context.themeTextSecondary.withValues(alpha: 0.3),
+                  SvgPicture.asset(
+                    'assets/sheets.svg',
+                    width: 64,
+                    height: 64,
+                    colorFilter: ColorFilter.mode(
+                      context.themeTextSecondary.withValues(alpha: 0.3),
+                      BlendMode.srcIn,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -442,7 +447,7 @@ class _AccountCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            const Icon(Icons.table_chart_rounded, color: googleBlue, size: 36),
+            SvgPicture.asset('assets/sheets.svg', width: 36, height: 36),
             const SizedBox(height: 12),
             Text(
               'Connect your Google account',
@@ -610,11 +615,7 @@ class _SpreadsheetTile extends StatelessWidget {
                 color: sheetsGreen.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
-                Icons.table_chart_rounded,
-                color: sheetsGreen,
-                size: 18,
-              ),
+              child: SvgPicture.asset('assets/sheets.svg', width: 18, height: 18),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -733,8 +734,12 @@ class _ConnectBottomBar extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.table_chart_rounded,
-                  color: Color(0xFF0F9D58), size: 16),
+              SvgPicture.asset(
+                'assets/sheets.svg',
+                width: 16,
+                height: 16,
+                colorFilter: const ColorFilter.mode(Color(0xFF0F9D58), BlendMode.srcIn),
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(

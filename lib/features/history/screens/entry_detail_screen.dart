@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 
@@ -788,13 +789,19 @@ class _DestinationCard extends StatelessWidget {
                   : const Color(0xFF3B82F6).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              isSheets ? Icons.table_chart_rounded : Icons.description_rounded,
-              size: 18,
-              color: isSheets
-                  ? const Color(0xFF0F9D58)
-                  : const Color(0xFF3B82F6),
-            ),
+            child: isSheets
+                ? Center(
+                    child: SvgPicture.asset(
+                      'assets/sheets.svg',
+                      width: 18,
+                      height: 18,
+                    ),
+                  )
+                : const Icon(
+                    Icons.description_rounded,
+                    size: 18,
+                    color: Color(0xFF3B82F6),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(

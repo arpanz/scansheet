@@ -4,6 +4,7 @@ import 'package:csv/csv.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/services/export_service.dart';
@@ -438,6 +439,11 @@ class _FormatPicker extends StatelessWidget {
         Expanded(
           child: _FormatCard(
             icon: Icons.table_chart_rounded,
+            customIcon: SvgPicture.asset(
+              'assets/sheets.svg',
+              width: 18,
+              height: 18,
+            ),
             label: 'Sheets',
             sublabel: isConnected ? 'Connected' : 'Not linked',
             color: const Color(0xFF1B5FCC),
@@ -453,6 +459,7 @@ class _FormatPicker extends StatelessWidget {
 
 class _FormatCard extends StatelessWidget {
   final IconData icon;
+  final Widget? customIcon;
   final String label;
   final String sublabel;
   final Color color;
@@ -462,6 +469,7 @@ class _FormatCard extends StatelessWidget {
 
   const _FormatCard({
     required this.icon,
+    this.customIcon,
     required this.label,
     required this.sublabel,
     required this.color,
@@ -498,7 +506,7 @@ class _FormatCard extends StatelessWidget {
                     color: color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(9),
                   ),
-                  child: Icon(icon, size: 18, color: color),
+                  child: customIcon ?? Icon(icon, size: 18, color: color),
                 ),
                 if (badge != null)
                   Positioned(

@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -411,11 +412,7 @@ class _BatchGenerateAnimation extends StatelessWidget {
         if (sheetScale > 0)
           Transform.scale(
             scale: sheetScale.clamp(0.0, 1.2),
-            child: const Icon(
-              Icons.table_chart_rounded,
-              color: Colors.white,
-              size: 50,
-            ),
+            child: SvgPicture.asset('assets/sheets.svg', width: 50, height: 50),
           ),
         if (progress > 0.45)
           ...List.generate(8, (index) {
@@ -594,11 +591,7 @@ class _ScanToSheetAnimation extends StatelessWidget {
         // Background spreadsheet icon
         Opacity(
           opacity: 0.25,
-          child: const Icon(
-            Icons.table_chart_rounded,
-            color: Colors.white,
-            size: 80,
-          ),
+          child: SvgPicture.asset('assets/sheets.svg', width: 80, height: 80),
         ),
         // Animated row tiles
         Column(

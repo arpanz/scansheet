@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../../../core/ads/ad_manager.dart';
@@ -296,7 +297,7 @@ class _PaywallScreenState extends State<PaywallScreen>
                                   color: Colors.white.withValues(alpha: 0.08),
                                 ),
                               ),
-                              child: const Column(
+                              child: Column(
                                 children: [
                                   _FeatureRow(
                                     icon: Icons.block_rounded,
@@ -312,6 +313,11 @@ class _PaywallScreenState extends State<PaywallScreen>
                                   ),
                                   _FeatureRow(
                                     icon: Icons.table_chart_rounded,
+                                    customIcon: SvgPicture.asset(
+                                      'assets/sheets.svg',
+                                      width: 16,
+                                      height: 16,
+                                    ),
                                     label: 'Google Sheets Sync',
                                     badge: 'Soon',
                                     last: true,
@@ -365,8 +371,7 @@ class _PaywallScreenState extends State<PaywallScreen>
                               _PlanTile(
                                 title: 'Pro Access',
                                 subtitle: 'Unlock premium capabilities',
-                                price:
-                                    _selectedProduct?.price ?? 'Unavailable',
+                                price: _selectedProduct?.price ?? 'Unavailable',
                                 selected: true,
                                 onTap: () {},
                               ),
@@ -441,8 +446,7 @@ class _PaywallScreenState extends State<PaywallScreen>
                                     : null,
                                 style: FilledButton.styleFrom(
                                   backgroundColor: Colors.transparent,
-                                  disabledBackgroundColor:
-                                      Colors.transparent,
+                                  disabledBackgroundColor: Colors.transparent,
                                   shadowColor: Colors.transparent,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
@@ -463,9 +467,9 @@ class _PaywallScreenState extends State<PaywallScreen>
                                                 AdManager.yearlyProductId
                                             ? 'Start Pro \u2014 ${_yearlyProduct?.price ?? ""}/yr'
                                             : _selectedProduct?.id ==
-                                                    AdManager.productId
-                                                ? 'Get Lifetime \u2014 ${_oneTimeProduct?.price ?? ""}'
-                                                : 'Unlock Pro',
+                                                  AdManager.productId
+                                            ? 'Get Lifetime \u2014 ${_oneTimeProduct?.price ?? ""}'
+                                            : 'Unlock Pro',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w800,
                                           fontSize: 15,
@@ -477,8 +481,7 @@ class _PaywallScreenState extends State<PaywallScreen>
                           ),
                           const SizedBox(height: 4),
                           TextButton(
-                            onPressed:
-                                _isLoading ? null : _restorePurchases,
+                            onPressed: _isLoading ? null : _restorePurchases,
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.white38,
                             ),
@@ -503,12 +506,14 @@ class _PaywallScreenState extends State<PaywallScreen>
 
 class _FeatureRow extends StatelessWidget {
   final IconData icon;
+  final Widget? customIcon;
   final String label;
   final bool last;
   final String? badge;
 
   const _FeatureRow({
     required this.icon,
+    this.customIcon,
     required this.label,
     this.last = false,
     this.badge,
@@ -529,7 +534,9 @@ class _FeatureRow extends StatelessWidget {
                   color: const Color(0xFF22C55E).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 16, color: const Color(0xFF22C55E)),
+                child:
+                    customIcon ??
+                    Icon(icon, size: 16, color: const Color(0xFF22C55E)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -860,51 +867,51 @@ class _QrBeamAnimationState extends State<_QrBeamAnimation>
                           top: beamY,
                           child: Container(
                             height: beamH,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          const Color(
-                            0xFF4ADE80,
-                          ).withValues(alpha: 0.0),
-                          const Color(
-                            0xFF4ADE80,
-                          ).withValues(alpha: 0.06),
-                          const Color(
-                            0xFF4ADE80,
-                          ).withValues(alpha: 0.18),
-                          const Color(
-                            0xFF4ADE80,
-                          ).withValues(alpha: 0.06),
-                          const Color(
-                            0xFF4ADE80,
-                          ).withValues(alpha: 0.0),
-                        ],
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Container(
-                      height: 1.2,
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.transparent,
-                            const Color(
-                              0xFF4ADE80,
-                            ).withValues(alpha: 0.6),
-                            const Color(
-                              0xFF4ADE80,
-                            ).withValues(alpha: 0.6),
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.2, 0.8, 1.0],
-                        ),
-                      ),
-                    ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  const Color(
+                                    0xFF4ADE80,
+                                  ).withValues(alpha: 0.0),
+                                  const Color(
+                                    0xFF4ADE80,
+                                  ).withValues(alpha: 0.06),
+                                  const Color(
+                                    0xFF4ADE80,
+                                  ).withValues(alpha: 0.18),
+                                  const Color(
+                                    0xFF4ADE80,
+                                  ).withValues(alpha: 0.06),
+                                  const Color(
+                                    0xFF4ADE80,
+                                  ).withValues(alpha: 0.0),
+                                ],
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Container(
+                              height: 1.2,
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.transparent,
+                                    const Color(
+                                      0xFF4ADE80,
+                                    ).withValues(alpha: 0.6),
+                                    const Color(
+                                      0xFF4ADE80,
+                                    ).withValues(alpha: 0.6),
+                                    Colors.transparent,
+                                  ],
+                                  stops: const [0.0, 0.2, 0.8, 1.0],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],

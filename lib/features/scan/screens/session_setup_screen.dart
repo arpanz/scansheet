@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/services/template_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -680,6 +681,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                         Expanded(
                           child: _DestinationCard(
                             icon: Icons.table_chart_rounded,
+                            customIcon: SvgPicture.asset('assets/sheets.svg', width: 24, height: 24),
                             title: 'Google Sheets',
                             isSelected: _destination == 'sheets',
                             onTap: () =>
@@ -1079,12 +1081,14 @@ class _EditableColumn {
 
 class _DestinationCard extends StatelessWidget {
   final IconData icon;
+  final Widget? customIcon;
   final String title;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _DestinationCard({
     required this.icon,
+    this.customIcon,
     required this.title,
     required this.isSelected,
     required this.onTap,
@@ -1108,13 +1112,14 @@ class _DestinationCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isSelected
-                  ? context.themeAccent
-                  : context.themeTextSecondary,
-            ),
+            customIcon ??
+                Icon(
+                  icon,
+                  size: 24,
+                  color: isSelected
+                      ? context.themeAccent
+                      : context.themeTextSecondary,
+                ),
             const SizedBox(height: 8),
             Text(
               title,

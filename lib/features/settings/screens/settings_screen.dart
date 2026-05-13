@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1011,11 +1012,7 @@ class _GoogleAccountCardState extends State<_GoogleAccountCard> {
               color: sheetsGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
-              Icons.table_chart_rounded,
-              color: sheetsGreen,
-              size: 20,
-            ),
+            child: SvgPicture.asset('assets/sheets.svg', width: 20, height: 20),
           ),
           const SizedBox(width: 14),
           Expanded(

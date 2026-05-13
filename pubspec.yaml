@@ -45,6 +45,7 @@ dependencies:
   connectivity_plus: ^6.1.4
   package_info_plus: ^8.3.0
   geolocator: ^13.0.4
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -56,6 +57,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon.png
+    - assets/sheets.svg
 
 flutter_launcher_icons:
   android: "launcher_icon"

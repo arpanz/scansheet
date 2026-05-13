@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -437,10 +438,8 @@ class _ScanScreenState extends State<ScanScreen> {
                     color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.table_chart_rounded,
-                    color: Colors.white,
-                    size: 22,
+                  child: Center(
+                    child: SvgPicture.asset('assets/sheets.svg', width: 22, height: 22),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -534,10 +533,8 @@ class _ScanScreenState extends State<ScanScreen> {
                   color: _kSheetGreen.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.table_chart_rounded,
-                  color: _kSheetGreen,
-                  size: 22,
+                child: Center(
+                  child: SvgPicture.asset('assets/sheets.svg', width: 22, height: 22),
                 ),
               ),
               const SizedBox(width: 14),
