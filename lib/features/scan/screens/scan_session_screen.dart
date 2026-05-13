@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:provider/provider.dart';
+import 'package:scansheet/core/services/scanning_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../core/services/location_service.dart';
@@ -105,6 +107,140 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     _applyScannedValue(value, colIndex);
   }
 
+  void _showScanConfirmationSheet(
+    BuildContext context,
+    String barcode,
+    SessionColumn targetColumn,
+    int rowIndex,
+    int colIndex,
+  ) {
+    if (!mounted) return;
+
+    final nameController = TextEditingController(text: barcode);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: context.themeCard,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: context.themeAccent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.check_circle_outline,
+                        color: context.themeAccent,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Confirm Scan',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: context.themeTextPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Target: ${targetColumn.name}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: context.themeTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: nameController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Scanned Value',
+                    helperText: 'You can edit the value before confirming',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        // Undo the row that was just created since we canceled
+                        _undoLastRow();
+                        Navigator.pop(context);
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: context.themeTextSecondary,
+                      ),
+                      child: const Text('Cancel & Undo'),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton(
+                      onPressed: () {
+                        setState(() {
+                          _pendingRow!.values[colIndex] = nameController.text
+                              .trim();
+                        });
+                        final isLastScanColumn =
+                            _activeScanColumnIndex ==
+                            _session.scanColumnIndices.length - 1;
+                        if (isLastScanColumn) {
+                          setState(() => _isProcessing = false);
+                          _promptManualColumnsOrCommit(_pendingRow!);
+                        } else {
+                          setState(() {
+                            _activeScanColumnIndex++;
+                            _isProcessing = false;
+                          });
+                        }
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Confirm'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    ).whenComplete(() {
+      _isScannerPaused = false;
+    });
+  }
+
   void _applyScannedValue(String value, int colIndex) {
     final scanIndices = _session.scanColumnIndices;
 
@@ -116,6 +252,13 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     HapticFeedback.mediumImpact();
 
     final isLastScanColumn = _activeScanColumnIndex == scanIndices.length - 1;
+
+    final targetColumn = _session.columns[colIndex];
+    if (_session.showScanConfirmation) {
+      _isScannerPaused = true;
+      _showScanConfirmationSheet(context, value, targetColumn, 0, colIndex);
+      return;
+    }
 
     if (isLastScanColumn) {
       // All scan columns filled — check for manual columns before committing.
@@ -961,317 +1104,690 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(18),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  MobileScanner(
-                    controller: _cameraController,
-                    onDetect: _onDetect,
-                  ),
-                  // Viewfinder overlay
-                  ScannerOverlayWidget(
-                    detectionState: _isProcessing
-                        ? ScannerDetectionState.detected
-                        : ScannerDetectionState.idle,
-                  ),
-                  // Scanning target indicator
-                  Positioned(
-                    bottom: 12,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 7,
+      body: Consumer<ScanningPreferences>(
+        builder: (context, prefs, _) {
+          if (prefs.scannerLayout == ScannerLayoutMode.fullscreen) {
+            return _buildFullscreenLayout(context);
+          }
+          return _buildCompactLayout(context);
+        },
+      ),
+    );
+  }
+
+  Widget _buildCompactLayout(BuildContext context) {
+    final scanIndices = _session.scanColumnIndices;
+    return Column(
+      children: [
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(18),
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                MobileScanner(
+                  controller: _cameraController,
+                  onDetect: _onDetect,
+                ),
+                // Viewfinder overlay
+                ScannerOverlayWidget(
+                  detectionState: _isProcessing
+                      ? ScannerDetectionState.detected
+                      : ScannerDetectionState.idle,
+                ),
+                // Scanning target indicator
+                Positioned(
+                  bottom: 12,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: const Color(0xFF34A853).withValues(alpha: 0.6),
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: const Color(
-                              0xFF34A853,
-                            ).withValues(alpha: 0.6),
-                          ),
-                        ),
-                        child: Text(
-                          _isScannerPaused
-                              ? 'Scanner paused'
-                              : scanIndices.isEmpty
-                              ? 'No scan columns configured'
-                              : 'Scanning → $_activeColumnName',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
+                      ),
+                      child: Text(
+                        _isScannerPaused
+                            ? 'Scanner paused'
+                            : scanIndices.isEmpty
+                            ? 'No scan columns configured'
+                            : 'Scanning → $_activeColumnName',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
+        ),
 
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Column indicator chips
-                  if (scanIndices.isNotEmpty) ...[
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (int i = 0; i < scanIndices.length; i++) ...[
-                            _ColumnChip(
-                              label: _session.columns[scanIndices[i]].name,
-                              isActive: i == _activeScanColumnIndex,
-                              stepNumber: i + 1,
-                              color: const Color(0xFF34A853),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Column indicator chips
+                if (scanIndices.isNotEmpty) ...[
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (int i = 0; i < scanIndices.length; i++) ...[
+                          _ColumnChip(
+                            label: _session.columns[scanIndices[i]].name,
+                            isActive: i == _activeScanColumnIndex,
+                            stepNumber: i + 1,
+                            color: const Color(0xFF34A853),
+                          ),
+                          if (i < scanIndices.length - 1)
+                            const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 12,
+                              color: Colors.grey,
                             ),
-                            if (i < scanIndices.length - 1)
-                              const Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                size: 12,
-                                color: Colors.grey,
-                              ),
-                          ],
-                          const SizedBox(width: 8),
-                          // Skip button
-                          OutlinedButton.icon(
-                            onPressed: _skipColumn,
-                            icon: const Icon(Icons.skip_next_rounded, size: 16),
-                            label: const Text('Skip'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: context.themeTextSecondary,
-                              side: BorderSide(color: context.themeBorder),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              textStyle: const TextStyle(fontSize: 12),
+                        ],
+                        const SizedBox(width: 8),
+                        // Skip button
+                        OutlinedButton.icon(
+                          onPressed: _skipColumn,
+                          icon: const Icon(Icons.skip_next_rounded, size: 16),
+                          label: const Text('Skip'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: context.themeTextSecondary,
+                            side: BorderSide(color: context.themeBorder),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            textStyle: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Row counter + undo
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: context.themeAccent.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${_rows.length} ${_rows.length == 1 ? 'row' : 'rows'}',
+                        style: TextStyle(
+                          color: context.themeAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    if (_rows.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: _undoLastRow,
+                        icon: const Icon(Icons.undo_rounded, size: 16),
+                        label: const Text('Undo Last'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: context.themeTextSecondary,
+                          textStyle: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Mini table
+                if (_rows.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 24),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.qr_code_scanner_rounded,
+                            size: 40,
+                            color: context.themeTextSecondary.withValues(
+                              alpha: 0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Scan an item to begin collecting rows.',
+                            style: TextStyle(
+                              color: context.themeTextSecondary,
+                              fontSize: 13,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // Row counter + undo
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: context.themeAccent.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${_rows.length} ${_rows.length == 1 ? 'row' : 'rows'}',
-                          style: TextStyle(
-                            color: context.themeAccent,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                  )
+                else ...[
+                  // Header row
+                  Container(
+                    decoration: BoxDecoration(
+                      color: context.themeCard,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: context.themeBorder),
+                    ),
+                    child: Column(
+                      children: [
+                        // Column headers
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
                           ),
-                        ),
-                      ),
-                      const Spacer(),
-                      if (_rows.isNotEmpty)
-                        TextButton.icon(
-                          onPressed: _undoLastRow,
-                          icon: const Icon(Icons.undo_rounded, size: 16),
-                          label: const Text('Undo Last'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: context.themeTextSecondary,
-                            textStyle: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Mini table
-                  if (_rows.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 24),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.qr_code_scanner_rounded,
-                              size: 40,
-                              color: context.themeTextSecondary.withValues(
-                                alpha: 0.4,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 28,
+                                child: Text(
+                                  '#',
+                                  style: TextStyle(
+                                    color: context.themeTextSecondary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Scan an item to begin collecting rows.',
-                              style: TextStyle(
-                                color: context.themeTextSecondary,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else ...[
-                    // Header row
-                    Container(
-                      decoration: BoxDecoration(
-                        color: context.themeCard,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: context.themeBorder),
-                      ),
-                      child: Column(
-                        children: [
-                          // Column headers
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 28,
+                              for (final col in _session.columns)
+                                Expanded(
                                   child: Text(
-                                    '#',
+                                    col.name,
                                     style: TextStyle(
                                       color: context.themeTextSecondary,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
                                     ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                for (final col in _session.columns)
-                                  Expanded(
+                            ],
+                          ),
+                        ),
+                        Divider(height: 1, color: context.themeBorder),
+                        // Last 5 rows
+                        for (
+                          int i = (_rows.length - 1);
+                          i >= 0 && i >= _rows.length - 5;
+                          i--
+                        ) ...[
+                          InkWell(
+                            onTap: () => _showEditRowDialog(_rows[i]),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 9,
+                              ),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 28,
                                     child: Text(
-                                      col.name,
+                                      '${_rows[i].rowIndex + 1}',
                                       style: TextStyle(
                                         color: context.themeTextSecondary,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
                                       ),
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                              ],
-                            ),
-                          ),
-                          Divider(height: 1, color: context.themeBorder),
-                          // Last 5 rows
-                          for (
-                            int i = (_rows.length - 1);
-                            i >= 0 && i >= _rows.length - 5;
-                            i--
-                          ) ...[
-                            InkWell(
-                              onTap: () => _showEditRowDialog(_rows[i]),
-                              borderRadius: BorderRadius.circular(10),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 9,
-                                ),
-                                child: Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 28,
+                                  for (
+                                    int j = 0;
+                                    j < _session.columns.length;
+                                    j++
+                                  )
+                                    Expanded(
                                       child: Text(
-                                        '${_rows[i].rowIndex + 1}',
+                                        j < _rows[i].values.length
+                                            ? _rows[i].values[j]
+                                            : '',
                                         style: TextStyle(
-                                          color: context.themeTextSecondary,
+                                          color: context.themeTextPrimary,
                                           fontSize: 12,
                                         ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    for (
-                                      int j = 0;
-                                      j < _session.columns.length;
-                                      j++
-                                    )
-                                      Expanded(
-                                        child: Text(
-                                          j < _rows[i].values.length
-                                              ? _rows[i].values[j]
-                                              : '',
-                                          style: TextStyle(
-                                            color: context.themeTextPrimary,
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                                ],
                               ),
                             ),
-                            if (i > (_rows.length - 5) && i > 0)
-                              Divider(
-                                height: 1,
-                                indent: 12,
-                                endIndent: 12,
-                                color: context.themeBorder,
+                          ),
+                          if (i > (_rows.length - 5) && i > 0)
+                            Divider(
+                              height: 1,
+                              indent: 12,
+                              endIndent: 12,
+                              color: context.themeBorder,
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // View all + export row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _showAllRows,
+                          icon: const Icon(Icons.table_rows_rounded, size: 16),
+                          label: Text('View All (${_rows.length})'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: context.themeTextSecondary,
+                            side: BorderSide(color: context.themeBorder),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _openExport,
+                          icon: const Icon(
+                            Icons.file_download_rounded,
+                            size: 16,
+                          ),
+                          label: const Text('Export'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFullscreenLayout(BuildContext context) {
+    final scanIndices = _session.scanColumnIndices;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: MobileScanner(
+            controller: _cameraController,
+            onDetect: _onDetect,
+          ),
+        ),
+        Positioned.fill(
+          child: ScannerOverlayWidget(
+            detectionState: _isProcessing
+                ? ScannerDetectionState.detected
+                : ScannerDetectionState.idle,
+          ),
+        ),
+        Positioned(
+          top: 80,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: const Color(0xFF34A853).withValues(alpha: 0.6),
+                ),
+              ),
+              child: Text(
+                _isScannerPaused
+                    ? 'Scanner paused'
+                    : scanIndices.isEmpty
+                    ? 'No columns'
+                    : 'Scanning ? $_activeColumnName',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ),
+        DraggableScrollableSheet(
+          initialChildSize: 0.12,
+          minChildSize: 0.12,
+          maxChildSize: 0.85,
+          snap: true,
+          snapSizes: const [0.12, 0.5, 0.85],
+          builder: (ctx, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: context.themeCard,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 24,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10, bottom: 4),
+                      child: Center(
+                        child: Container(
+                          width: 44,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: context.themeBorder,
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: context.themeAccent.withValues(
+                                alpha: 0.10,
                               ),
-                          ],
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '${_rows.length} row(s) scanned',
+                              style: TextStyle(
+                                color: context.themeAccent,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    // View all + export row
-                    Row(
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                      child: _buildTableContent(context),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTableContent(BuildContext context) {
+    final scanIndices = _session.scanColumnIndices;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Column indicator chips
+          if (scanIndices.isNotEmpty) ...[
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (int i = 0; i < scanIndices.length; i++) ...[
+                    _ColumnChip(
+                      label: _session.columns[scanIndices[i]].name,
+                      isActive: i == _activeScanColumnIndex,
+                      stepNumber: i + 1,
+                      color: const Color(0xFF34A853),
+                    ),
+                    if (i < scanIndices.length - 1)
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 12,
+                        color: Colors.grey,
+                      ),
+                  ],
+                  const SizedBox(width: 8),
+                  // Skip button
+                  OutlinedButton.icon(
+                    onPressed: _skipColumn,
+                    icon: const Icon(Icons.skip_next_rounded, size: 16),
+                    label: const Text('Skip'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: context.themeTextSecondary,
+                      side: BorderSide(color: context.themeBorder),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // Row counter + undo
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: context.themeAccent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${_rows.length} ${_rows.length == 1 ? 'row' : 'rows'}',
+                  style: TextStyle(
+                    color: context.themeAccent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              if (_rows.isNotEmpty)
+                TextButton.icon(
+                  onPressed: _undoLastRow,
+                  icon: const Icon(Icons.undo_rounded, size: 16),
+                  label: const Text('Undo Last'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: context.themeTextSecondary,
+                    textStyle: const TextStyle(fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Mini table
+          if (_rows.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 24),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.qr_code_scanner_rounded,
+                      size: 40,
+                      color: context.themeTextSecondary.withValues(alpha: 0.4),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Scan an item to begin collecting rows.',
+                      style: TextStyle(
+                        color: context.themeTextSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            // Header row
+            Container(
+              decoration: BoxDecoration(
+                color: context.themeCard,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: context.themeBorder),
+              ),
+              child: Column(
+                children: [
+                  // Column headers
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
                       children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _showAllRows,
-                            icon: const Icon(
-                              Icons.table_rows_rounded,
-                              size: 16,
-                            ),
-                            label: Text('View All (${_rows.length})'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: context.themeTextSecondary,
-                              side: BorderSide(color: context.themeBorder),
+                        SizedBox(
+                          width: 28,
+                          child: Text(
+                            '#',
+                            style: TextStyle(
+                              color: context.themeTextSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: _openExport,
-                            icon: const Icon(
-                              Icons.file_download_rounded,
-                              size: 16,
+                        for (final col in _session.columns)
+                          Expanded(
+                            child: Text(
+                              col.name,
+                              style: TextStyle(
+                                color: context.themeTextSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            label: const Text('Export'),
                           ),
-                        ),
                       ],
                     ),
+                  ),
+                  Divider(height: 1, color: context.themeBorder),
+                  // Last 5 rows
+                  for (
+                    int i = (_rows.length - 1);
+                    i >= 0 && i >= _rows.length - 5;
+                    i--
+                  ) ...[
+                    InkWell(
+                      onTap: () => _showEditRowDialog(_rows[i]),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 9,
+                        ),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 28,
+                              child: Text(
+                                '${_rows[i].rowIndex + 1}',
+                                style: TextStyle(
+                                  color: context.themeTextSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            for (int j = 0; j < _session.columns.length; j++)
+                              Expanded(
+                                child: Text(
+                                  j < _rows[i].values.length
+                                      ? _rows[i].values[j]
+                                      : '',
+                                  style: TextStyle(
+                                    color: context.themeTextPrimary,
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (i > (_rows.length - 5) && i > 0)
+                      Divider(
+                        height: 1,
+                        indent: 12,
+                        endIndent: 12,
+                        color: context.themeBorder,
+                      ),
                   ],
                 ],
               ),
             ),
-          ),
+            const SizedBox(height: 10),
+            // View all + export row
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _showAllRows,
+                    icon: const Icon(Icons.table_rows_rounded, size: 16),
+                    label: Text('View All (${_rows.length})'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: context.themeTextSecondary,
+                      side: BorderSide(color: context.themeBorder),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _openExport,
+                    icon: const Icon(Icons.file_download_rounded, size: 16),
+                    label: const Text('Export'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

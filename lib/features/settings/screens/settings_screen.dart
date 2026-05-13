@@ -34,7 +34,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadVersion() async {
     final info = await PackageInfo.fromPlatform();
-    if (mounted) setState(() => _version = '${info.version} (${info.buildNumber})');
+    if (mounted) {
+      setState(() => _version = '${info.version} (${info.buildNumber})');
+    }
   }
 
   @override
@@ -58,11 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // ── Appearance ──────────────────────────────────────────────────────
           _SectionHeader(label: 'Appearance'),
           AppCard(
-            child: Column(
-              children: [
-                _ThemeTile(provider: themeProvider),
-              ],
-            ),
+            child: Column(children: [_ThemeTile(provider: themeProvider)]),
           ),
           const SizedBox(height: 20),
 
@@ -118,6 +116,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     scanPrefs.setAutoFocus(v);
                   },
                 ),
+                _Divider(),
+                _LayoutModeTile(scanPrefs: scanPrefs),
               ],
             ),
           ),
@@ -125,9 +125,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // ── Sessions ────────────────────────────────────────────────────────
           _SectionHeader(label: 'Sessions'),
-          AppCard(
-            child: _DuplicateTile(scanPrefs: scanPrefs),
-          ),
+          AppCard(child: _DuplicateTile(scanPrefs: scanPrefs)),
           const SizedBox(height: 20),
 
           // ── Data ────────────────────────────────────────────────────────────
@@ -141,12 +139,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Clear scan history',
                   subtitle: 'Remove all individually scanned records',
                   trailing: _clearingData
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : null,
                   onTap: () => _confirmClear(
                     context,
                     title: 'Clear scan history?',
-                    body: 'All individually scanned records will be permanently deleted.',
+                    body:
+                        'All individually scanned records will be permanently deleted.',
                     onConfirm: () async {
                       setState(() => _clearingData = true);
                       await ScanHistoryService.clear();
@@ -164,7 +167,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () => _confirmClear(
                     context,
                     title: 'Clear all sessions?',
-                    body: 'All sessions and their scanned rows will be permanently deleted.',
+                    body:
+                        'All sessions and their scanned rows will be permanently deleted.',
                     onConfirm: () async {
                       setState(() => _clearingData = true);
                       await ScanSessionService.clearAll();
@@ -193,7 +197,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   iconColor: const Color(0xFFF59E0B),
                   title: 'Rate ScanSheet',
                   subtitle: 'Enjoying the app? Leave a review',
-                  onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=com.arpanz.scansheet'),
+                  onTap: () => _launchUrl(
+                    'https://play.google.com/store/apps/details?id=com.arpanz.scansheet',
+                  ),
                 ),
                 _Divider(),
                 _ActionTile(
@@ -201,7 +207,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   iconColor: const Color(0xFF3B82F6),
                   title: 'Privacy Policy',
                   subtitle: null,
-                  onTap: () => _launchUrl('https://arpanz.github.io/scansheet/privacy'),
+                  onTap: () =>
+                      _launchUrl('https://arpanz.github.io/scansheet/privacy'),
                 ),
                 _Divider(),
                 _InfoTile(
@@ -238,13 +245,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: context.themeCard,
-        title: Text(title,
-            style: TextStyle(
-                color: context.themeTextPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w600)),
-        content: Text(body,
-            style: TextStyle(color: context.themeTextSecondary, fontSize: 14)),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: context.themeTextPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          body,
+          style: TextStyle(color: context.themeTextSecondary, fontSize: 14),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -273,7 +285,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }
 
@@ -298,15 +312,21 @@ class _ThemeTile extends StatelessWidget {
                   color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.palette_rounded,
-                    color: Color(0xFF8B5CF6), size: 18),
+                child: const Icon(
+                  Icons.palette_rounded,
+                  color: Color(0xFF8B5CF6),
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 12),
-              Text('Theme',
-                  style: TextStyle(
-                      color: context.themeTextPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15)),
+              Text(
+                'Theme',
+                style: TextStyle(
+                  color: context.themeTextPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -384,19 +404,24 @@ class _ThemeOption extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon,
-                  size: 18,
+              Icon(
+                icon,
+                size: 18,
+                color: selected
+                    ? context.themeAccent
+                    : context.themeTextSecondary,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                   color: selected
                       ? context.themeAccent
-                      : context.themeTextSecondary),
-              const SizedBox(height: 4),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: selected
-                          ? context.themeAccent
-                          : context.themeTextSecondary)),
+                      : context.themeTextSecondary,
+                ),
+              ),
             ],
           ),
         ),
@@ -411,18 +436,18 @@ class _DuplicateTile extends StatelessWidget {
   const _DuplicateTile({required this.scanPrefs});
 
   String _label(DuplicateHandling h) => switch (h) {
-        DuplicateHandling.warn => 'Warn',
-        DuplicateHandling.increment => 'Increment count',
-        DuplicateHandling.skip => 'Skip silently',
-        DuplicateHandling.allow => 'Allow duplicates',
-      };
+    DuplicateHandling.warn => 'Warn',
+    DuplicateHandling.increment => 'Increment count',
+    DuplicateHandling.skip => 'Skip silently',
+    DuplicateHandling.allow => 'Allow duplicates',
+  };
 
   String _sub(DuplicateHandling h) => switch (h) {
-        DuplicateHandling.warn => 'Show a warning before adding',
-        DuplicateHandling.increment => 'Add to quantity column automatically',
-        DuplicateHandling.skip => 'Ignore duplicate scans',
-        DuplicateHandling.allow => 'Add every scan regardless',
-      };
+    DuplicateHandling.warn => 'Show a warning before adding',
+    DuplicateHandling.increment => 'Add to quantity column automatically',
+    DuplicateHandling.skip => 'Ignore duplicate scans',
+    DuplicateHandling.allow => 'Add every scan regardless',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -440,29 +465,38 @@ class _DuplicateTile extends StatelessWidget {
                 color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.copy_rounded,
-                  color: Color(0xFFF59E0B), size: 18),
+              child: const Icon(
+                Icons.copy_rounded,
+                color: Color(0xFFF59E0B),
+                size: 18,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Duplicate handling',
-                      style: TextStyle(
-                          color: context.themeTextPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15)),
+                  Text(
+                    'Duplicate handling',
+                    style: TextStyle(
+                      color: context.themeTextPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(_sub(scanPrefs.duplicateHandling),
-                      style: TextStyle(
-                          color: context.themeTextSecondary, fontSize: 12)),
+                  Text(
+                    _sub(scanPrefs.duplicateHandling),
+                    style: TextStyle(
+                      color: context.themeTextSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: context.themeAccent.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(6),
@@ -470,14 +504,18 @@ class _DuplicateTile extends StatelessWidget {
               child: Text(
                 _label(scanPrefs.duplicateHandling),
                 style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: context.themeAccent),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: context.themeAccent,
+                ),
               ),
             ),
             const SizedBox(width: 4),
-            Icon(Icons.chevron_right_rounded,
-                size: 18, color: context.themeTextSecondary),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: context.themeTextSecondary,
+            ),
           ],
         ),
       ),
@@ -522,26 +560,31 @@ class _DuplicateSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Text('Duplicate handling',
-                style: TextStyle(
-                    color: context.themeTextPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16)),
+            Text(
+              'Duplicate handling',
+              style: TextStyle(
+                color: context.themeTextPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('How should ScanSheet handle duplicate barcodes in a session?',
-                style: TextStyle(
-                    color: context.themeTextSecondary, fontSize: 13)),
+            Text(
+              'How should ScanSheet handle duplicate barcodes in a session?',
+              style: TextStyle(color: context.themeTextSecondary, fontSize: 13),
+            ),
             const SizedBox(height: 16),
             ...DuplicateHandling.values.map((h) {
               final selected = scanPrefs.duplicateHandling == h;
               return _DuplicateOption(
-                  handling: h,
-                  selected: selected,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    scanPrefs.setDuplicateHandling(h);
-                    Navigator.pop(context);
-                  });
+                handling: h,
+                selected: selected,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  scanPrefs.setDuplicateHandling(h);
+                  Navigator.pop(context);
+                },
+              );
             }),
           ],
         ),
@@ -562,19 +605,18 @@ class _DuplicateOption extends StatelessWidget {
   });
 
   String get _title => switch (handling) {
-        DuplicateHandling.warn => 'Warn',
-        DuplicateHandling.increment => 'Increment count',
-        DuplicateHandling.skip => 'Skip silently',
-        DuplicateHandling.allow => 'Allow duplicates',
-      };
+    DuplicateHandling.warn => 'Warn',
+    DuplicateHandling.increment => 'Increment count',
+    DuplicateHandling.skip => 'Skip silently',
+    DuplicateHandling.allow => 'Allow duplicates',
+  };
 
   String get _desc => switch (handling) {
-        DuplicateHandling.warn => 'Show a warning and let the user decide',
-        DuplicateHandling.increment =>
-          'Automatically add to a quantity column',
-        DuplicateHandling.skip => 'Silently ignore the duplicate scan',
-        DuplicateHandling.allow => 'Add every scan, even if it already exists',
-      };
+    DuplicateHandling.warn => 'Show a warning and let the user decide',
+    DuplicateHandling.increment => 'Automatically add to a quantity column',
+    DuplicateHandling.skip => 'Silently ignore the duplicate scan',
+    DuplicateHandling.allow => 'Add every scan, even if it already exists',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -600,25 +642,119 @@ class _DuplicateOption extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_title,
-                      style: TextStyle(
-                          color: selected
-                              ? context.themeAccent
-                              : context.themeTextPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14)),
+                  Text(
+                    _title,
+                    style: TextStyle(
+                      color: selected
+                          ? context.themeAccent
+                          : context.themeTextPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(_desc,
-                      style: TextStyle(
-                          color: context.themeTextSecondary, fontSize: 12)),
+                  Text(
+                    _desc,
+                    style: TextStyle(
+                      color: context.themeTextSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
             if (selected)
-              Icon(Icons.check_circle_rounded,
-                  color: context.themeAccent, size: 18),
+              Icon(
+                Icons.check_circle_rounded,
+                color: context.themeAccent,
+                size: 18,
+              ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Scanner layout tile ──────────────────────────────────────────────────────
+class _LayoutModeTile extends StatelessWidget {
+  final ScanningPreferences scanPrefs;
+  const _LayoutModeTile({required this.scanPrefs});
+
+  @override
+  Widget build(BuildContext context) {
+    final isFullscreen =
+        scanPrefs.scannerLayout == ScannerLayoutMode.fullscreen;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.fullscreen_rounded,
+              color: Color(0xFF10B981),
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Scanner layout',
+                  style: TextStyle(
+                    color: context.themeTextPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                Text(
+                  isFullscreen
+                      ? 'Full-screen camera with swipe-up table'
+                      : 'Compact camera with table below',
+                  style: TextStyle(
+                    color: context.themeTextSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          SegmentedButton<ScannerLayoutMode>(
+            style: SegmentedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              textStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            segments: const [
+              ButtonSegment(
+                value: ScannerLayoutMode.compact,
+                icon: Icon(Icons.view_agenda_rounded, size: 15),
+                label: Text('Compact'),
+              ),
+              ButtonSegment(
+                value: ScannerLayoutMode.fullscreen,
+                icon: Icon(Icons.fullscreen_rounded, size: 15),
+                label: Text('Full'),
+              ),
+            ],
+            selected: {scanPrefs.scannerLayout},
+            onSelectionChanged: (s) {
+              HapticFeedback.selectionClick();
+              scanPrefs.setScannerLayout(s.first);
+            },
+          ),
+        ],
       ),
     );
   }
@@ -649,11 +785,7 @@ class _SectionHeader extends StatelessWidget {
 class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Divider(
-      height: 1,
-      indent: 64,
-      color: context.themeBorder,
-    );
+    return Divider(height: 1, indent: 64, color: context.themeBorder);
   }
 }
 
@@ -694,14 +826,21 @@ class _SwitchTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(
-                        color: context.themeTextPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15)),
-                Text(subtitle,
-                    style: TextStyle(
-                        color: context.themeTextSecondary, fontSize: 12)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: context.themeTextPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: context.themeTextSecondary,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
@@ -760,21 +899,31 @@ class _ActionTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: TextStyle(
-                          color: context.themeTextPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: context.themeTextPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
                   if (subtitle != null)
-                    Text(subtitle!,
-                        style: TextStyle(
-                            color: context.themeTextSecondary, fontSize: 12)),
+                    Text(
+                      subtitle!,
+                      style: TextStyle(
+                        color: context.themeTextSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                 ],
               ),
             ),
             trailing ??
-                Icon(Icons.chevron_right_rounded,
-                    size: 18, color: context.themeTextSecondary),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: context.themeTextSecondary,
+                ),
           ],
         ),
       ),
@@ -812,15 +961,19 @@ class _InfoTile extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(title,
-                style: TextStyle(
-                    color: context.themeTextPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15)),
-          ),
-          Text(value,
+            child: Text(
+              title,
               style: TextStyle(
-                  color: context.themeTextSecondary, fontSize: 13)),
+                color: context.themeTextPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(color: context.themeTextSecondary, fontSize: 13),
+          ),
         ],
       ),
     );
@@ -916,7 +1069,9 @@ class _GoogleAccountCardState extends State<_GoogleAccountCard> {
                   },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -1012,7 +1167,8 @@ class _SyncQueueCardState extends State<_SyncQueueCard> {
                                 width: 14,
                                 height: 14,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2),
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.sync_rounded, size: 16),
                         label: const Text('Sync Now'),
@@ -1034,7 +1190,9 @@ class _SyncQueueCardState extends State<_SyncQueueCard> {
                       label: const Text('Clear synced'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -1046,8 +1204,11 @@ class _SyncQueueCardState extends State<_SyncQueueCard> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(Icons.check_circle_rounded,
-                        size: 14, color: Color(0xFF22C55E)),
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      size: 14,
+                      color: Color(0xFF22C55E),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'All caught up',

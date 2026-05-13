@@ -31,6 +31,7 @@ class SessionSetupScreen extends StatefulWidget {
 class _SessionSetupScreenState extends State<SessionSetupScreen> {
   late final TextEditingController _nameController;
   bool _warnDuplicates = false;
+  bool _showScanConfirmation = false;
   late final List<_EditableColumn> _columns;
   String _destination = 'csv'; // 'csv', 'xlsx', 'sheets'
 
@@ -167,12 +168,16 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
               name: c.name,
               type: c.type,
               fixedValue: c.fixedValue,
+              defaultValue: c.defaultValue,
+              isNumeric: c.isNumeric,
+              stepSize: c.stepSize,
             ),
           )
           .toList(),
       createdAt: DateTime.now(),
       isActive: true,
       warnDuplicates: _warnDuplicates,
+      showScanConfirmation: _showScanConfirmation,
       destination: destinationEnum,
       spreadsheetId: spreadsheetId,
       sheetName: sheetName,
@@ -203,6 +208,15 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
   void _showAddColumnDialog({_EditableColumn? existing, int? editIndex}) {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final fixedCtrl = TextEditingController(text: existing?.fixedValue ?? '');
+    final defaultValueCtrl = TextEditingController(
+      text: editIndex != null ? _columns[editIndex].defaultValue ?? '' : '',
+    );
+    final stepSizeCtrl = TextEditingController(
+      text: editIndex != null ? '${_columns[editIndex].stepSize}' : '1',
+    );
+    final isNumericNotifier = ValueNotifier<bool>(
+      editIndex != null ? _columns[editIndex].isNumeric : false,
+    );
     SessionColumnType selectedType = existing?.type ?? SessionColumnType.scan;
 
     final types = [
@@ -413,6 +427,103 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                                 ),
                               ),
                             ],
+                            if (selectedType == SessionColumnType.manual) ...[
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: defaultValueCtrl,
+                                decoration: InputDecoration(
+                                  labelText: 'Default value (optional)',
+                                  hintText: 'Pre-fills on every scan',
+                                  labelStyle: TextStyle(
+                                    color: context.themeTextSecondary,
+                                    fontSize: 13,
+                                  ),
+                                  filled: true,
+                                  fillColor: context.themeSurface,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: context.themeBorder,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: context.themeBorder,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              StatefulBuilder(
+                                builder: (ctx, setSt) => Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Numeric stepper',
+                                            style: TextStyle(
+                                              color: ctx.themeTextPrimary,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Shows – N + instead of keyboard',
+                                            style: TextStyle(
+                                              color: ctx.themeTextSecondary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Switch(
+                                      value: isNumericNotifier.value,
+                                      onChanged: (v) {
+                                        isNumericNotifier.value = v;
+                                        setSt(() {});
+                                      },
+                                      activeThumbColor: ctx.themeAccent,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isNumericNotifier.value) ...[
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: stepSizeCtrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Step size',
+                                    hintText: '1',
+                                    labelStyle: TextStyle(
+                                      color: context.themeTextSecondary,
+                                      fontSize: 13,
+                                    ),
+                                    filled: true,
+                                    fillColor: context.themeSurface,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: context.themeBorder,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: context.themeBorder,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                             const SizedBox(height: 20),
                             SizedBox(
                               width: double.infinity,
@@ -427,6 +538,25 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                                         selectedType == SessionColumnType.fixed
                                         ? fixedCtrl.text.trim()
                                         : null,
+                                    defaultValue:
+                                        selectedType == SessionColumnType.manual
+                                        ? defaultValueCtrl.text.trim().isEmpty
+                                              ? null
+                                              : defaultValueCtrl.text.trim()
+                                        : null,
+                                    isNumeric:
+                                        selectedType == SessionColumnType.manual
+                                        ? isNumericNotifier.value
+                                        : false,
+                                    stepSize:
+                                        selectedType ==
+                                                SessionColumnType.manual &&
+                                            isNumericNotifier.value
+                                        ? int.tryParse(
+                                                stepSizeCtrl.text.trim(),
+                                              ) ??
+                                              1
+                                        : 1,
                                   );
                                   Navigator.pop(ctx);
                                   setState(() {
@@ -800,6 +930,53 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: context.themeSurface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: context.themeBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Scan confirmation panel',
+                                style: TextStyle(
+                                  color: context.themeTextPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Review decoded value and fill fields after each scan',
+                                style: TextStyle(
+                                  color: context.themeTextSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: _showScanConfirmation,
+                          onChanged: (v) =>
+                              setState(() => _showScanConfirmation = v),
+                          activeThumbColor: context.themeAccent,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 32),
                 ],
               ),
@@ -884,12 +1061,18 @@ class _EditableColumn {
   String name;
   SessionColumnType type;
   String? fixedValue;
+  String? defaultValue;
+  bool isNumeric;
+  int stepSize;
   final bool deletable;
 
   _EditableColumn({
     required this.name,
     required this.type,
     this.fixedValue,
+    this.defaultValue,
+    this.isNumeric = false,
+    this.stepSize = 1,
     this.deletable = true,
   });
 }
