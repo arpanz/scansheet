@@ -182,6 +182,31 @@ class ScanSessionService {
     return rowsBox.keys.where((k) => k.toString().startsWith(prefix)).length;
   }
 
+  /// Returns the first [limit] scanned values (first column) for preview.
+  static List<String> getRowPreview(String sessionId, {int limit = 4}) {
+    final prefix = '${sessionId}_';
+    final matchingKeys = rowsBox.keys
+        .where((k) => k.toString().startsWith(prefix))
+        .toList();
+    matchingKeys.sort((a, b) {
+      final ai = int.tryParse(a.toString().replaceFirst(prefix, '')) ?? 0;
+      final bi = int.tryParse(b.toString().replaceFirst(prefix, '')) ?? 0;
+      return ai.compareTo(bi);
+    });
+    final previews = <String>[];
+    for (final key in matchingKeys.take(limit)) {
+      final raw = rowsBox.get(key);
+      if (raw == null) continue;
+      try {
+        final row = SessionRow.fromMap(Map<String, dynamic>.from(raw as Map));
+        if (row.values.isNotEmpty && row.values.first.trim().isNotEmpty) {
+          previews.add(row.values.first.trim());
+        }
+      } catch (_) {}
+    }
+    return previews;
+  }
+
   /// Check if a value already exists in a specific column across all rows.
   static bool isDuplicate(String sessionId, int columnIndex, String value) {
     if (value.isEmpty) return false;

@@ -1442,92 +1442,84 @@ class _RecentSessionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final rowCount = ScanSessionService.getRowCount(session.id);
     final isSheets = session.destination == SessionDestination.googleSheets;
-    final formatLabel = isSheets
-        ? 'Sheets'
-        : (session.destination == SessionDestination.localXlsx
-              ? 'XLSX'
-              : 'CSV');
-    final formatColor = isSheets
-        ? const Color(0xFF16A34A)
-        : const Color(0xFF6B7280);
+    final formatLabel = isSheets ? 'Sheets'
+        : (session.destination == SessionDestination.localXlsx ? 'XLSX' : 'CSV');
+    final formatColor = isSheets ? const Color(0xFF16A34A) : const Color(0xFF6B7280);
 
     final template = session.templateId != null
-        ? TemplateService.getTemplate(session.templateId!)
-        : null;
-    final cardIcon = _templateIconForTile(template?.icon);
-    final cardColor = template != null
-        ? const Color(0xFF006A6B)
-        : formatColor;
+        ? TemplateService.getTemplate(session.templateId!) : null;
+    final iconKey = session.iconName;
+    final IconData cardIcon;
+    final Color cardColor;
+    if (iconKey != null) {
+      cardIcon = sessionIconData(iconKey);
+      cardColor = sessionIconColor(iconKey);
+    } else if (template != null) {
+      cardIcon = _templateIconForTile(template.icon);
+      cardColor = const Color(0xFF006A6B);
+    } else {
+      cardIcon = isSheets ? Icons.table_chart_rounded : Icons.insert_drive_file_rounded;
+      cardColor = formatColor;
+    }
+
+    final previewValues = ScanSessionService.getRowPreview(session.id, limit: 4);
+    final String previewText;
+    if (previewValues.isEmpty) {
+      previewText = '$rowCount ${rowCount == 1 ? 'item' : 'items'}';
+    } else {
+      final joined = previewValues.join(', ');
+      previewText = rowCount > previewValues.length
+          ? '$rowCount items · $joined…'
+          : '$rowCount ${rowCount == 1 ? 'item' : 'items'} · $joined';
+    }
     final timeStr = _formatTimeAgo(session.createdAt);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: context.themeCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.themeBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: cardColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(cardIcon, color: cardColor, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        session.name,
-                        style: TextStyle(
-                          color: context.themeTextPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (session.isActive)
-                      Container(
-                        width: 6,
-                        height: 6,
-                        margin: const EdgeInsets.only(left: 6),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF4F8EF7),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$rowCount ${rowCount == 1 ? 'item' : 'items'} \u00b7 $formatLabel \u00b7 $timeStr',
-                  style: TextStyle(
-                    color: context.themeTextSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.chevron_right_rounded,
-            size: 16,
-            color: context.themeTextSecondary,
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: context.themeCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.themeBorder)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        Padding(padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
+          child: Container(width: 40, height: 40,
+            decoration: BoxDecoration(color: cardColor.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: cardColor.withValues(alpha: 0.20))),
+            child: Icon(cardIcon, color: cardColor, size: 20)),
+        ),
+        const SizedBox(width: 11),
+        Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 11),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(child: Text(session.name,
+                style: TextStyle(color: context.themeTextPrimary, fontSize: 13,
+                    fontWeight: FontWeight.w600, letterSpacing: -0.1),
+                maxLines: 1, overflow: TextOverflow.ellipsis)),
+              if (session.isActive)
+                Container(width: 6, height: 6,
+                  margin: const EdgeInsets.only(left: 6, right: 2),
+                  decoration: const BoxDecoration(color: Color(0xFF4F8EF7), shape: BoxShape.circle)),
+            ]),
+            const SizedBox(height: 2),
+            Text(previewText, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: context.themeTextSecondary, fontSize: 11)),
+            const SizedBox(height: 3),
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(color: formatColor.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(4)),
+                child: Text(formatLabel, style: TextStyle(color: formatColor,
+                    fontSize: 9.5, fontWeight: FontWeight.w700))),
+              const SizedBox(width: 5),
+              Text('· $timeStr', style: TextStyle(
+                  color: context.themeTextSecondary.withValues(alpha: 0.7), fontSize: 11)),
+            ]),
+          ]),
+        )),
+        Icon(Icons.chevron_right_rounded, size: 16, color: context.themeTextSecondary),
+        const SizedBox(width: 8),
+      ]),
     );
   }
 }

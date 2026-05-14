@@ -92,9 +92,8 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
     if (tmpl != null) {
       _nameController = TextEditingController(text: tmpl.name);
       // Pre-select the template's icon if it matches one of our picker options
-      if (tmpl.iconName != null &&
-          kSessionIcons.any((o) => o.key == tmpl.iconName)) {
-        _selectedIconKey = tmpl.iconName;
+      if (kSessionIcons.any((o) => o.key == tmpl.icon)) {
+        _selectedIconKey = tmpl.icon;
       }
       _columns = tmpl.columns
           .map(

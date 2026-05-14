@@ -27,6 +27,7 @@ import '../../single_gen/models/generator_type.dart';
 import '../../scan/models/scan_session.dart';
 import '../../scan/widgets/session_export_sheet.dart';
 import '../../scan/screens/scan_session_screen.dart';
+import '../../scan/screens/session_setup_screen.dart';
 import './entry_detail_screen.dart';
 import '../../../core/utils/app_router.dart';
 
@@ -1359,6 +1360,25 @@ class _TypeBadge extends StatelessWidget {
   }
 }
 
+class _SessionChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _SessionChip({required this.label, required this.color});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(label,
+        style: TextStyle(color: color, fontSize: 10,
+            fontWeight: FontWeight.w700, letterSpacing: 0.2)),
+    );
+  }
+}
+
 class _SyncBadge extends StatelessWidget {
   final String label;
   final Color color;
@@ -1696,9 +1716,9 @@ class _SessionsTabState extends State<_SessionsTab> {
       final d = DateTime(s.createdAt.year, s.createdAt.month, s.createdAt.day);
       final String key;
       if (d == today) {
-        key = 'TODAY';
+        key = 'TODAY \u00b7 ${DateFormat('d MMM yyyy').format(s.createdAt).toUpperCase()}';
       } else if (d == yesterday) {
-        key = 'YESTERDAY';
+        key = 'YESTERDAY \u00b7 ${DateFormat('d MMM yyyy').format(s.createdAt).toUpperCase()}';
       } else {
         key = DateFormat('d MMM yyyy').format(s.createdAt).toUpperCase();
       }
@@ -1739,202 +1759,121 @@ class _SessionsTabState extends State<_SessionsTab> {
   }
 
   Widget _buildSessionCard(BuildContext ctx, ScanSession session) {
-    final rowCount = ScanSessionService.getRowCount(session.id);
-    final timeStr = DateFormat('h:mm a').format(session.createdAt);
-    final dateStr = DateFormat('MMM d, yyyy').format(session.createdAt);
+  final rowCount = ScanSessionService.getRowCount(session.id);
+  final timeStr = DateFormat('h:mm a').format(session.createdAt);
 
-    final bool isSheets =
-        session.destination == SessionDestination.googleSheets;
-    final formatLabel = isSheets
-        ? 'Sheets'
-        : (session.destination == SessionDestination.localXlsx
-              ? 'XLSX'
-              : 'CSV');
-    final formatColor = isSheets
-        ? const Color(0xFF16A34A)
-        : const Color(0xFF6B7280);
+  final bool isSheets = session.destination == SessionDestination.googleSheets;
+  final formatLabel = isSheets ? 'Sheets'
+      : (session.destination == SessionDestination.localXlsx ? 'XLSX' : 'CSV');
+  final formatColor = isSheets ? const Color(0xFF16A34A) : const Color(0xFF6B7280);
 
-    final template = session.templateId != null
-        ? TemplateService.getTemplate(session.templateId!)
-        : null;
-    final cardIcon = _templateIcon(template?.icon);
-    final cardColor = template != null ? const Color(0xFF006A6B) : formatColor;
-    final useSheetsSvg = template == null && isSheets;
+  final template = session.templateId != null
+      ? TemplateService.getTemplate(session.templateId!) : null;
 
-    final sessionQueueItems = SyncQueueService.getAll()
-        .where((i) => i.sessionId == session.id)
-        .toList();
+  final iconKey = session.iconName;
+  final IconData cardIcon;
+  final Color cardColor;
+  if (iconKey != null) {
+    cardIcon = sessionIconData(iconKey);
+    cardColor = sessionIconColor(iconKey);
+  } else if (template != null) {
+    cardIcon = _templateIcon(template.icon);
+    cardColor = const Color(0xFF006A6B);
+  } else {
+    cardIcon = isSheets ? Icons.table_chart_rounded : Icons.insert_drive_file_rounded;
+    cardColor = formatColor;
+  }
+  final useSheetsSvg = iconKey == null && template == null && isSheets;
 
-    final pendingCount = sessionQueueItems
-        .where(
-          (i) =>
-              i.status == SyncStatus.pending || i.status == SyncStatus.syncing,
-        )
-        .length;
-    final hasFailed = sessionQueueItems.any(
-      (i) => i.status == SyncStatus.failed,
-    );
-    final allSynced =
-        sessionQueueItems.isNotEmpty &&
-        sessionQueueItems.every((i) => i.status == SyncStatus.synced);
+  final sessionQueueItems = SyncQueueService.getAll()
+      .where((i) => i.sessionId == session.id).toList();
+  final pendingCount = sessionQueueItems
+      .where((i) => i.status == SyncStatus.pending || i.status == SyncStatus.syncing).length;
+  final hasFailed = sessionQueueItems.any((i) => i.status == SyncStatus.failed);
+  final allSynced = sessionQueueItems.isNotEmpty &&
+      sessionQueueItems.every((i) => i.status == SyncStatus.synced);
 
-    return Dismissible(
-      key: Key(session.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: Colors.redAccent.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Icon(
-          Icons.delete_outline_rounded,
-          color: Colors.redAccent,
-        ),
-      ),
-      confirmDismiss: (_) async {
-        await _deleteSession(session);
-        return false;
-      },
-      child: GestureDetector(
-        onTap: () => Navigator.push(
-          ctx,
-          FadeSlideRoute(page: ScanSessionScreen(session: session)),
-        ).then((_) => _loadSessions()),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
-          decoration: BoxDecoration(
-            color: ctx.themeCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: ctx.themeBorder),
+  final previewValues = ScanSessionService.getRowPreview(session.id, limit: 4);
+  final String previewText;
+  if (previewValues.isEmpty) {
+    previewText = '$rowCount ${rowCount == 1 ? 'item' : 'items'}';
+  } else {
+    final joined = previewValues.join(', ');
+    previewText = rowCount > previewValues.length
+        ? '$rowCount items · $joined…'
+        : '$rowCount ${rowCount == 1 ? 'item' : 'items'} · $joined';
+  }
+
+  final Widget? syncBadge = isSheets
+      ? allSynced ? const _SyncBadge(label: 'Synced', color: Color(0xFF16A34A))
+          : hasFailed ? const _SyncBadge(label: 'Failed', color: Color(0xFFEF4444))
+          : pendingCount > 0 ? _SyncBadge(label: 'Queued · $pendingCount', color: const Color(0xFFF59E0B))
+          : null
+      : null;
+
+  return Dismissible(
+    key: Key(session.id),
+    direction: DismissDirection.endToStart,
+    background: Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 20),
+      decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(16)),
+      child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+    ),
+    confirmDismiss: (_) async { await _deleteSession(session); return false; },
+    child: GestureDetector(
+      onTap: () => Navigator.push(ctx, FadeSlideRoute(page: ScanSessionScreen(session: session)))
+          .then((_) => _loadSessions()),
+      child: Container(
+        decoration: BoxDecoration(color: ctx.themeCard,
+            borderRadius: BorderRadius.circular(16), border: Border.all(color: ctx.themeBorder)),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          Padding(padding: const EdgeInsets.fromLTRB(14, 14, 0, 14),
+            child: Container(width: 46, height: 46,
+              decoration: BoxDecoration(color: cardColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: cardColor.withValues(alpha: 0.20))),
+              child: useSheetsSvg
+                  ? Center(child: SvgPicture.asset('assets/sheets.svg', width: 22, height: 22))
+                  : Icon(cardIcon, color: cardColor, size: 22),
+            ),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: cardColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: cardColor.withValues(alpha: 0.25)),
-                ),
-                child: useSheetsSvg
-                    ? Center(
-                        child: SvgPicture.asset(
-                          'assets/sheets.svg',
-                          width: 20,
-                          height: 20,
-                        ),
-                      )
-                    : Icon(cardIcon, color: cardColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            session.name,
-                            style: TextStyle(
-                              color: ctx.themeTextPrimary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        if (session.isActive)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFF4F8EF7,
-                              ).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            child: const Text(
-                              'Active',
-                              style: TextStyle(
-                                color: Color(0xFF4F8EF7),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: formatColor.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            formatLabel,
-                            style: TextStyle(
-                              color: formatColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '$rowCount ${rowCount == 1 ? 'item' : 'items'}',
-                          style: TextStyle(
-                            color: ctx.themeTextSecondary,
-                            fontSize: 11,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '\u00b7 $dateStr \u00b7 $timeStr',
-                            style: TextStyle(
-                              color: ctx.themeTextSecondary,
-                              fontSize: 11,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isSheets) ...[
-                          const SizedBox(width: 4),
-                          if (allSynced)
-                            const _SyncBadge(
-                              label: 'Synced',
-                              color: Color(0xFF16A34A),
-                            )
-                          else if (hasFailed)
-                            const _SyncBadge(
-                              label: 'Failed',
-                              color: Color(0xFFEF4444),
-                            )
-                          else if (pendingCount > 0)
-                            _SyncBadge(
-                              label: '$pendingCount',
-                              color: const Color(0xFFF59E0B),
-                            ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuButton<String>(
+          const SizedBox(width: 12),
+          Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 13),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(child: Text(session.name,
+                  style: TextStyle(color: ctx.themeTextPrimary, fontWeight: FontWeight.w700,
+                      fontSize: 14, letterSpacing: -0.1),
+                  overflow: TextOverflow.ellipsis)),
+                const SizedBox(width: 6),
+                if (session.isActive) const _SessionChip(label: 'Active', color: Color(0xFF4F8EF7))
+                else if (syncBadge != null) syncBadge,
+              ]),
+              const SizedBox(height: 3),
+              Text(previewText, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: ctx.themeTextSecondary, fontSize: 11.5)),
+              const SizedBox(height: 5),
+              Row(children: [
+                if (useSheetsSvg) ...[
+                  SvgPicture.asset('assets/sheets.svg', width: 11, height: 11),
+                  const SizedBox(width: 4),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(color: formatColor.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(4)),
+                    child: Text(formatLabel, style: TextStyle(color: formatColor,
+                        fontSize: 9.5, fontWeight: FontWeight.w700))),
+                  const SizedBox(width: 5),
+                ],
+                Text('· $timeStr', style: TextStyle(
+                    color: ctx.themeTextSecondary.withValues(alpha: 0.7), fontSize: 11)),
+              ]),
+            ]),
+          )),
+          PopupMenuButton<String>(
                 icon: Icon(
                   Icons.more_vert_rounded,
                   size: 20,
