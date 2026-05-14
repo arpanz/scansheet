@@ -167,184 +167,187 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
               child: SafeArea(
                 top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Drag handle
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: ctx.themeBorder,
-                          borderRadius: BorderRadius.circular(100),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Drag handle
+                      Center(
+                        child: Container(
+                          width: 44,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: ctx.themeBorder,
+                            borderRadius: BorderRadius.circular(100),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Decoded value display
-                    Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: ctx.themeAccent.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.qr_code_rounded,
-                            color: ctx.themeAccent,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                scannedColumnName.toUpperCase(),
-                                style: TextStyle(
-                                  color: ctx.themeTextSecondary,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              Text(
-                                scannedValue.isEmpty ? '—' : scannedValue,
-                                style: TextStyle(
-                                  color: ctx.themeTextPrimary,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures(),
-                                  ],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Row index badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ctx.themeAccent.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '#${_rows.length + 1}',
-                            style: TextStyle(
-                              color: ctx.themeAccent,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Manual fields
-                    if (manualIndices.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      Divider(height: 1, color: ctx.themeBorder),
                       const SizedBox(height: 16),
-                      for (int i = 0; i < manualIndices.length; i++) ...[
-                        _buildConfirmationField(
-                          ctx: ctx,
-                          col: _session.columns[manualIndices[i]],
-                          colIndex: manualIndices[i],
-                          valueControllers: valueControllers,
-                          numericValues: numericValues,
-                          setSt: setSt,
-                        ),
-                        if (i < manualIndices.length - 1)
-                          const SizedBox(height: 14),
-                      ],
-                    ],
 
-                    const SizedBox(height: 24),
-
-                    // Action buttons
-                    Row(
-                      children: [
-                        OutlinedButton(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            Future.delayed(
-                              const Duration(milliseconds: 50),
-                              () {
-                                disposeControllers();
-                                _cameraController.start();
-                                _isScannerPaused = false;
-                                _commitRow(row);
-                              },
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: ctx.themeTextSecondary,
-                            side: BorderSide(color: ctx.themeBorder),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
+                      // Decoded value display
+                      Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: ctx.themeAccent.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.qr_code_rounded,
+                              color: ctx.themeAccent,
+                              size: 20,
                             ),
                           ),
-                          child: const Text('Skip'),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton.icon(
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  scannedColumnName.toUpperCase(),
+                                  style: TextStyle(
+                                    color: ctx.themeTextSecondary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                Text(
+                                  scannedValue.isEmpty ? '—' : scannedValue,
+                                  style: TextStyle(
+                                    color: ctx.themeTextPrimary,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Row index badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: ctx.themeAccent.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '#${_rows.length + 1}',
+                              style: TextStyle(
+                                color: ctx.themeAccent,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Manual fields
+                      if (manualIndices.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        Divider(height: 1, color: ctx.themeBorder),
+                        const SizedBox(height: 16),
+                        for (int i = 0; i < manualIndices.length; i++) ...[
+                          _buildConfirmationField(
+                            ctx: ctx,
+                            col: _session.columns[manualIndices[i]],
+                            colIndex: manualIndices[i],
+                            valueControllers: valueControllers,
+                            numericValues: numericValues,
+                            setSt: setSt,
+                          ),
+                          if (i < manualIndices.length - 1)
+                            const SizedBox(height: 14),
+                        ],
+                      ],
+
+                      const SizedBox(height: 24),
+
+                      // Action buttons
+                      Row(
+                        children: [
+                          OutlinedButton(
                             onPressed: () {
-                              final updatedValues = List<String>.from(
-                                row.values,
-                              );
-                              for (final ci in manualIndices) {
-                                final col = _session.columns[ci];
-                                final val = col.isNumeric
-                                    ? '${numericValues[ci] ?? col.stepSize}'
-                                    : (valueControllers[ci]?.text.trim() ?? '');
-                                if (updatedValues.length > ci) {
-                                  updatedValues[ci] = val;
-                                }
-                              }
-                              final updatedRow = row.copyWith(
-                                values: updatedValues,
-                              );
                               Navigator.pop(ctx);
                               Future.delayed(
                                 const Duration(milliseconds: 50),
                                 () {
-                                  disposeControllers();
                                   _cameraController.start();
                                   _isScannerPaused = false;
-                                  _commitRow(updatedRow);
+                                  _commitRow(row);
                                 },
                               );
                             },
-                            icon: const Icon(Icons.save_rounded, size: 18),
-                            label: const Text(
-                              'Save & Next',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: ctx.themeTextSecondary,
+                              side: BorderSide(color: ctx.themeBorder),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
                               ),
                             ),
-                            style: FilledButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            child: const Text('Skip'),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: () {
+                                final updatedValues = List<String>.from(
+                                  row.values,
+                                );
+                                for (final ci in manualIndices) {
+                                  final col = _session.columns[ci];
+                                  final val = col.isNumeric
+                                      ? '${numericValues[ci] ?? col.stepSize}'
+                                      : (valueControllers[ci]?.text.trim() ??
+                                            '');
+                                  if (updatedValues.length > ci) {
+                                    updatedValues[ci] = val;
+                                  }
+                                }
+                                final updatedRow = row.copyWith(
+                                  values: updatedValues,
+                                );
+                                Navigator.pop(ctx);
+                                Future.delayed(
+                                  const Duration(milliseconds: 50),
+                                  () {
+                                    _cameraController.start();
+                                    _isScannerPaused = false;
+                                    _commitRow(updatedRow);
+                                  },
+                                );
+                              },
+                              icon: const Icon(Icons.save_rounded, size: 18),
+                              label: const Text(
+                                'Save & Next',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: FilledButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -353,6 +356,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       ),
     ).whenComplete(() {
       _isScannerPaused = false;
+      disposeControllers();
     });
   }
 

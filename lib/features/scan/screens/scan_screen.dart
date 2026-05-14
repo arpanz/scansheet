@@ -1563,110 +1563,127 @@ class _RecentSessionTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: context.themeBorder),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: cardColor.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(11),
-                border: Border.all(color: cardColor.withValues(alpha: 0.20)),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ScanSessionScreen(session: session),
               ),
-              child: Icon(cardIcon, color: cardColor, size: 20),
-            ),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 11),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          session.name,
-                          style: TextStyle(
-                            color: context.themeTextPrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.1,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (session.isActive)
-                        Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.only(left: 6, right: 2),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF4F8EF7),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    previewText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.themeTextSecondary,
-                      fontSize: 11,
+            );
+          },
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: cardColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(
+                      color: cardColor.withValues(alpha: 0.20),
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Row(
+                  child: Icon(cardIcon, color: cardColor, size: 20),
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: formatColor.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          formatLabel,
-                          style: TextStyle(
-                            color: formatColor,
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              session.name,
+                              style: TextStyle(
+                                color: context.themeTextPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.1,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
+                          if (session.isActive)
+                            Container(
+                              width: 6,
+                              height: 6,
+                              margin: const EdgeInsets.only(left: 6, right: 2),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF4F8EF7),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(width: 5),
+                      const SizedBox(height: 2),
                       Text(
-                        '· $timeStr',
+                        previewText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: context.themeTextSecondary.withValues(
-                            alpha: 0.7,
-                          ),
+                          color: context.themeTextSecondary,
                           fontSize: 11,
                         ),
                       ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: formatColor.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              formatLabel,
+                              style: TextStyle(
+                                color: formatColor,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '· $timeStr',
+                            style: TextStyle(
+                              color: context.themeTextSecondary.withValues(
+                                alpha: 0.7,
+                              ),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: context.themeTextSecondary,
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
-          Icon(
-            Icons.chevron_right_rounded,
-            size: 16,
-            color: context.themeTextSecondary,
-          ),
-          const SizedBox(width: 8),
-        ],
+        ),
       ),
     );
   }
