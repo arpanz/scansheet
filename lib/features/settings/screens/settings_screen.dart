@@ -199,7 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Rate ScanSheet',
                   subtitle: 'Enjoying the app? Leave a review',
                   onTap: () => _launchUrl(
-                    'https://play.google.com/store/apps/details?id=com.arpanz.scansheet',
+                    'https://play.google.com/store/apps/details?id=com.livinlabs.scansheet',
                   ),
                 ),
                 _Divider(),
@@ -209,7 +209,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Privacy Policy',
                   subtitle: null,
                   onTap: () =>
-                      _launchUrl('https://arpanz.github.io/scansheet/privacy'),
+                      _launchUrl('https://livinlabs.dev/privacy/scansheet'),
                 ),
                 _Divider(),
                 _InfoTile(
@@ -224,7 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 32),
           Center(
             child: Text(
-              'Made with ♥ by Arpan',
+              'Made with ♥ by LivinLabs',
               style: TextStyle(
                 fontSize: 12,
                 color: context.themeTextSecondary.withValues(alpha: 0.5),

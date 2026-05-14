@@ -14,6 +14,7 @@ import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -927,14 +928,31 @@ class _ScanScreenState extends State<ScanScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 24),
-            Text(
-              'Scan',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: context.themeTextPrimary,
-                letterSpacing: -0.5,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Scan',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: context.themeTextPrimary,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    context.read<ThemeProvider>().toggleTheme();
+                  },
+                  icon: Icon(
+                    Theme.of(context).brightness == Brightness.dark
+                        ? Icons.light_mode_rounded
+                        : Icons.dark_mode_rounded,
+                    color: context.themeTextPrimary,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             // Session card (active or new)
@@ -1495,12 +1513,18 @@ class _RecentSessionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final rowCount = ScanSessionService.getRowCount(session.id);
     final isSheets = session.destination == SessionDestination.googleSheets;
-    final formatLabel = isSheets ? 'Sheets'
-        : (session.destination == SessionDestination.localXlsx ? 'XLSX' : 'CSV');
-    final formatColor = isSheets ? const Color(0xFF16A34A) : const Color(0xFF6B7280);
+    final formatLabel = isSheets
+        ? 'Sheets'
+        : (session.destination == SessionDestination.localXlsx
+              ? 'XLSX'
+              : 'CSV');
+    final formatColor = isSheets
+        ? const Color(0xFF16A34A)
+        : const Color(0xFF6B7280);
 
     final template = session.templateId != null
-        ? TemplateService.getTemplate(session.templateId!) : null;
+        ? TemplateService.getTemplate(session.templateId!)
+        : null;
     final iconKey = session.iconName;
     final IconData cardIcon;
     final Color cardColor;
@@ -1511,11 +1535,16 @@ class _RecentSessionTile extends StatelessWidget {
       cardIcon = _templateIconForTile(template.icon);
       cardColor = const Color(0xFF006A6B);
     } else {
-      cardIcon = isSheets ? Icons.table_chart_rounded : Icons.insert_drive_file_rounded;
+      cardIcon = isSheets
+          ? Icons.table_chart_rounded
+          : Icons.insert_drive_file_rounded;
       cardColor = formatColor;
     }
 
-    final previewValues = ScanSessionService.getRowPreview(session.id, limit: 4);
+    final previewValues = ScanSessionService.getRowPreview(
+      session.id,
+      limit: 4,
+    );
     final String previewText;
     if (previewValues.isEmpty) {
       previewText = '$rowCount ${rowCount == 1 ? 'item' : 'items'}';
@@ -1529,50 +1558,116 @@ class _RecentSessionTile extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(color: context.themeCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: context.themeBorder)),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        Padding(padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
-          child: Container(width: 40, height: 40,
-            decoration: BoxDecoration(color: cardColor.withValues(alpha: 0.10),
+      decoration: BoxDecoration(
+        color: context.themeCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.themeBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: cardColor.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(11),
-                border: Border.all(color: cardColor.withValues(alpha: 0.20))),
-            child: Icon(cardIcon, color: cardColor, size: 20)),
-        ),
-        const SizedBox(width: 11),
-        Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 11),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(child: Text(session.name,
-                style: TextStyle(color: context.themeTextPrimary, fontSize: 13,
-                    fontWeight: FontWeight.w600, letterSpacing: -0.1),
-                maxLines: 1, overflow: TextOverflow.ellipsis)),
-              if (session.isActive)
-                Container(width: 6, height: 6,
-                  margin: const EdgeInsets.only(left: 6, right: 2),
-                  decoration: const BoxDecoration(color: Color(0xFF4F8EF7), shape: BoxShape.circle)),
-            ]),
-            const SizedBox(height: 2),
-            Text(previewText, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: context.themeTextSecondary, fontSize: 11)),
-            const SizedBox(height: 3),
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(color: formatColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(4)),
-                child: Text(formatLabel, style: TextStyle(color: formatColor,
-                    fontSize: 9.5, fontWeight: FontWeight.w700))),
-              const SizedBox(width: 5),
-              Text('· $timeStr', style: TextStyle(
-                  color: context.themeTextSecondary.withValues(alpha: 0.7), fontSize: 11)),
-            ]),
-          ]),
-        )),
-        Icon(Icons.chevron_right_rounded, size: 16, color: context.themeTextSecondary),
-        const SizedBox(width: 8),
-      ]),
+                border: Border.all(color: cardColor.withValues(alpha: 0.20)),
+              ),
+              child: Icon(cardIcon, color: cardColor, size: 20),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          session.name,
+                          style: TextStyle(
+                            color: context.themeTextPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.1,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (session.isActive)
+                        Container(
+                          width: 6,
+                          height: 6,
+                          margin: const EdgeInsets.only(left: 6, right: 2),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF4F8EF7),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    previewText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.themeTextSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: formatColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          formatLabel,
+                          style: TextStyle(
+                            color: formatColor,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '· $timeStr',
+                        style: TextStyle(
+                          color: context.themeTextSecondary.withValues(
+                            alpha: 0.7,
+                          ),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 16,
+            color: context.themeTextSecondary,
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
     );
   }
 }
