@@ -730,23 +730,20 @@ class _LayoutModeTile extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           SegmentedButton<ScannerLayoutMode>(
+            showSelectedIcon: false,
             style: SegmentedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              textStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
             segments: const [
               ButtonSegment(
                 value: ScannerLayoutMode.compact,
-                icon: Icon(Icons.view_agenda_rounded, size: 15),
-                label: Text('Compact'),
+                icon: Icon(Icons.view_agenda_rounded, size: 20),
+                tooltip: 'Compact',
               ),
               ButtonSegment(
                 value: ScannerLayoutMode.fullscreen,
-                icon: Icon(Icons.fullscreen_rounded, size: 15),
-                label: Text('Full'),
+                icon: Icon(Icons.fullscreen_rounded, size: 20),
+                tooltip: 'Full-screen',
               ),
             ],
             selected: {scanPrefs.scannerLayout},
