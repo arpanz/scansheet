@@ -45,29 +45,19 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _HistoryScreenState extends State<HistoryScreen> {
   final _searchController = TextEditingController();
   String _query = '';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
-  }
-
-  List<ScanEntry> _visibleScans(List<ScanEntry> scans) {
-    final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return scans;
-    return scans.where((e) => e.raw.toLowerCase().contains(q)).toList();
   }
 
   @override
@@ -75,43 +65,13 @@ class _HistoryScreenState extends State<HistoryScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('History'),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: context.themeAccent,
-          unselectedLabelColor: context.themeTextSecondary,
-          indicatorColor: context.themeAccent,
-          indicatorSize: TabBarIndicatorSize.label,
-          labelStyle: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            letterSpacing: -0.2,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: 14,
-          ),
-          tabs: const [
-            Tab(text: 'Scanned'),
-            Tab(text: 'Sheets'),
-          ],
-        ),
         actions: [
           const ProCrownIcon(),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_horiz_rounded),
             onSelected: (val) async {
               bool cleared = false;
-              if (val == 'clear_scanned') {
-                final ok = await _confirmClear(
-                  context,
-                  'Clear scan history?',
-                  'This will permanently remove all scanned records.',
-                );
-                if (ok) {
-                  await ScanHistoryService.clear();
-                  cleared = true;
-                }
-              } else if (val == 'clear_sessions') {
+              if (val == 'clear_sessions') {
                 final ok = await _confirmClear(
                   context,
                   'Clear all sessions?',
@@ -125,10 +85,6 @@ class _HistoryScreenState extends State<HistoryScreen>
               if (cleared && mounted) setState(() {});
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'clear_scanned',
-                child: Text('Clear Scanned'),
-              ),
               const PopupMenuItem(
                 value: 'clear_sessions',
                 child: Text('Clear Sessions'),
@@ -160,13 +116,7 @@ class _HistoryScreenState extends State<HistoryScreen>
             ),
           ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _ScannedTab(query: _query, visibleScans: _visibleScans),
-                const _SessionsTab(),
-              ],
-            ),
+            child: const _SessionsTab(),
           ),
         ],
       ),

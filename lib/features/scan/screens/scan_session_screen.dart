@@ -637,10 +637,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 const SizedBox(height: 4),
                 Text(
                   '"${_session.name}" \u00b7 $rowCount ${rowCount == 1 ? 'row' : 'rows'}',
-                  style: TextStyle(
-                    color: ctx.themeTextSecondary,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: ctx.themeTextSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 20),
                 _EndSessionOption(
@@ -719,7 +716,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       final ts = DateTime.now().millisecondsSinceEpoch;
       final file = File('${dir.path}/scansheet_$ts.csv');
       final bytes = Uint8List.fromList([
-        0xEF, 0xBB, 0xBF,
+        0xEF,
+        0xBB,
+        0xBF,
         ...utf8.encode(csvString),
       ]);
       await file.writeAsBytes(bytes);
@@ -733,9 +732,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
           ),
         );
         if (savedPath == null && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Save cancelled.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Save cancelled.')));
           return;
         }
       }
