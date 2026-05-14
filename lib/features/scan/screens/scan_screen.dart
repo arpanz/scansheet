@@ -16,7 +16,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../../core/theme/app_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/scan_history_service.dart';
 import '../../../core/services/scan_session_service.dart';
@@ -402,6 +401,22 @@ class _ScanScreenState extends State<ScanScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _openSessionFromTemplate(SessionTemplate template) async {
+    _stopScanner();
+    await Navigator.push(
+      context,
+      FadeSlideRoute(
+        page: SessionSetupScreen(
+          initialTemplate: template,
+          onSessionEnded: () {
+            if (mounted) setState(() {});
+          },
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
   void _openExistingSession(ScanSession session) {
     _stopScanner();
     Navigator.push(
@@ -752,26 +767,34 @@ class _ScanScreenState extends State<ScanScreen> {
           _openNewSession();
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
           decoration: BoxDecoration(
             color: context.themeCard,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _kSheetGreen.withValues(alpha: 0.2)),
+            border: Border.all(color: _kSheetGreen.withValues(alpha: 0.28)),
+            boxShadow: [
+              BoxShadow(
+                color: _kSheetGreen.withValues(alpha: 0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  color: _kSheetGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: _kSheetGreen.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
                   child: SvgPicture.asset(
                     'assets/sheets.svg',
-                    width: 22,
-                    height: 22,
+                    width: 26,
+                    height: 26,
                   ),
                 ),
               ),
@@ -781,18 +804,19 @@ class _ScanScreenState extends State<ScanScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'New Sheet',
+                      'Start Scanning',
                       style: TextStyle(
                         color: context.themeTextPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
+                    const SizedBox(height: 6),
                     Text(
-                      'Scan barcodes into a spreadsheet',
+                      'Create a sheet session and capture rows continuously.',
                       style: TextStyle(
                         color: context.themeTextSecondary,
-                        fontSize: 12,
+                        fontSize: 13,
                       ),
                     ),
                   ],
@@ -811,6 +835,90 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   // ── Chooser UI ────────────────────────────────────────────────────────────
+  Widget _buildTemplateQuickStartRow() {
+    final templates = TemplateService.getAllTemplates().take(8).toList();
+    if (templates.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'QUICK START TEMPLATES',
+          style: TextStyle(
+            color: context.themeTextSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.0,
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 112,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: templates.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final template = templates[index];
+              final icon = _templateIconForTile(template.icon);
+              return InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  _openSessionFromTemplate(template);
+                },
+                child: Container(
+                  width: 160,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: context.themeCard,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: context.themeBorder),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: context.themeAccent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(icon, size: 18, color: context.themeAccent),
+                      ),
+                      const Spacer(),
+                      Text(
+                        template.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.themeTextPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        template.columnSummary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.themeTextSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildChooser(ScanSession? activeSession) {
     return SafeArea(
       child: SingleChildScrollView(
@@ -829,65 +937,10 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            // Quick scan card
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                _setEntryState(_ScanEntryState.quickScan);
-              },
-              child: AppCard(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: context.themeAccent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: Icon(
-                        Icons.qr_code_scanner_rounded,
-                        color: context.themeAccent,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Quick Scan',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: context.themeTextPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Scan once, get instant result',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: context.themeTextSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 14,
-                      color: context.themeTextSecondary,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
             // Session card (active or new)
             ..._buildSessionCard(activeSession),
+            const SizedBox(height: 22),
+            _buildTemplateQuickStartRow(),
 
             const SizedBox(height: 24),
             // ── Recent Sessions ──────────────────────────────────────────
