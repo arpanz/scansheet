@@ -10,6 +10,48 @@ import 'scan_session_screen.dart';
 import '../../../core/utils/app_router.dart';
 import '../../../core/services/scan_session_service.dart';
 
+// ── Icon picker data ──────────────────────────────────────────────────────────
+
+class _IconOption {
+  final String key;
+  final IconData icon;
+  final Color color;
+  const _IconOption(this.key, this.icon, this.color);
+}
+
+const List<_IconOption> kSessionIcons = [
+  _IconOption('inventory',      Icons.inventory_2_rounded,          Color(0xFF3B82F6)),
+  _IconOption('store',          Icons.storefront_rounded,            Color(0xFF10B981)),
+  _IconOption('warehouse',      Icons.warehouse_rounded,             Color(0xFFF59E0B)),
+  _IconOption('people',         Icons.people_rounded,                Color(0xFF8B5CF6)),
+  _IconOption('local_shipping', Icons.local_shipping_rounded,        Color(0xFFEF4444)),
+  _IconOption('receipt',        Icons.receipt_long_rounded,          Color(0xFF06B6D4)),
+  _IconOption('devices',        Icons.devices_rounded,               Color(0xFF6366F1)),
+  _IconOption('sell',           Icons.sell_rounded,                  Color(0xFFEC4899)),
+  _IconOption('fact_check',     Icons.fact_check_rounded,            Color(0xFF14B8A6)),
+  _IconOption('science',        Icons.science_rounded,               Color(0xFFF97316)),
+  _IconOption('local_hospital', Icons.local_hospital_rounded,        Color(0xFFDC2626)),
+  _IconOption('construction',   Icons.construction_rounded,          Color(0xFF92400E)),
+];
+
+IconData sessionIconData(String? key) {
+  if (key == null) return Icons.grid_view_rounded;
+  return kSessionIcons
+      .firstWhere((o) => o.key == key,
+          orElse: () => const _IconOption(
+              'grid', Icons.grid_view_rounded, Color(0xFF6B7280)))
+      .icon;
+}
+
+Color sessionIconColor(String? key) {
+  if (key == null) return const Color(0xFF6B7280);
+  return kSessionIcons
+      .firstWhere((o) => o.key == key,
+          orElse: () => const _IconOption(
+              'grid', Icons.grid_view_rounded, Color(0xFF6B7280)))
+      .color;
+}
+
 /// Full-page screen that lets the user configure a new Scan Session.
 /// Optionally seeded from a [SessionTemplate].
 class SessionSetupScreen extends StatefulWidget {
@@ -35,21 +77,12 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
   bool _showScanConfirmation = false;
   late final List<_EditableColumn> _columns;
   String _destination = 'csv'; // 'csv', 'xlsx', 'sheets'
+  String? _selectedIconKey; // null = no custom icon chosen
 
   static String _monthName(int m) => const [
     '',
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ][m];
 
   @override
@@ -58,6 +91,11 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
     final tmpl = widget.initialTemplate;
     if (tmpl != null) {
       _nameController = TextEditingController(text: tmpl.name);
+      // Pre-select the template's icon if it matches one of our picker options
+      if (tmpl.iconName != null &&
+          kSessionIcons.any((o) => o.key == tmpl.iconName)) {
+        _selectedIconKey = tmpl.iconName;
+      }
       _columns = tmpl.columns
           .map(
             (c) => _EditableColumn(
@@ -91,7 +129,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
 
   bool get _canAddColumn => _columns.length < ScanSession.maxColumns;
 
-  IconData _iconFor(SessionColumnType t) => switch (t) {
+  IconData _colIconFor(SessionColumnType t) => switch (t) {
     SessionColumnType.scan => Icons.qr_code_scanner_rounded,
     SessionColumnType.manual => Icons.edit_rounded,
     SessionColumnType.timestamp => Icons.schedule_rounded,
@@ -154,7 +192,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
       final dest = await navigator.push<SheetDestination>(
         MaterialPageRoute(builder: (_) => const ConnectSheetsScreen()),
       );
-      if (dest == null) return; // User canceled
+      if (dest == null) return;
       spreadsheetId = dest.spreadsheetId;
       sheetName = dest.sheetName;
     }
@@ -182,11 +220,12 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
       destination: destinationEnum,
       spreadsheetId: spreadsheetId,
       sheetName: sheetName,
+      iconName: _selectedIconKey,
     );
 
     ScanSessionService.saveSession(session).then((_) {
       if (!mounted) return;
-      navigator.pop(); // close setup screen
+      navigator.pop();
       navigator
           .push(FadeSlideRoute(page: ScanSessionScreen(session: session)))
           .then((_) => widget.onSessionEnded?.call());
@@ -364,7 +403,8 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                                   ),
                                   child: Row(
                                     children: [
-                                      Icon(_iconFor(t), size: 18, color: color),
+                                      Icon(_colIconFor(t),
+                                          size: 18, color: color),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
@@ -668,6 +708,29 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 16),
+                        // Icon picker
+                        Text(
+                          'ICON  (optional)',
+                          style: TextStyle(
+                            color: context.themeTextSecondary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _IconPickerRow(
+                          selectedKey: _selectedIconKey,
+                          onSelected: (key) {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              // Tapping the already-selected icon deselects it
+                              _selectedIconKey =
+                                  _selectedIconKey == key ? null : key;
+                            });
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -681,7 +744,10 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                         Expanded(
                           child: _DestinationCard(
                             icon: Icons.table_chart_rounded,
-                            customIcon: SvgPicture.asset('assets/sheets.svg', width: 24, height: 24),
+                            customIcon: SvgPicture.asset(
+                                'assets/sheets.svg',
+                                width: 24,
+                                height: 24),
                             title: 'Google Sheets',
                             isSelected: _destination == 'sheets',
                             onTap: () =>
@@ -738,9 +804,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                             itemCount: _columns.length,
                             onReorder: (oldIndex, newIndex) {
                               setState(() {
-                                if (oldIndex < newIndex) {
-                                  newIndex -= 1;
-                                }
+                                if (oldIndex < newIndex) newIndex -= 1;
                                 final item = _columns.removeAt(oldIndex);
                                 _columns.insert(newIndex, item);
                               });
@@ -784,8 +848,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                                               ),
                                               child: Icon(
                                                 Icons.drag_handle_rounded,
-                                                color: context
-                                                    .themeTextSecondary
+                                                color: context.themeTextSecondary
                                                     .withValues(alpha: 0.5),
                                                 size: 20,
                                               ),
@@ -802,7 +865,7 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                                                   BorderRadius.circular(8),
                                             ),
                                             child: Icon(
-                                              _iconFor(col.type),
+                                              _colIconFor(col.type),
                                               size: 16,
                                               color: color,
                                             ),
@@ -847,8 +910,8 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                                               color: context.themeTextSecondary,
                                               onPressed: () {
                                                 setState(
-                                                  () =>
-                                                      _columns.removeAt(index),
+                                                  () => _columns
+                                                      .removeAt(index),
                                                 );
                                               },
                                             ),
@@ -873,7 +936,8 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
                             ),
                           ),
                         ],
@@ -885,96 +949,22 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
                   // 4. Advanced Options
                   _buildSectionCard(
                     title: '4. Advanced Options',
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: context.themeSurface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: context.themeBorder),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Warn on duplicates',
-                                  style: TextStyle(
-                                    color: context.themeTextPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Prompt to skip or keep duplicate scans',
-                                  style: TextStyle(
-                                    color: context.themeTextSecondary,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch(
-                            value: _warnDuplicates,
-                            onChanged: (v) =>
-                                setState(() => _warnDuplicates = v),
-                            activeThumbColor: context.themeAccent,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.themeSurface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: context.themeBorder),
-                    ),
-                    child: Row(
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Scan confirmation panel',
-                                style: TextStyle(
-                                  color: context.themeTextPrimary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Review decoded value and fill fields after each scan',
-                                style: TextStyle(
-                                  color: context.themeTextSecondary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
+                        _switchRow(
+                          title: 'Warn on duplicates',
+                          sub: 'Prompt to skip or keep duplicate scans',
+                          value: _warnDuplicates,
+                          onChanged: (v) =>
+                              setState(() => _warnDuplicates = v),
                         ),
-                        Switch(
+                        const SizedBox(height: 8),
+                        _switchRow(
+                          title: 'Scan confirmation panel',
+                          sub: 'Review decoded value and fill fields after each scan',
                           value: _showScanConfirmation,
                           onChanged: (v) =>
                               setState(() => _showScanConfirmation = v),
-                          activeThumbColor: context.themeAccent,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
                         ),
                       ],
                     ),
@@ -989,7 +979,8 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
               decoration: BoxDecoration(
                 color: context.themeCard,
-                border: Border(top: BorderSide(color: context.themeBorder)),
+                border:
+                    Border(top: BorderSide(color: context.themeBorder)),
               ),
               child: SafeArea(
                 top: false,
@@ -1017,6 +1008,55 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _switchRow({
+    required String title,
+    required String sub,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: context.themeSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.themeBorder),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: context.themeTextPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sub,
+                  style: TextStyle(
+                    color: context.themeTextSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: context.themeAccent,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ],
       ),
     );
   }
@@ -1059,6 +1099,60 @@ class _SessionSetupScreenState extends State<SessionSetupScreen> {
   }
 }
 
+// ── Icon Picker Row ───────────────────────────────────────────────────────────
+
+class _IconPickerRow extends StatelessWidget {
+  final String? selectedKey;
+  final ValueChanged<String> onSelected;
+
+  const _IconPickerRow({
+    required this.selectedKey,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 56,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: kSessionIcons.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final opt = kSessionIcons[index];
+          final isSelected = selectedKey == opt.key;
+          return GestureDetector(
+            onTap: () => onSelected(opt.key),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOut,
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? opt.color.withValues(alpha: 0.15)
+                    : context.themeSurface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isSelected ? opt.color : context.themeBorder,
+                  width: isSelected ? 2 : 1,
+                ),
+              ),
+              child: Icon(
+                opt.icon,
+                size: 24,
+                color: isSelected ? opt.color : context.themeTextSecondary,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Editable column model ─────────────────────────────────────────────────────
+
 class _EditableColumn {
   String name;
   SessionColumnType type;
@@ -1078,6 +1172,8 @@ class _EditableColumn {
     this.deletable = true,
   });
 }
+
+// ── Destination card ──────────────────────────────────────────────────────────
 
 class _DestinationCard extends StatelessWidget {
   final IconData icon;
@@ -1126,7 +1222,8 @@ class _DestinationCard extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontWeight:
+                    isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected
                     ? context.themeAccent
                     : context.themeTextSecondary,

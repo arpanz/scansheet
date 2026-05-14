@@ -124,6 +124,8 @@ class ScanSession {
   final String? templateId;
   final String? spreadsheetId;
   final String? sheetName;
+  /// User-picked or template-derived icon key. Null = use generic fallback.
+  final String? iconName;
 
   const ScanSession({
     required this.id,
@@ -138,6 +140,7 @@ class ScanSession {
     this.templateId,
     this.spreadsheetId,
     this.sheetName,
+    this.iconName,
   });
 
   static const int maxColumns = 10;
@@ -168,7 +171,6 @@ class ScanSession {
         case SessionColumnType.fixed:
           values.add(col.fixedValue ?? '');
         case SessionColumnType.location:
-          // Placeholder — caller must patch this via LocationService
           values.add('…');
         case SessionColumnType.scan:
         case SessionColumnType.manual:
@@ -195,6 +197,7 @@ class ScanSession {
     String? templateId,
     String? spreadsheetId,
     String? sheetName,
+    String? iconName,
   }) {
     return ScanSession(
       id: id ?? this.id,
@@ -209,6 +212,7 @@ class ScanSession {
       templateId: templateId ?? this.templateId,
       spreadsheetId: spreadsheetId ?? this.spreadsheetId,
       sheetName: sheetName ?? this.sheetName,
+      iconName: iconName ?? this.iconName,
     );
   }
 
@@ -225,6 +229,7 @@ class ScanSession {
     'templateId': templateId,
     'spreadsheetId': spreadsheetId,
     'sheetName': sheetName,
+    'iconName': iconName,
   };
 
   factory ScanSession.fromMap(Map map) => ScanSession(
@@ -247,6 +252,7 @@ class ScanSession {
     templateId: map['templateId'] as String?,
     spreadsheetId: map['spreadsheetId'] as String?,
     sheetName: map['sheetName'] as String?,
+    iconName: map['iconName'] as String?,
   );
 
   List<List<String>> toTableData(List<SessionRow> rows) {
