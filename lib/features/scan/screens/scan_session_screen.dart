@@ -345,29 +345,53 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   }
 
   Future<void> _done() async {
+    if (_visitRows == 0 && _rows.isEmpty) return _showHelp();
     await _camera.stop();
     if (!mounted) return;
-    final page = _visitRows == 0 && _rows.isEmpty
-        ? ScanHelpScreen(onTryAgain: () => Navigator.pop(context))
-        : DoneForNowScreen(
-            session: _session,
-            addedThisVisit: _visitRows,
-            totalRows: _rows.length,
-            visitStarted: _visitStarted,
-          );
-    await Navigator.of(context).push(FadeSlideRoute(page: page));
+    await Navigator.of(context).push(
+      FadeSlideRoute(
+        page: DoneForNowScreen(
+          session: _session,
+          addedThisVisit: _visitRows,
+          totalRows: _rows.length,
+          visitStarted: _visitStarted,
+        ),
+      ),
+    );
     if (mounted) _resume();
   }
 
   Future<void> _close() async {
-    if (_rows.isEmpty) {
-      await Navigator.of(context).push(
-        FadeSlideRoute(
-          page: ScanHelpScreen(onTryAgain: () => Navigator.pop(context)),
-        ),
-      );
-    } else if (mounted)
-      Navigator.pop(context);
+    if (_rows.isEmpty) return _showHelp();
+    if (mounted) Navigator.pop(context);
+  }
+
+  /// "No scan this time" — act on what the user picked.
+  Future<void> _showHelp() async {
+    _sheetOpen = true;
+    await _camera.stop();
+    if (!mounted) return;
+    final choice = await Navigator.of(
+      context,
+    ).push<ScanHelpChoice>(FadeSlideRoute(page: const ScanHelpScreen()));
+    _sheetOpen = false;
+    if (!mounted) return;
+    switch (choice) {
+      case ScanHelpChoice.torch:
+        await _resume();
+        if (!_torch) {
+          await _camera.toggleTorch();
+          if (mounted) setState(() => _torch = true);
+        }
+      case ScanHelpChoice.type:
+        await _typeCode(); // resumes the camera when the sheet closes
+      case ScanHelpChoice.home:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      case ScanHelpChoice.close:
+        Navigator.pop(context);
+      case null:
+        await _resume();
+    }
   }
 
   @override
