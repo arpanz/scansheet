@@ -8,9 +8,10 @@ import '../../core/services/sheet_summary.dart';
 import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
-import '../scan/screens/scan_screen.dart';
+import '../scan/screens/read_code_screen.dart';
 import '../scan/screens/scan_session_screen.dart';
 import '../sheet/new_sheet_screen.dart';
+import '../sheet/sheet_actions.dart';
 import '../settings/screens/connect_sheets_screen.dart';
 import '../settings/screens/settings_screen.dart';
 import '../sheet/sheet_view_screen.dart';
@@ -212,6 +213,18 @@ class _InProgressCard extends StatelessWidget {
                     const SsPill.live('IN PROGRESS'),
                     const Spacer(),
                     Text(syncLine, style: SsText.caption(color: c.heroMuted)),
+                    const SizedBox(width: 2),
+                    SizedBox.square(
+                      dimension: 32,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        iconSize: 18,
+                        tooltip: 'Sheet actions',
+                        onPressed: () =>
+                            showSheetActions(context, sheet.session),
+                        icon: Icon(LucideIcons.ellipsis, color: c.heroMuted),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -321,7 +334,7 @@ class _QuickTiles extends StatelessWidget {
             icon: const SsIconTile(LucideIcons.zap),
             title: 'Read a code',
             subtitle: 'One-off, kept in history',
-            onTap: () => _open(context, const ScanScreen()),
+            onTap: () => _open(context, const ReadCodeScreen()),
           ),
         ),
       ],
@@ -385,7 +398,8 @@ class _SheetRow extends StatelessWidget {
     return SsListRow(
       leading: SsIconTile(sheetIcon(sheet.session.iconName), size: 38),
       title: sheet.session.name,
-      subtitle: '${sheet.rowCount} ${sheet.rowCount == 1 ? 'row' : 'rows'} · ${sheet.destinationLabel}',
+      subtitle:
+          '${sheet.rowCount} ${sheet.rowCount == 1 ? 'row' : 'rows'} · ${sheet.destinationLabel}',
       trailing: status,
       onTap: () => _open(context, SheetViewScreen(session: sheet.session)),
     );
@@ -447,7 +461,7 @@ class _FirstRunHomeState extends State<_FirstRunHome> {
         title: 'Read a one-off code',
         subtitle: 'Links, Wi-Fi and contacts open right away',
         done: readCode,
-        onTap: () => _open(context, const ScanScreen()),
+        onTap: () => _open(context, const ReadCodeScreen()),
       ),
     ];
     final doneCount = steps.where((s) => s.done).length;

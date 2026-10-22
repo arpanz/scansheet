@@ -6,6 +6,7 @@ import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ss.dart';
+import 'sheet_actions.dart';
 import '../sync/sync_banner.dart';
 import '../scan/models/scan_session.dart';
 import '../scan/screens/done_for_now_screen.dart';
@@ -27,43 +28,6 @@ class _SheetViewScreenState extends State<SheetViewScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _rename() async {
-    final name = await showSsTextPrompt(
-      context,
-      title: 'Rename sheet',
-      label: 'Sheet name',
-      initial: widget.session.name,
-    );
-    if (name == null || !mounted) return;
-    await ScanSessionService.saveSession(widget.session.copyWith(name: name));
-  }
-
-  Future<void> _delete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete sheet?'),
-        content: Text(
-          '“${widget.session.name}” and its rows will be deleted from this phone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    await ScanSessionService.deleteSession(widget.session.id);
-    await SyncQueueService.clearForSession(widget.session.id);
-    if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _openSheet() async {
@@ -93,37 +57,11 @@ class _SheetViewScreenState extends State<SheetViewScreen> {
     );
   }
 
-  void _openOptions() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.ss.surface,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(LucideIcons.pencil),
-              title: const Text('Rename sheet'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _rename();
-              },
-            ),
-            ListTile(
-              leading: const Icon(LucideIcons.trash2),
-              title: const Text('Delete sheet'),
-              textColor: context.ss.error,
-              iconColor: context.ss.error,
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _delete();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  void _openOptions() => showSheetActions(
+    context,
+    ScanSessionService.getSession(widget.session.id) ?? widget.session,
+    onDeleted: () => Navigator.of(context).pop(),
+  );
 
   @override
   Widget build(BuildContext context) {

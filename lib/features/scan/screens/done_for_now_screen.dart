@@ -13,6 +13,7 @@ import '../../../core/services/scan_session_service.dart';
 import '../../../core/services/sync_queue_service.dart';
 import '../../../core/widgets/ss.dart';
 import '../models/scan_session.dart';
+import '../../sheet/sheet_actions.dart';
 
 enum _ExportFormat { excel, csv }
 
@@ -177,7 +178,11 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
               Wrap(
                 spacing: 14,
                 children: [
-                  _Stat(value: '${widget.totalRows}', label: 'rows', color: c),
+                  _Stat(
+                    value: '${widget.totalRows}',
+                    label: widget.totalRows == 1 ? 'row' : 'rows',
+                    color: c,
+                  ),
                   _Stat(value: '$_uniqueScans', label: 'unique', color: c),
                   if (visitMinutes != null)
                     _Stat(value: '$visitMinutes', label: 'min', color: c),
@@ -212,8 +217,10 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
                               Text(
                                 isSheets
                                     ? (pending == 0
-                                          ? 'All $synced rows synced · My Drive'
-                                          : '$pending rows waiting to sync · My Drive')
+                                          ? (synced == 1
+                                                ? '1 row synced · My Drive'
+                                                : 'All $synced rows synced · My Drive')
+                                          : '$pending ${pending == 1 ? 'row' : 'rows'} waiting to sync · My Drive')
                                     : '$localFormat format',
                                 style: SsText.sans(size: 13, color: c.muted),
                                 maxLines: 2,
@@ -334,6 +341,21 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
                     size: 15,
                     weight: FontWeight.w500,
                     color: c.ink,
+                  ),
+                ),
+              ),
+              // Finishing stops the Scan button from resuming this sheet.
+              Center(
+                child: TextButton.icon(
+                  onPressed: () async {
+                    final navigator = Navigator.of(context);
+                    await finishSheet(context, widget.session);
+                    navigator.popUntil((route) => route.isFirst);
+                  },
+                  icon: Icon(LucideIcons.circleCheck, size: 16, color: c.muted),
+                  label: Text(
+                    'Finish this sheet',
+                    style: SsText.sans(size: 13, color: c.muted),
                   ),
                 ),
               ),

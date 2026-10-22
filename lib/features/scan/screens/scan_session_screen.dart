@@ -52,6 +52,11 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   void initState() {
     super.initState();
     _session = widget.session;
+    // Scanning into a finished sheet reopens it.
+    if (!_session.isActive) {
+      _session = _session.copyWith(isActive: true);
+      ScanSessionService.saveSession(_session);
+    }
     _rows = ScanSessionService.getRows(_session.id);
     final prefs = context.read<ScanningPreferences>();
     _vibrate = prefs.vibrateEnabled;

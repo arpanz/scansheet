@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/services/sheet_summary.dart';
 import '../../../core/utils/app_router.dart';
 import '../../../core/widgets/ss.dart';
-import '../screens/scan_screen.dart';
+import '../screens/read_code_screen.dart';
 import '../screens/scan_session_screen.dart';
 import '../../sheet/new_sheet_screen.dart';
 
@@ -94,7 +94,7 @@ class _ScanChooser extends StatelessWidget {
                 child: _ActionTile(
                   icon: LucideIcons.zap,
                   label: 'Just read a code',
-                  onTap: () => onOpen(const ScanScreen()),
+                  onTap: () => onOpen(const ReadCodeScreen()),
                 ),
               ),
               const SizedBox(width: 8),

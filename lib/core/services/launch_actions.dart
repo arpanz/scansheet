@@ -7,7 +7,7 @@ import 'package:home_widget/home_widget.dart';
 import 'package:quick_actions/quick_actions.dart';
 
 import '../../features/onboarding/onboarding_screen.dart';
-import '../../features/scan/screens/scan_screen.dart';
+import '../../features/scan/screens/read_code_screen.dart';
 import '../../features/scan/screens/scan_session_screen.dart';
 import '../utils/app_router.dart';
 import 'scan_session_service.dart';
@@ -78,7 +78,7 @@ class LaunchActions {
         return;
       }
     }
-    await navigator.push(FadeSlideRoute(page: const ScanScreen()));
+    await navigator.push(FadeSlideRoute(page: const ReadCodeScreen()));
   }
 
   static void _onSessionsChanged() {

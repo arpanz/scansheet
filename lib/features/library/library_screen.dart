@@ -10,6 +10,7 @@ import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
 import '../sheet/sheet_view_screen.dart';
 import '../sheet/new_sheet_screen.dart';
+import '../sheet/sheet_actions.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -33,17 +34,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Future<void> _push(Widget page) async {
     await Navigator.of(context).push(FadeSlideRoute(page: page));
-  }
-
-  Future<void> _rename(SheetSummary summary) async {
-    final name = await showSsTextPrompt(
-      context,
-      title: 'Rename sheet',
-      label: 'Sheet name',
-      initial: summary.session.name,
-    );
-    if (name == null || !mounted) return;
-    await ScanSessionService.saveSession(summary.session.copyWith(name: name));
   }
 
   Future<void> _deleteSheet(SheetSummary sheet) async {
@@ -160,7 +150,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       summaries: filtered,
                       onFilter: (value) => setState(() => _filter = value),
                       onOpen: (s) => _push(SheetViewScreen(session: s.session)),
-                      onEdit: _rename,
+                      openCount: all.where((s) => s.session.isActive).length,
+                      onMore: (s) => showSheetActions(context, s.session),
+                      onToggle: (s) => s.session.isActive
+                          ? finishSheet(context, s.session)
+                          : reopenSheet(context, s.session),
+                      onFinishAll: () => finishAllSheets(context),
                       onDelete: _deleteSheet,
                       onNewSheet: () => _push(const NewSheetScreen()),
                     );
@@ -270,17 +265,23 @@ class _SheetsList extends StatelessWidget {
     required this.filter,
     required this.summaries,
     required this.onFilter,
+    required this.openCount,
     required this.onOpen,
-    required this.onEdit,
+    required this.onMore,
+    required this.onToggle,
+    required this.onFinishAll,
     required this.onDelete,
     required this.onNewSheet,
   });
   final int allCount;
+  final int openCount;
   final String filter;
   final List<SheetSummary> summaries;
   final ValueChanged<String> onFilter;
   final ValueChanged<SheetSummary> onOpen;
-  final ValueChanged<SheetSummary> onEdit;
+  final ValueChanged<SheetSummary> onMore;
+  final ValueChanged<SheetSummary> onToggle;
+  final VoidCallback onFinishAll;
   final ValueChanged<SheetSummary> onDelete;
   final VoidCallback onNewSheet;
 
@@ -301,7 +302,9 @@ class _SheetsList extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               _FilterChip(
-                label: 'In progress',
+                label: openCount == 0
+                    ? 'In progress'
+                    : 'In progress · $openCount',
                 selected: filter == 'inprogress',
                 onTap: () => onFilter('inprogress'),
               ),
@@ -314,6 +317,10 @@ class _SheetsList extends StatelessWidget {
             ],
           ),
         ),
+        if (openCount > 1) ...[
+          const SizedBox(height: 10),
+          _OpenSheetsNote(count: openCount, onFinishAll: onFinishAll),
+        ],
         const SizedBox(height: 14),
         Expanded(
           child: summaries.isEmpty
@@ -332,7 +339,8 @@ class _SheetsList extends StatelessWidget {
                     return _SwipeSheet(
                       summary: summary,
                       onOpen: () => onOpen(summary),
-                      onEdit: () => onEdit(summary),
+                      onMore: () => onMore(summary),
+                      onToggle: () => onToggle(summary),
                       onDelete: () => onDelete(summary),
                     );
                   },
@@ -388,20 +396,22 @@ class _SwipeSheet extends StatelessWidget {
   const _SwipeSheet({
     required this.summary,
     required this.onOpen,
-    required this.onEdit,
+    required this.onMore,
+    required this.onToggle,
     required this.onDelete,
   });
   final SheetSummary summary;
   final VoidCallback onOpen;
-  final VoidCallback onEdit;
+  final VoidCallback onMore;
+  final VoidCallback onToggle;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) => Dismissible(
     key: ValueKey(summary.session.id),
     direction: DismissDirection.horizontal,
-    background: const _SwipeAction(
-      label: 'Edit',
+    background: _SwipeAction(
+      label: summary.session.isActive ? 'Finish' : 'Reopen',
       colorRole: _SwipeColor.edit,
       alignment: Alignment.centerLeft,
     ),
@@ -412,13 +422,13 @@ class _SwipeSheet extends StatelessWidget {
     ),
     confirmDismiss: (direction) async {
       if (direction == DismissDirection.startToEnd) {
-        onEdit();
+        onToggle();
       } else {
         onDelete();
       }
       return false;
     },
-    child: _SheetCard(summary: summary, onTap: onOpen),
+    child: _SheetCard(summary: summary, onTap: onOpen, onMore: onMore),
   );
 }
 
@@ -458,9 +468,14 @@ class _SwipeAction extends StatelessWidget {
 }
 
 class _SheetCard extends StatelessWidget {
-  const _SheetCard({required this.summary, required this.onTap});
+  const _SheetCard({
+    required this.summary,
+    required this.onTap,
+    required this.onMore,
+  });
   final SheetSummary summary;
   final VoidCallback onTap;
+  final VoidCallback onMore;
 
   @override
   Widget build(BuildContext context) {
@@ -476,76 +491,131 @@ class _SheetCard extends StatelessWidget {
         : const SsStatus('Synced', kind: SsStatusKind.synced);
     final subtitle =
         '${relativeTime(summary.lastActivity)} · ${summary.destinationLabel}';
-    return SsCard(
-      radius: 18,
-      padding: const EdgeInsets.all(14),
-      onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              SsIconTile(
-                sheetIcon(session.iconName),
-                size: 40,
-                background: active ? c.ink : c.chip,
-                color: active ? c.lime : c.ink,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      session.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: SsText.sans(
-                        size: 15,
-                        weight: FontWeight.w600,
-                        color: c.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: SsText.sans(size: 12, color: c.muted),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${summary.rowCount}',
-                style: SsText.mono(
-                  size: 18,
-                  weight: FontWeight.w500,
-                  color: c.ink,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.only(top: 10),
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: c.lineSoft)),
-            ),
-            child: Row(
+    return GestureDetector(
+      onLongPress: onMore,
+      child: SsCard(
+        radius: 18,
+        padding: const EdgeInsets.all(14),
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
               children: [
+                SsIconTile(
+                  sheetIcon(session.iconName),
+                  size: 40,
+                  background: active ? c.ink : c.chip,
+                  color: active ? c.lime : c.ink,
+                ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    summary.columnsLine.isEmpty ? '—' : summary.columnsLine,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: SsText.mono(size: 11, color: c.muted),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        session.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: SsText.sans(
+                          size: 15,
+                          weight: FontWeight.w600,
+                          color: c.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: SsText.sans(size: 12, color: c.muted),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 10),
-                status,
+                const SizedBox(width: 8),
+                Text(
+                  '${summary.rowCount}',
+                  style: SsText.mono(
+                    size: 18,
+                    weight: FontWeight.w500,
+                    color: c.ink,
+                  ),
+                ),
               ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.only(top: 10),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: c.lineSoft)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      summary.columnsLine.isEmpty ? '—' : summary.columnsLine,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: SsText.mono(size: 11, color: c.muted),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  status,
+                  const SizedBox(width: 4),
+                  SizedBox.square(
+                    dimension: 28,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      iconSize: 18,
+                      tooltip: 'Sheet actions',
+                      onPressed: onMore,
+                      icon: Icon(LucideIcons.ellipsis, color: c.muted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Several sheets left "in progress" make the Scan button guess; offer to
+/// finish them all in one tap.
+class _OpenSheetsNote extends StatelessWidget {
+  const _OpenSheetsNote({required this.count, required this.onFinishAll});
+  final int count;
+  final VoidCallback onFinishAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ss;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: c.chip,
+        borderRadius: BorderRadius.circular(SsRadius.md),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '$count sheets are in progress. Scan continues the most recent.',
+              style: SsText.sans(size: 13, color: c.ink2),
+            ),
+          ),
+          TextButton(
+            onPressed: onFinishAll,
+            child: Text(
+              'Finish all',
+              style: SsText.sans(
+                size: 13,
+                weight: FontWeight.w600,
+                color: c.emerald,
+              ),
             ),
           ),
         ],

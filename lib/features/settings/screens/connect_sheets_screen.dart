@@ -1,11 +1,11 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/services/google_sheets_service.dart';
-import '../../../core/theme/app_card.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/services/sheet_summary.dart';
+import '../../../core/widgets/ss.dart';
 
 /// Result returned by [ConnectSheetsScreen] when the user picks a destination.
 class SheetDestination {
@@ -21,8 +21,6 @@ class SheetDestination {
 }
 
 /// Full-page Google Sheets connection screen.
-/// Push this screen and await the result — it returns a [SheetDestination]
-/// when the user presses "Connect & Continue", or null if they cancel.
 class ConnectSheetsScreen extends StatefulWidget {
   const ConnectSheetsScreen({super.key});
 
@@ -43,16 +41,12 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
   List<String> _worksheets = [];
   String? _selectedSheet;
   String _searchQuery = '';
-
   Timer? _debounce;
-
 
   @override
   void initState() {
     super.initState();
-    if (_gss.isSignedIn) {
-      _loadSpreadsheets();
-    }
+    if (_gss.isSignedIn) _loadSpreadsheets();
   }
 
   @override
@@ -61,10 +55,6 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
     _debounce?.cancel();
     super.dispose();
   }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // Data loading
-  // ──────────────────────────────────────────────────────────────────────────
 
   Future<void> _signIn() async {
     setState(() => _isSigningIn = true);
@@ -123,47 +113,20 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
   }
 
   Future<void> _createSpreadsheet() async {
-    final ctrl = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    final title = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: context.themeCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('New Spreadsheet'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Spreadsheet name',
-            hintText: 'e.g. Inventory Jan 2026',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Create'),
-          ),
-        ],
-      ),
+      builder: (_) => const _CreateSpreadsheetDialog(),
     );
-    if (confirmed != true || ctrl.text.trim().isEmpty) return;
+    if (title == null || title.trim().isEmpty || !mounted) return;
     setState(() => _isCreating = true);
     try {
-      final id = await _gss.createSpreadsheet(ctrl.text.trim());
+      final id = await _gss.createSpreadsheet(title.trim());
       if (!mounted) return;
       HapticFeedback.mediumImpact();
-      // Reload list and auto-select the new sheet.
       await _loadSpreadsheets();
       final newInfo = _spreadsheets.firstWhere(
         (s) => s.id == id,
-        orElse: () => SpreadsheetInfo(
-          id: id,
-          title: ctrl.text.trim(),
-        ),
+        orElse: () => SpreadsheetInfo(id: id, title: title.trim()),
       );
       await _loadWorksheets(newInfo);
     } on GSheetsException catch (e) {
@@ -173,11 +136,11 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
     }
   }
 
-  void _onSearchChanged(String v) {
-    _searchQuery = v;
+  void _onSearchChanged(String value) {
+    _searchQuery = value;
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      _loadSpreadsheets(query: v.trim().isEmpty ? null : v.trim());
+      _loadSpreadsheets(query: value.trim().isEmpty ? null : value.trim());
     });
   }
 
@@ -194,238 +157,198 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
     );
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: context.themeError,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // Build
-  // ──────────────────────────────────────────────────────────────────────────
+  void _showError(String message) => showSsToast(context, message);
 
   @override
   Widget build(BuildContext context) {
+    final c = context.ss;
     final isConnected = _gss.isSignedIn;
-
     return Scaffold(
-      backgroundColor: context.themeBg,
-      appBar: AppBar(
-        backgroundColor: context.themeCard,
-        elevation: 0,
-        scrolledUnderElevation: 1,
-        title: const Text('Connect Google Sheets'),
-        titleTextStyle: TextStyle(
-          color: context.themeTextPrimary,
-          fontSize: 17,
-          fontWeight: FontWeight.w700,
-        ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: context.themeTextPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      bottomNavigationBar: _selected != null && _selectedSheet != null
-          ? _ConnectBottomBar(
-              spreadsheetTitle: _selected!.title,
-              sheetName: _selectedSheet!,
-              onConnect: _connect,
-            )
-          : null,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
-        children: [
-          // ── Auth card ──────────────────────────────────────────────────────
-          _AccountCard(
-            isConnected: isConnected,
-            user: _gss.currentUser,
-            isLoading: _isSigningIn,
-            onSignIn: _signIn,
-            onSignOut: _signOut,
-          ),
-          const SizedBox(height: 20),
-
-          if (!isConnected)
-            Center(
-              child: Column(
+      backgroundColor: c.paper,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                 children: [
-                  const SizedBox(height: 60),
-                  SvgPicture.asset(
-                    'assets/sheets.svg',
-                    width: 64,
-                    height: 64,
-                    colorFilter: ColorFilter.mode(
-                      context.themeTextSecondary.withValues(alpha: 0.3),
-                      BlendMode.srcIn,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Sign in to browse your spreadsheets',
-                    style: TextStyle(color: context.themeTextSecondary),
-                  ),
-                ],
-              ),
-            )
-          else ...[
-            // ── Search ───────────────────────────────────────────────────────
-            TextField(
-              controller: _searchCtrl,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'Search spreadsheets…',
-                prefixIcon: Icon(
-                  Icons.search_rounded,
-                  size: 18,
-                  color: context.themeTextSecondary,
-                ),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 11),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // ── Create new ───────────────────────────────────────────────────
-            AppCard(
-              onTap: _isCreating ? null : _createSpreadsheet,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: context.themeBorder,
-                        width: 1.5,
-                        style: BorderStyle.solid,
+                  Row(
+                    children: [
+                      SsIconButton(
+                        LucideIcons.chevronLeft,
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: _isCreating
-                        ? Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: context.themeAccent,
-                            ),
-                          )
-                        : Icon(
-                            Icons.add_rounded,
-                            color: context.themeTextSecondary,
-                            size: 18,
-                          ),
-                  ),
-                  const SizedBox(width: 14),
-                  Text(
-                    'Create new spreadsheet',
-                    style: TextStyle(
-                      color: context.themeTextPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // ── Spreadsheet list ─────────────────────────────────────────────
-            if (_isLoadingSheets)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_spreadsheets.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Center(
-                  child: Text(
-                    _searchQuery.isNotEmpty
-                        ? 'No spreadsheets match "$_searchQuery"'
-                        : 'No spreadsheets found',
-                    style: TextStyle(color: context.themeTextSecondary),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              )
-            else ...[
-              Text(
-                'RECENT SPREADSHEETS',
-                style: TextStyle(
-                  color: context.themeTextSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 10),
-              for (final sheet in _spreadsheets) ...[
-                _SpreadsheetTile(
-                  sheet: sheet,
-                  isSelected: _selected?.id == sheet.id,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    _loadWorksheets(sheet);
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
-            ],
-
-            // ── Worksheet picker ─────────────────────────────────────────────
-            if (_selected != null && _worksheets.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              Text(
-                'WORKSHEETS',
-                style: TextStyle(
-                  color: context.themeTextSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    for (final ws in _worksheets) ...[
-                      _WorksheetChip(
-                        label: ws,
-                        isActive: _selectedSheet == ws,
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _selectedSheet = ws);
-                        },
+                      const SizedBox(width: 4),
+                      Text(
+                        'Connect Google Sheets',
+                        style: SsText.sans(
+                          size: 20,
+                          weight: FontWeight.w600,
+                          spacing: -0.4,
+                          color: c.ink,
+                        ),
                       ),
-                      const SizedBox(width: 8),
                     ],
+                  ),
+                  const SizedBox(height: 18),
+                  _AccountCard(
+                    isConnected: isConnected,
+                    user: _gss.currentUser,
+                    isLoading: _isSigningIn,
+                    onSignIn: _signIn,
+                    onSignOut: _signOut,
+                  ),
+                  if (isConnected) ...[
+                    const SizedBox(height: 18),
+                    _searchField(c),
+                    const SizedBox(height: 12),
+                    SsCard(
+                      radius: 20,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      onTap: _isCreating ? null : _createSpreadsheet,
+                      child: Row(
+                        children: [
+                          _isCreating
+                              ? SizedBox(
+                                  width: 36,
+                                  height: 36,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: c.emerald,
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : SsIconTile.accent(context, LucideIcons.plus),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Create new spreadsheet',
+                            style: SsText.label(color: c.ink),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    if (_isLoadingSheets)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: CircularProgressIndicator(color: c.emerald),
+                        ),
+                      )
+                    else if (_spreadsheets.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 32),
+                        child: Center(
+                          child: Text(
+                            _searchQuery.isNotEmpty
+                                ? 'No spreadsheets match “$_searchQuery”'
+                                : 'No spreadsheets found',
+                            textAlign: TextAlign.center,
+                            style: SsText.body(color: c.muted),
+                          ),
+                        ),
+                      )
+                    else ...[
+                      const SsSectionHeader('Your spreadsheets'),
+                      const SizedBox(height: 8),
+                      SsListGroup(
+                        children: [
+                          for (final sheet in _spreadsheets)
+                            SsListRow(
+                              key: ValueKey(sheet.id),
+                              leading: const SsIconTile(LucideIcons.sheet),
+                              title: sheet.title,
+                              subtitle: sheet.modifiedTime == null
+                                  ? null
+                                  : 'Modified ${relativeTime(sheet.modifiedTime!)}',
+                              trailing: SsRadio(
+                                selected: _selected?.id == sheet.id,
+                              ),
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                _loadWorksheets(sheet);
+                              },
+                            ),
+                        ],
+                      ),
+                    ],
+                    if (_selected != null && _worksheets.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      const SsSectionHeader('Tab'),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final worksheet in _worksheets)
+                            _WorksheetChip(
+                              label: worksheet,
+                              selected: _selectedSheet == worksheet,
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(() => _selectedSheet = worksheet);
+                              },
+                            ),
+                        ],
+                      ),
+                    ],
+                  ] else ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Sign in to browse your spreadsheets',
+                      textAlign: TextAlign.center,
+                      style: SsText.body(color: c.muted),
+                    ),
                   ],
-                ),
+                  const SizedBox(height: 20),
+                ],
               ),
-            ],
-
-            // Bottom padding for the sticky bar
-            const SizedBox(height: 100),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+              child: SsButton(
+                'Use this sheet',
+                onPressed: _selected != null && _selectedSheet != null
+                    ? _connect
+                    : null,
+              ),
+            ),
           ],
-        ],
+        ),
       ),
     );
   }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-widgets
-// ─────────────────────────────────────────────────────────────────────────────
+  Widget _searchField(SsColors c) => TextField(
+    controller: _searchCtrl,
+    onChanged: _onSearchChanged,
+    style: SsText.body(color: c.ink),
+    decoration: InputDecoration(
+      hintText: 'Search spreadsheets…',
+      hintStyle: SsText.body(color: c.muted),
+      prefixIcon: Icon(LucideIcons.search, size: 18, color: c.muted),
+      filled: true,
+      fillColor: c.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(SsRadius.md),
+        borderSide: BorderSide(color: c.line),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(SsRadius.md),
+        borderSide: BorderSide(color: c.line),
+      ),
+    ),
+  );
+}
 
 class _AccountCard extends StatelessWidget {
   final bool isConnected;
-  final dynamic user; // GoogleSignInAccount?
+  final dynamic user;
   final bool isLoading;
   final VoidCallback onSignIn;
   final VoidCallback onSignOut;
@@ -440,264 +363,124 @@ class _AccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const googleBlue = Color(0xFF4285F4);
-
+    final c = context.ss;
     if (!isConnected) {
-      return AppCard(
-        padding: const EdgeInsets.all(20),
+      return SsCard(
+        radius: 20,
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            SvgPicture.asset('assets/sheets.svg', width: 36, height: 36),
-            const SizedBox(height: 12),
-            Text(
-              'Connect your Google account',
-              style: TextStyle(
-                color: context.themeTextPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Access your spreadsheets to sync scan data directly.',
-              style: TextStyle(color: context.themeTextSecondary, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: isLoading ? null : onSignIn,
-                icon: isLoading
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.login_rounded, size: 18),
-                label: Text(isLoading ? 'Signing in…' : 'Sign in with Google'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: googleBlue,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            Row(
+              children: [
+                SsIconTile.accent(context, LucideIcons.sheet),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Connect your Google account',
+                        style: SsText.label(color: c.ink),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Access spreadsheets to sync scan data.',
+                        style: SsText.caption(color: c.muted),
+                      ),
+                    ],
                   ),
                 ),
-              ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SsButton(
+              isLoading ? 'Signing in…' : 'Sign in with Google',
+              icon: LucideIcons.logIn,
+              loading: isLoading,
+              onPressed: isLoading ? null : onSignIn,
             ),
           ],
         ),
       );
     }
 
-    // Connected state
     final email = user?.email as String? ?? '';
-    final displayName = user?.displayName as String? ?? '';
-
-    return AppCard(
-      color: const Color(0xFF4285F4).withValues(alpha: 0.08),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    final name = user?.displayName as String? ?? '';
+    final initial = (name.isNotEmpty ? name : email).isNotEmpty
+        ? (name.isNotEmpty ? name : email)[0]
+        : 'G';
+    return SsCard(
+      radius: 20,
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: googleBlue,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                (displayName.isNotEmpty
-                        ? displayName[0]
-                        : email.isNotEmpty
-                            ? email[0]
-                            : 'G')
-                    .toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-          ),
+          SsAvatar(initial: initial),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      'Connected',
-                      style: TextStyle(
-                        color: context.themeTextPrimary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.verified_rounded,
-                      size: 14,
-                      color: Color(0xFF22C55E),
-                    ),
-                  ],
+                Text(
+                  name.isNotEmpty ? name : 'Google account',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: SsText.label(color: c.ink),
                 ),
-                if (email.isNotEmpty)
+                if (email.isNotEmpty) ...[
+                  const SizedBox(height: 2),
                   Text(
                     email,
-                    style: TextStyle(
-                      color: context.themeTextSecondary,
-                      fontSize: 12,
-                    ),
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: SsText.caption(color: c.muted),
                   ),
+                ],
               ],
             ),
           ),
-          TextButton(
-            onPressed: onSignOut,
-            style: TextButton.styleFrom(
-              foregroundColor: context.themeTextSecondary,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            ),
-            child: const Text('Switch', style: TextStyle(fontSize: 13)),
-          ),
+          const SizedBox(width: 10),
+          SsButton.secondary('Switch', expand: false, onPressed: onSignOut),
         ],
       ),
     );
-  }
-}
-
-class _SpreadsheetTile extends StatelessWidget {
-  final SpreadsheetInfo sheet;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _SpreadsheetTile({
-    required this.sheet,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const sheetsGreen = Color(0xFF0F9D58);
-
-    return AppCard(
-      onTap: onTap,
-      color: isSelected
-          ? const Color(0xFF3F5AA9).withValues(alpha: 0.08)
-          : null,
-      child: Container(
-        decoration: isSelected
-            ? BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFF3F5AA9),
-                  width: 1.5,
-                ),
-              )
-            : null,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: sheetsGreen.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SvgPicture.asset('assets/sheets.svg', width: 18, height: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    sheet.title,
-                    style: TextStyle(
-                      color: context.themeTextPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (sheet.modifiedTime != null)
-                    Text(
-                      _formatModified(sheet.modifiedTime!),
-                      style: TextStyle(
-                        color: context.themeTextSecondary,
-                        fontSize: 11,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              const Icon(
-                Icons.check_circle_rounded,
-                color: Color(0xFF3F5AA9),
-                size: 20,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatModified(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inDays == 0) return 'Today';
-    if (diff.inDays == 1) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${dt.day}/${dt.month}/${dt.year}';
   }
 }
 
 class _WorksheetChip extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
   const _WorksheetChip({
     required this.label,
-    required this.isActive,
+    required this.selected,
     required this.onTap,
   });
 
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isActive
-              ? context.themeAccent.withValues(alpha: 0.12)
-              : context.themeCard,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isActive ? context.themeAccent : context.themeBorder,
-            width: isActive ? 1.5 : 1,
+    final c = context.ss;
+    return Material(
+      color: selected ? c.ink : c.surface,
+      borderRadius: BorderRadius.circular(17),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(17),
+        onTap: onTap,
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(17),
+            border: selected ? null : Border.all(color: c.line),
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isActive ? context.themeAccent : context.themeTextSecondary,
-            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-            fontSize: 13,
+          child: Text(
+            label,
+            style: SsText.sans(
+              size: 13,
+              weight: FontWeight.w500,
+              color: selected ? c.onInk : c.ink,
+            ),
           ),
         ),
       ),
@@ -705,72 +488,49 @@ class _WorksheetChip extends StatelessWidget {
   }
 }
 
-class _ConnectBottomBar extends StatelessWidget {
-  final String spreadsheetTitle;
-  final String sheetName;
-  final VoidCallback onConnect;
-
-  const _ConnectBottomBar({
-    required this.spreadsheetTitle,
-    required this.sheetName,
-    required this.onConnect,
-  });
+class _CreateSpreadsheetDialog extends StatefulWidget {
+  const _CreateSpreadsheetDialog();
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        12,
-        16,
-        12 + MediaQuery.paddingOf(context).bottom,
-      ),
-      decoration: BoxDecoration(
-        color: context.themeCard,
-        border: Border(top: BorderSide(color: context.themeBorder)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              SvgPicture.asset(
-                'assets/sheets.svg',
-                width: 16,
-                height: 16,
-                colorFilter: const ColorFilter.mode(Color(0xFF0F9D58), BlendMode.srcIn),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  '$spreadsheetTitle › $sheetName',
-                  style: TextStyle(
-                    color: context.themeTextSecondary,
-                    fontSize: 12,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onConnect,
-              icon: const Icon(Icons.link_rounded, size: 18),
-              label: const Text('Connect & Continue'),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF1B2D61),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  State<_CreateSpreadsheetDialog> createState() =>
+      _CreateSpreadsheetDialogState();
+}
+
+class _CreateSpreadsheetDialogState extends State<_CreateSpreadsheetDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    backgroundColor: context.ss.surface,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    title: Text(
+      'New Spreadsheet',
+      style: SsText.section(color: context.ss.ink),
+    ),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      style: SsText.body(color: context.ss.ink),
+      decoration: InputDecoration(
+        labelText: 'Spreadsheet name',
+        hintText: 'e.g. Inventory Jan 2026',
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text('Cancel', style: SsText.label(color: context.ss.muted)),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context, _controller.text.trim()),
+        child: Text('Create', style: SsText.label(color: context.ss.emerald)),
+      ),
+    ],
+  );
 }
