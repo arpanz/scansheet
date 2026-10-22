@@ -129,13 +129,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   void _snack(String message, bool error) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: error ? context.ss.error : context.ss.emerald,
-      ),
-    );
+    showSsToast(context, message, error: error);
   }
 
   @override

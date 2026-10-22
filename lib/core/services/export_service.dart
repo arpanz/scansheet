@@ -47,12 +47,7 @@ class ExportService {
       if (isCancelled) return;
       if (context.mounted) Navigator.pop(context);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Export failed: $e'),
-            backgroundColor: context.themeError,
-          ),
-        );
+        showSsToast(context, 'Export failed: $e', error: true);
       }
       return;
     }
@@ -67,12 +62,7 @@ class ExportService {
       (filePath, fileBytes) = await onGetFileData(result as T);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not save file: $e'),
-            backgroundColor: context.themeError,
-          ),
-        );
+        showSsToast(context, 'Could not save file: $e', error: true);
       }
       return;
     }
@@ -272,21 +262,11 @@ class ExportService {
       }
       final result = await OpenFilex.open(filePath, type: mimeType);
       if (result.type != ResultType.done && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not open: ${result.message}'),
-            backgroundColor: context.themeError,
-          ),
-        );
+        showSsToast(context, 'Could not open: ${result.message}', error: true);
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening file: $e'),
-            backgroundColor: context.themeError,
-          ),
-        );
+        showSsToast(context, 'Error opening file: $e', error: true);
       }
     }
   }
@@ -341,25 +321,16 @@ class ExportService {
         );
         final savedPath = await FlutterFileDialog.saveFile(params: params);
         if (savedPath != null && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('File saved successfully')),
-          );
+          showSsToast(context, 'Saved to Files');
         }
       } else {
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('File saved to $filePath')));
+          showSsToast(context, 'File saved to $filePath');
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Save failed: $e'),
-            backgroundColor: context.themeError,
-          ),
-        );
+        showSsToast(context, 'Save failed: $e', error: true);
       }
     }
   }

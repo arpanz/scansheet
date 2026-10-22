@@ -916,22 +916,52 @@ Future<T?> showSsSheet<T>(
 }
 
 /// Toast-style snackbar in house style.
-void showSsToast(
+/// Extra bottom space for toasts on screens whose bottom bar has parts that
+/// rise above it (the shell's raised Scan button).
+class SsToastInset extends InheritedWidget {
+  final double bottom;
+  const SsToastInset({super.key, required this.bottom, required super.child});
+
+  @override
+  bool updateShouldNotify(SsToastInset old) => bottom != old.bottom;
+}
+
+/// The one toast style. Auto-dismisses (also with an action, which Flutter
+/// would otherwise keep on screen until tapped) and replaces any toast
+/// already showing.
+ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSsToast(
   BuildContext context,
   String message, {
   String? action,
   VoidCallback? onAction,
+  bool error = false,
 }) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(message),
-        action: action == null
-            ? null
-            : SnackBarAction(label: action, onPressed: onAction ?? () {}),
+  final inset = context.getInheritedWidgetOfExactType<SsToastInset>()?.bottom;
+  final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+  return messenger.showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          if (error) ...[
+            const Icon(
+              LucideIcons.circleAlert,
+              size: 18,
+              color: Color(0xFFFF8A80),
+            ),
+            const SizedBox(width: 10),
+          ],
+          Expanded(child: Text(message)),
+        ],
       ),
-    );
+      persist: false,
+      duration: Duration(seconds: action == null ? 3 : 5),
+      margin: EdgeInsets.fromLTRB(16, 0, 16, 12 + (inset ?? 0)),
+      dismissDirection: DismissDirection.horizontal,
+      action: action == null
+          ? null
+          : SnackBarAction(label: action, onPressed: onAction ?? () {}),
+    ),
+  );
 }
 
 /// The ScanSheet scan glyph (corner brackets + line).

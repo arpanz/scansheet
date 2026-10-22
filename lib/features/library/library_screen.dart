@@ -9,6 +9,7 @@ import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
 import '../sheet/sheet_view_screen.dart';
+import '../scan/screens/read_code_screen.dart';
 import '../sheet/new_sheet_screen.dart';
 import '../sheet/sheet_actions.dart';
 
@@ -17,17 +18,30 @@ class LibraryScreen extends StatefulWidget {
 
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
+
+  /// Which tab Library shows; set from outside to switch it.
+  static final tab = ValueNotifier<String>('sheets');
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
   final _search = TextEditingController();
-  String _tab = 'sheets';
+  String get _tab => LibraryScreen.tab.value;
+  set _tab(String value) => LibraryScreen.tab.value = value;
   String _filter = 'all';
   final Set<String> _hiddenSheets = {};
   final Set<String> _hiddenHistory = {};
 
   @override
+  void initState() {
+    super.initState();
+    LibraryScreen.tab.addListener(_onTab);
+  }
+
+  void _onTab() => setState(() => _filter = 'all');
+
+  @override
   void dispose() {
+    LibraryScreen.tab.removeListener(_onTab);
     _search.dispose();
     super.dispose();
   }
@@ -40,19 +54,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final id = sheet.session.id;
     setState(() => _hiddenSheets.add(id));
     var undone = false;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    final controller = messenger.showSnackBar(
-      SnackBar(
-        content: Text('${sheet.session.name} deleted'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () {
-            undone = true;
-            if (mounted) setState(() => _hiddenSheets.remove(id));
-          },
-        ),
-      ),
+    final controller = showSsToast(
+      context,
+      '${sheet.session.name} deleted',
+      action: 'Undo',
+      onAction: () {
+        undone = true;
+        if (mounted) setState(() => _hiddenSheets.remove(id));
+      },
     );
     await controller.closed;
     if (!undone) {
@@ -66,19 +75,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final key = _historyKey(entry);
     setState(() => _hiddenHistory.add(key));
     var undone = false;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    final controller = messenger.showSnackBar(
-      SnackBar(
-        content: const Text('Code deleted'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () {
-            undone = true;
-            if (mounted) setState(() => _hiddenHistory.remove(key));
-          },
-        ),
-      ),
+    final controller = showSsToast(
+      context,
+      'Code deleted',
+      action: 'Undo',
+      onAction: () {
+        undone = true;
+        if (mounted) setState(() => _hiddenHistory.remove(key));
+      },
     );
     await controller.closed;
     if (!undone) await ScanHistoryService.deleteEntry(entry);
@@ -290,9 +294,11 @@ class _SheetsList extends StatelessWidget {
     final c = context.ss;
     if (allCount == 0) return _EmptySheets(onNewSheet: onNewSheet);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
+          // Left-aligned like the mock, not centred by the Column.
           child: Row(
             children: [
               _FilterChip(
@@ -632,13 +638,42 @@ class _HistoryList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (history.isEmpty) {
+      final c = context.ss;
       return Center(
-        child: Text(
-          'No scans yet',
-          style: SsText.sans(
-            size: 15,
-            weight: FontWeight.w600,
-            color: context.ss.ink,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 60),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SsIconTile(LucideIcons.history, size: 52),
+              const SizedBox(height: 14),
+              Text(
+                'No codes yet',
+                style: SsText.sans(
+                  size: 16,
+                  weight: FontWeight.w600,
+                  color: c.ink,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Codes you read outside a sheet land here.',
+                textAlign: TextAlign.center,
+                style: SsText.sans(size: 13, color: c.muted),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: 200,
+                child: SsButton.secondary(
+                  'Read a code',
+                  icon: LucideIcons.zap,
+                  expand: false,
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).push(FadeSlideRoute(page: const ReadCodeScreen())),
+                ),
+              ),
+            ],
           ),
         ),
       );

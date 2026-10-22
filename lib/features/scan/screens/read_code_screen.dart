@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/scan_history_service.dart';
 import '../../../core/services/scanning_preferences.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../shell/app_shell.dart';
 import '../../../core/widgets/ss.dart';
 
 class ReadCodeScreen extends StatefulWidget {
@@ -380,17 +381,7 @@ class _BottomPanel extends StatelessWidget {
                 child: SsButton.secondary(
                   'History',
                   icon: LucideIcons.clock3,
-                  onPressed: () {
-                    final messenger = ScaffoldMessenger.of(context);
-                    Navigator.pop(context);
-                    messenger
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(
-                        const SnackBar(
-                          content: Text('Code history is in Library'),
-                        ),
-                      );
-                  },
+                  onPressed: AppShell.showCodeHistory.fire,
                 ),
               ),
             ],

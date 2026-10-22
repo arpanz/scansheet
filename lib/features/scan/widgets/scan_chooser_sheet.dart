@@ -11,7 +11,6 @@ import '../../sheet/new_sheet_screen.dart';
 /// Scan button when no sheet is in progress.
 Future<void> showScanChooser(BuildContext context) {
   final navigator = Navigator.of(context);
-  final messenger = ScaffoldMessenger.of(context);
 
   // Close the sheet first, then act from the caller's navigator so nothing
   // runs on the sheet's disposed context.
@@ -27,11 +26,8 @@ Future<void> showScanChooser(BuildContext context) {
       onOpen: go,
       onTeam: () {
         navigator.pop();
-        messenger
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(content: Text('Team sheets are coming soon')),
-          );
+        if (context.mounted)
+          showSsToast(context, 'Team sheets are coming soon');
       },
     ),
   );

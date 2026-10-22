@@ -232,7 +232,10 @@ class AppTheme {
         contentTextStyle: SsText.body(color: c.ink2),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: SsColors.brandInk,
+        // Ink on paper; in dark mode a raised surface so it doesn't vanish.
+        backgroundColor: brightness == Brightness.light
+            ? SsColors.brandInk
+            : SsColors.nightRaised,
         contentTextStyle: SsText.sans(
           size: 14,
           weight: FontWeight.w500,
@@ -243,6 +246,9 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(SsRadius.md),
+          side: brightness == Brightness.light
+              ? BorderSide.none
+              : const BorderSide(color: SsColors.nightLine),
         ),
       ),
       chipTheme: ChipThemeData(

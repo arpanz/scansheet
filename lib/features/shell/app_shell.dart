@@ -14,12 +14,33 @@ import '../scan/widgets/scan_chooser_sheet.dart';
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
+  /// Jump to Library's code history from anywhere (e.g. Read a code).
+  static final showCodeHistory = _Signal();
+
   @override
   State<AppShell> createState() => _AppShellState();
 }
 
 class _AppShellState extends State<AppShell> {
   int _tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    AppShell.showCodeHistory.addListener(_onShowHistory);
+  }
+
+  @override
+  void dispose() {
+    AppShell.showCodeHistory.removeListener(_onShowHistory);
+    super.dispose();
+  }
+
+  void _onShowHistory() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    LibraryScreen.tab.value = 'history';
+    setState(() => _tab = 1);
+  }
 
   void _select(int tab) {
     if (tab == _tab) return;
@@ -47,12 +68,16 @@ class _AppShellState extends State<AppShell> {
         if (!didPop) setState(() => _tab = 0);
       },
       child: Scaffold(
-        body: IndexedStack(
-          index: _tab,
-          children: [
-            HomeScreen(onSeeAll: () => _select(1)),
-            const LibraryScreen(),
-          ],
+        // Toasts float clear of the raised Scan button.
+        body: SsToastInset(
+          bottom: 28,
+          child: IndexedStack(
+            index: _tab,
+            children: [
+              HomeScreen(onSeeAll: () => _select(1)),
+              const LibraryScreen(),
+            ],
+          ),
         ),
         bottomNavigationBar: ListenableBuilder(
           listenable: ScanSessionService.changes,
@@ -213,4 +238,8 @@ class _ScanButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _Signal extends ChangeNotifier {
+  void fire() => notifyListeners();
 }
