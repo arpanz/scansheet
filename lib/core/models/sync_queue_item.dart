@@ -4,6 +4,11 @@ enum SyncStatus { pending, syncing, failed, synced }
 
 enum SyncDestination { googleSheets, localCsv, localXlsx }
 
+/// What the next sync attempt must do with this row.
+/// append: not in the sheet yet · update: overwrite [SyncQueueItem.sheetRow]
+/// · clear: row was deleted locally, blank it in the sheet.
+enum SyncOp { append, update, clear }
+
 class SyncQueueItem {
   final String id;
   final String sessionId;
@@ -12,6 +17,10 @@ class SyncQueueItem {
   final SyncDestination destination;
   final String? spreadsheetId;
   final String? sheetName;
+  final SyncOp op;
+
+  /// 1-based row in the Google Sheet once appended.
+  final int? sheetRow;
   SyncStatus status;
   final DateTime createdAt;
   DateTime? lastAttemptAt;
@@ -26,6 +35,8 @@ class SyncQueueItem {
     required this.destination,
     this.spreadsheetId,
     this.sheetName,
+    this.op = SyncOp.append,
+    this.sheetRow,
     this.status = SyncStatus.pending,
     required this.createdAt,
     this.lastAttemptAt,
@@ -41,6 +52,8 @@ class SyncQueueItem {
     'destination': destination.name,
     'spreadsheetId': spreadsheetId,
     'sheetName': sheetName,
+    'op': op.name,
+    'sheetRow': sheetRow,
     'status': status.name,
     'createdAt': createdAt.toIso8601String(),
     'lastAttemptAt': lastAttemptAt?.toIso8601String(),
@@ -59,6 +72,11 @@ class SyncQueueItem {
     ),
     spreadsheetId: map['spreadsheetId'] as String?,
     sheetName: map['sheetName'] as String?,
+    op: SyncOp.values.firstWhere(
+      (e) => e.name == map['op'],
+      orElse: () => SyncOp.append,
+    ),
+    sheetRow: map['sheetRow'] as int?,
     status: SyncStatus.values.firstWhere(
       (e) => e.name == map['status'],
       orElse: () => SyncStatus.pending,
@@ -72,6 +90,10 @@ class SyncQueueItem {
   );
 
   SyncQueueItem copyWith({
+    List<String>? rowData,
+    SyncOp? op,
+    int? sheetRow,
+    String? sheetName,
     SyncStatus? status,
     DateTime? lastAttemptAt,
     String? errorMessage,
@@ -80,10 +102,12 @@ class SyncQueueItem {
     id: id,
     sessionId: sessionId,
     rowIndex: rowIndex,
-    rowData: rowData,
+    rowData: rowData ?? this.rowData,
     destination: destination,
     spreadsheetId: spreadsheetId,
-    sheetName: sheetName,
+    sheetName: sheetName ?? this.sheetName,
+    op: op ?? this.op,
+    sheetRow: sheetRow ?? this.sheetRow,
     status: status ?? this.status,
     createdAt: createdAt,
     lastAttemptAt: lastAttemptAt ?? this.lastAttemptAt,

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add column</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0B7D45}a:hover{color:#075E33}
+button,input{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F6F2; font-family: 'Geist', system-ui, sans-serif; color: #0B1210; position: relative; overflow: hidden">
+  <div style="position: absolute; inset: 0; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 16px">
+    <div style="height: 44px; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600">New sheet</div>
+    <div style="height: 52px; border-radius: 14px; background: #FFFFFF; border: 1px solid #E3E6E0"></div>
+    <div style="height: 48px; border-radius: 14px; background: #E9ECE6"></div>
+  </div>
+  <div style="position: absolute; inset: 0; background: rgba(11,18,16,0.42)"></div>
+
+  <div role="dialog" aria-label="Add column" style="position: absolute; left: 0; right: 0; bottom: 0; top: 96px; padding: 10px 20px 34px; border-radius: 28px 28px 0 0; background: #F5F6F2; display: flex; flex-direction: column; gap: 14px">
+    <div style="align-self: center; width: 36px; height: 5px; border-radius: 3px; background: #C9CFC6"></div>
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: -4px">
+      <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px">Add column</span>
+      <a href="NewSheet.dc.html" aria-label="Close" style="width: 40px; height: 40px; margin-right: -8px; border-radius: 20px; background: #E9ECE6; color: #0B1210; display: flex; align-items: center; justify-content: center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+      </a>
+    </div>
+
+    <div role="radiogroup" aria-label="Column type" style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+      <sc-for list="{{types}}" as="t" hint-placeholder-count="8">
+        <button role="radio" aria-checked="{{t.on}}" onClick="{{t.pick}}" style="height: 66px; padding: 6px 2px; box-sizing: border-box; border-radius: 14px; border: {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{t.stroke}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.icon}}"></path></svg>
+          <span style="font-size: 11px; font-weight: 600; line-height: 1.15; text-align: center">{{t.label}}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="padding: 12px 14px; border-radius: 14px; background: #E9ECE6; font-size: 13px; line-height: 1.45; color: #2F3833">{{hint}}</div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <label for="col-name" style="font-size: 13px; font-weight: 500; color: #4A5550">Column name</label>
+      <input id="col-name" value="{{defaultName}}" style="height: 50px; box-sizing: border-box; padding: 0 14px; border-radius: 14px; border: 1.5px solid #0B1210; background: #FFFFFF; font-size: 16px; font-weight: 500; color: #0B1210; outline: none">
+    </div>
+
+    <sc-if value="{{isList}}" hint-placeholder-val="{{true}}">
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; align-items: center; justify-content: space-between">
+          <span style="font-size: 13px; font-weight: 500; color: #4A5550">Choices</span>
+          <span style="font-size: 12px; color: #5F6964">Tap one to make it the default</span>
+        </div>
+        <div style="border-radius: 16px; background: #FFFFFF; border: 1px solid #E3E6E0; overflow: hidden">
+          <sc-for list="{{values}}" as="v" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; border-bottom: 1px solid #EEF0EB">
+              <button onClick="{{v.pick}}" aria-pressed="{{v.on}}" style="flex: 1; display: flex; align-items: center; gap: 12px; height: 50px; padding: 0 14px; border: 0; background: transparent; color: #0B1210; text-align: left; cursor: pointer">
+                <span style="width: 20px; height: 20px; box-sizing: border-box; border-radius: 10px; border: {{v.ring}}; flex: none"></span>
+                <span style="flex: 1; font-size: 15px; font-weight: 500">{{v.label}}</span>
+                <sc-if value="{{v.isDefault}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; font-weight: 600; height: 22px; padding: 0 8px; border-radius: 6px; background: #EEF9C8; display: inline-flex; align-items: center">Default</span></sc-if>
+              </button>
+              <button aria-label="Remove choice" style="width: 44px; height: 50px; border: 0; background: transparent; color: #5F6964; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+              </button>
+            </div>
+          </sc-for>
+          <div style="display: flex; align-items: center; gap: 10px; height: 50px; padding: 0 14px; color: #0B7D45">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+            <label for="new-choice" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Add a choice</label>
+            <input id="new-choice" placeholder="Add a choice" style="flex: 1; height: 40px; border: 0; background: transparent; font-size: 15px; color: #0B1210; outline: none">
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <a href="NewSheet.dc.html" style="margin-top: auto; display: flex; align-items: center; justify-content: center; height: 56px; border-radius: 16px; background: #0B1210; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none">Add column</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { type: 'list', def: 'Good' };
+  }
+  renderVals() {
+    const defs = [
+      { id: 'scan', label: 'Scan', name: 'Serial no.', hint: 'Filled from the camera. Add more than one to scan, say, a product and its serial into the same row.', icon: 'M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M7 12h10' },
+      { id: 'product', label: 'Product info', name: 'Product name', hint: 'Looks the barcode up in open product databases and fills in name, brand and size. Works for most packaged goods; blank if not found.', icon: 'M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8' },
+      { id: 'list', label: 'Pick-list', name: 'Condition', hint: 'One tap from a fixed set of choices. The default is already picked, so a normal scan needs no typing.', icon: 'M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01' },
+      { id: 'number', label: 'Number', name: 'Qty', hint: 'Shows a – / + stepper on every scan. Set the step and starting value.', icon: 'M5 12h14M12 5v14' },
+      { id: 'text', label: 'Text', name: 'Note', hint: 'Free typing, optional. It never blocks the next scan.', icon: 'M4 6h16M4 12h16M4 18h10' },
+      { id: 'ocr', label: 'Read text', name: 'Expiry date', hint: 'Point at printed text, like an expiry date or serial number, and tap the words to keep. Read on the phone, nothing uploaded.', icon: 'M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M9 9h6M12 9v7' },
+      { id: 'time', label: 'Date & time', name: 'Scanned at', hint: 'Filled in automatically the moment the code is read.', icon: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2' },
+      { id: 'gps', label: 'Location', name: 'Location', hint: 'GPS at scan time. ScanSheet asks for location only when a sheet has this column.', icon: 'M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11zM12 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4z' },
+      { id: 'fixed', label: 'Same value', name: 'Aisle', hint: 'The same value on every row, like a shelf, gate or batch number.', icon: 'M20 12l-8 8-8-8V4h8zM8.5 8.5h.01' },
+      { id: 'auto', label: 'Auto no.', name: 'Row no.', hint: 'Numbers each row 1, 2, 3… in the order you scan.', icon: 'M4 9h16M4 15h16M10 3 8 21M16 3l-2 18' }
+    ];
+    const type = this.state.type;
+    const types = defs.map((d) => {
+      const on = d.id === type;
+      return {
+        ...d,
+        on: on ? 'true' : 'false',
+        border: on ? '1.5px solid #0B1210' : '1px solid #E3E6E0',
+        bg: on ? '#0B1210' : '#FFFFFF',
+        fg: on ? '#FFFFFF' : '#0B1210',
+        stroke: on ? '#D4F56A' : '#0B1210',
+        pick: () => this.setState({ type: d.id })
+      };
+    });
+    const sel = defs.find((d) => d.id === type);
+    const values = ['Good', 'Damaged', 'Missing'].map((label) => {
+      const on = label === this.state.def;
+      return {
+        label,
+        on: on ? 'true' : 'false',
+        isDefault: on,
+        ring: on ? '6px solid #0B1210' : '1.5px solid #B7BEB9',
+        pick: () => this.setState({ def: label })
+      };
+    });
+    return { types, hint: sel.hint, defaultName: sel.name, isList: type === 'list', values };
+  }
+}
+</script>
+</body>
+</html>

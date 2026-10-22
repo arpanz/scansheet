@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scan into</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0B7D45}a:hover{color:#075E33}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F6F2; font-family: 'Geist', system-ui, sans-serif; color: #0B1210; position: relative; overflow: hidden">
+  <div style="position: absolute; inset: 0; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 16px">
+    <div style="height: 44px; display: flex; align-items: center; font-size: 28px; font-weight: 600; letter-spacing: -0.8px">Library</div>
+    <div style="height: 48px; border-radius: 14px; background: #E9ECE6"></div>
+    <div style="height: 120px; border-radius: 18px; background: #FFFFFF; border: 1px solid #E3E6E0"></div>
+    <div style="height: 120px; border-radius: 18px; background: #FFFFFF; border: 1px solid #E3E6E0"></div>
+  </div>
+  <div style="position: absolute; inset: 0; background: rgba(11,18,16,0.42)"></div>
+
+  <div role="dialog" aria-label="Scan into" style="position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 20px 34px; border-radius: 28px 28px 0 0; background: #F5F6F2; display: flex; flex-direction: column; gap: 14px">
+    <div style="align-self: center; width: 36px; height: 5px; border-radius: 3px; background: #C9CFC6"></div>
+    <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px">Scan into…</span>
+
+    <div style="border-radius: 18px; background: #FFFFFF; border: 1px solid #E3E6E0; overflow: hidden">
+      <a href="Scanner.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 0 14px; height: 64px; color: #0B1210; text-decoration: none; border-bottom: 1px solid #EEF0EB">
+        <div style="width: 40px; height: 40px; border-radius: 12px; background: #0B1210; display: flex; align-items: center; justify-content: center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#D4F56A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"></path></svg></div>
+        <span style="flex: 1; display: flex; flex-direction: column; gap: 1px"><span style="font-size: 15px; font-weight: 600">Warehouse audit</span><span style="font-size: 12px; color: #5F6964">129 rows · last scan yesterday</span></span>
+        <span style="font-size: 13px; font-weight: 600; color: #0B7D45">Continue</span>
+      </a>
+      <a href="Scanner.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 0 14px; height: 64px; color: #0B1210; text-decoration: none">
+        <div style="width: 40px; height: 40px; border-radius: 12px; background: #F0F2EE; display: flex; align-items: center; justify-content: center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0B1210" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12l-8 8-8-8V4h8z"></path></svg></div>
+        <span style="flex: 1; display: flex; flex-direction: column; gap: 1px"><span style="font-size: 15px; font-weight: 600">Office laptops</span><span style="font-size: 12px; color: #5F6964">58 rows · Monday</span></span>
+        <span style="font-size: 13px; font-weight: 600; color: #0B7D45">Continue</span>
+      </a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+      <a href="NewSheet.dc.html" style="height: 96px; padding: 12px; box-sizing: border-box; border-radius: 16px; background: #FFFFFF; border: 1px solid #E3E6E0; color: #0B1210; text-decoration: none; display: flex; flex-direction: column; justify-content: space-between">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B7D45" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+        <span style="font-size: 14px; font-weight: 600; line-height: 1.2">New sheet</span>
+      </a>
+      <a href="Library.dc.html" style="height: 96px; padding: 12px; box-sizing: border-box; border-radius: 16px; background: #FFFFFF; border: 1px solid #E3E6E0; color: #0B1210; text-decoration: none; display: flex; flex-direction: column; justify-content: space-between">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B1210" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"></path></svg>
+        <span style="font-size: 14px; font-weight: 600; line-height: 1.2">Just read a code</span>
+      </a>
+      <a href="ShareSheet.dc.html" style="height: 96px; padding: 12px; box-sizing: border-box; border-radius: 16px; background: #FFFFFF; border: 1px solid #E3E6E0; color: #0B1210; text-decoration: none; display: flex; flex-direction: column; justify-content: space-between">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B1210" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19 8v6M22 11h-6"></path></svg>
+        <span style="font-size: 14px; font-weight: 600; line-height: 1.2">Join a team sheet</span>
+      </a>
+    </div>
+    <span style="font-size: 12px; color: #5F6964; text-align: center">Tip: with a sheet in progress, the scan button opens it straight away.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

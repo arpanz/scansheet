@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sheet view</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0B7D45}a:hover{color:#075E33}
+button,input{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F6F2; font-family: 'Geist', system-ui, sans-serif; color: #0B1210; position: relative; overflow: hidden">
+  <div style="padding: 56px 20px 0; display: flex; flex-direction: column; gap: 16px">
+
+    <div style="display: flex; align-items: center; gap: 4px; height: 44px">
+      <a href="Home.dc.html" aria-label="Back" style="width: 44px; height: 44px; margin-left: -10px; display: flex; align-items: center; justify-content: center; color: #0B1210">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      </a>
+      <span style="flex: 1; font-size: 20px; font-weight: 600; letter-spacing: -0.4px">Warehouse audit</span>
+      <a href="ShareSheet.dc.html" aria-label="Share with team" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #0B1210">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19 8v6M22 11h-6"></path></svg>
+      </a>
+      <button aria-label="Sheet options" style="width: 44px; height: 44px; margin-right: -10px; border: 0; background: transparent; color: #0B1210; display: flex; align-items: center; justify-content: center; cursor: pointer">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
+      </button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+      <div style="padding: 12px; border-radius: 16px; background: #FFFFFF; border: 1px solid #E3E6E0; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 22px; font-weight: 500; letter-spacing: -0.5px">129</span><span style="font-size: 12px; color: #5F6964">Rows</span>
+      </div>
+      <div style="padding: 12px; border-radius: 16px; background: #FFFFFF; border: 1px solid #E3E6E0; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 22px; font-weight: 500; letter-spacing: -0.5px">47</span><span style="font-size: 12px; color: #5F6964">Unique items</span>
+      </div>
+      <div style="padding: 12px; border-radius: 16px; background: #FFFFFF; border: 1px solid #E3E6E0; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 22px; font-weight: 500; letter-spacing: -0.5px">1,284</span><span style="font-size: 12px; color: #5F6964">Total qty</span>
+      </div>
+    </div>
+
+    <a href="#" style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px; border-radius: 14px; background: #E3F4EA; color: #075E33; text-decoration: none">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"></path><path d="M21 3v5h-5"></path></svg>
+      <span style="flex: 1; font-size: 14px; font-weight: 500">Synced to Google Sheets · just now</span>
+      <span style="font-size: 14px; font-weight: 600">Open</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"></path></svg>
+    </a>
+
+    <div style="position: relative">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5F6964" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="position: absolute; left: 14px; top: 15px"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <label for="row-search" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search rows</label>
+      <input id="row-search" placeholder="Search codes, notes…" style="width: 100%; height: 48px; box-sizing: border-box; padding: 0 14px 0 42px; border-radius: 14px; border: 1px solid #E3E6E0; background: #FFFFFF; font-size: 15px; color: #0B1210; outline: none">
+    </div>
+
+    <div style="border-radius: 18px; background: #FFFFFF; border: 1px solid #E3E6E0; overflow: hidden">
+      <div style="overflow-x: auto">
+        <div style="min-width: 420px">
+          <div style="display: grid; grid-template-columns: 44px 140px 52px 64px 64px; background: #FAFBF8; border-bottom: 1px solid #E3E6E0; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: #5F6964">
+            <div style="padding: 10px 0 10px 14px">#</div><div style="padding: 10px 8px">Item code</div><div style="padding: 10px 8px">Qty</div><div style="padding: 10px 8px">Time</div><div style="padding: 10px 8px">Aisle</div>
+          </div>
+          <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+            <div style="display: grid; grid-template-columns: 44px 140px 52px 64px 64px; height: 44px; align-items: center; border-bottom: 1px solid #EEF0EB; font-family: 'Geist Mono', monospace; font-size: 13px; background: {{r.bg}}">
+              <div style="padding-left: 14px; color: #5F6964; font-size: 12px">{{r.n}}</div>
+              <div style="padding: 0 8px; font-weight: {{r.weight}}">{{r.code}}</div>
+              <div style="padding: 0 8px">{{r.qty}}</div>
+              <div style="padding: 0 8px; color: #4A5550">{{r.time}}</div>
+              <div style="padding: 0 8px; color: #4A5550">B‑12</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 20px; right: 20px; bottom: 34px; display: flex; gap: 10px; padding: 8px; border-radius: 22px; background: #0B1210; box-shadow: 0 16px 36px rgba(11,18,16,0.3)">
+    <a href="Scanner.dc.html" style="flex: 1; height: 48px; border-radius: 15px; background: #D4F56A; color: #0B1210; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M7 12h10"></path></svg>Scan more
+    </a>
+    <a href="Export.dc.html" style="flex: 1; height: 48px; border-radius: 15px; background: rgba(255,255,255,0.1); color: #FFFFFF; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"></path></svg>Export
+    </a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const data = [
+      ['129', '5012345678900', '1', '10:58'],
+      ['128', '4006381333931', '12', '10:58'],
+      ['127', '8901030865278', '3', '10:57'],
+      ['126', '0712345678911', '6', '10:55'],
+      ['125', '8901234567890', '2', '10:54'],
+      ['124', '4902430735063', '24', '10:52'],
+      ['123', '5449000000996', '8', '10:51'],
+      ['122', '8906010500057', '1', '10:49']
+    ];
+    const rows = data.map((d, i) => ({
+      n: d[0], code: d[1], qty: d[2], time: d[3],
+      bg: i === 0 ? '#EEF9C8' : '#FFFFFF',
+      weight: i === 0 ? '600' : '400'
+    }));
+    return { rows };
+  }
+}
+</script>
+</body>
+</html>

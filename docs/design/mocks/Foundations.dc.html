@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ScanSheet foundations</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0B7D45}a:hover{color:#075E33}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 1400px; height: 980px; box-sizing: border-box; background: #F5F6F2; font-family: 'Geist', system-ui, sans-serif; color: #0B1210; padding: 64px; display: flex; flex-direction: column; gap: 40px">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <span style="font-family: 'Geist Mono', monospace; font-size: 13px; letter-spacing: 1px; color: #0B7D45">SCANSHEET · FOUNDATIONS</span>
+      <span style="font-size: 44px; font-weight: 600; letter-spacing: -1.4px">Paper, ink and one bright signal.</span>
+    </div>
+    <span style="font-size: 15px; color: #4A5550; max-width: 380px; line-height: 1.5">Calm neutrals for the sheets, ink for actions, lime only for the moment a code lands.</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; flex: 1">
+
+    <div style="border-radius: 24px; background: #FFFFFF; border: 1px solid #E3E6E0; padding: 28px; display: flex; flex-direction: column; gap: 18px">
+      <span style="font-size: 18px; font-weight: 600">Color</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+        <sc-for list="{{colors}}" as="c" hint-placeholder-count="10">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background: {{c.hex}}; border: 1px solid #E3E6E0"></div>
+            <div style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 13px; font-weight: 600">{{c.name}}</span><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5F6964">{{c.hex}}</span></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top: auto; padding: 14px; border-radius: 14px; background: #F5F6F2; font-size: 13px; line-height: 1.5; color: #4A5550">Lime is a signal, never a text color on light. Text pairs: Ink on Paper 18:1, Muted on White 5.6:1, Emerald on White 5.3:1.</div>
+    </div>
+
+    <div style="border-radius: 24px; background: #FFFFFF; border: 1px solid #E3E6E0; padding: 28px; display: flex; flex-direction: column; gap: 16px">
+      <span style="font-size: 18px; font-weight: 600">Type · Geist + Geist Mono</span>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 14px; border-bottom: 1px solid #EEF0EB">
+        <span style="font-size: 44px; font-weight: 600; letter-spacing: -1.6px; line-height: 1.02">Scan a code.</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5F6964">Display · 44 / 600 / −1.6</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 14px; border-bottom: 1px solid #EEF0EB">
+        <span style="font-size: 30px; font-weight: 600; letter-spacing: -0.9px">Screen title</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5F6964">Title · 30 / 600 / −0.9</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 14px; border-bottom: 1px solid #EEF0EB">
+        <span style="font-size: 15px; font-weight: 600">Row label <span style="font-weight: 400; color: #4A5550">· body copy reads at 15</span></span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5F6964">Body · 15 / 400–600 · Caption 12–13</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 22px; font-weight: 500">8901234567890</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5F6964">Data · Geist Mono for codes, counts, cells</span>
+      </div>
+      <div style="margin-top: auto; display: flex; gap: 10px; flex-wrap: wrap">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; height: 28px; padding: 0 10px; border-radius: 8px; background: #F0F2EE; display: inline-flex; align-items: center">Radius 10 · 14 · 18 · 24 · 28</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; height: 28px; padding: 0 10px; border-radius: 8px; background: #F0F2EE; display: inline-flex; align-items: center">Spacing 4 pt grid · gutter 20–24</span>
+      </div>
+    </div>
+
+    <div style="border-radius: 24px; background: #FFFFFF; border: 1px solid #E3E6E0; padding: 28px; display: flex; flex-direction: column; gap: 16px">
+      <span style="font-size: 18px; font-weight: 600">Components</span>
+      <button style="height: 56px; border: 0; border-radius: 16px; background: #0B1210; color: #FFFFFF; font-size: 16px; font-weight: 600">Primary · Ink</button>
+      <div style="display: flex; gap: 10px">
+        <button style="flex: 1; height: 48px; border: 1px solid #D3D8D1; border-radius: 14px; background: #FFFFFF; color: #0B1210; font-size: 15px; font-weight: 600">Secondary</button>
+        <button style="flex: 1; height: 48px; border: 0; border-radius: 14px; background: #D4F56A; color: #0B1210; font-size: 15px; font-weight: 600">On dark</button>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; height: 24px; padding: 0 8px; border-radius: 6px; background: #0B1210; color: #D4F56A; display: inline-flex; align-items: center">SCAN</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; height: 24px; padding: 0 8px; border-radius: 6px; background: #F0F2EE; display: inline-flex; align-items: center">COUNT</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; height: 24px; padding: 0 8px; border-radius: 6px; background: #F0F2EE; display: inline-flex; align-items: center">TIME</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; height: 24px; padding: 0 8px; border-radius: 6px; background: #F0F2EE; display: inline-flex; align-items: center">GPS</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; height: 24px; padding: 0 8px; border-radius: 6px; background: #F0F2EE; display: inline-flex; align-items: center">FIXED</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; height: 24px; padding: 0 8px; border-radius: 6px; background: #EEF9C8; display: inline-flex; align-items: center">LIST</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; height: 24px; padding: 0 8px; border-radius: 6px; background: #E3F4EA; color: #075E33; display: inline-flex; align-items: center">AUTO</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; height: 24px; padding: 0 8px; border-radius: 6px; background: #F0F2EE; display: inline-flex; align-items: center">READ</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; height: 24px; padding: 0 8px; border-radius: 6px; background: #F0F2EE; display: inline-flex; align-items: center">TEXT</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; height: 24px; padding: 0 8px; border-radius: 6px; background: #F0F2EE; display: inline-flex; align-items: center">#1,2,3</span>
+      </div>
+      <div style="display: flex; gap: 14px; font-size: 12px; font-weight: 500">
+        <span style="display: inline-flex; align-items: center; gap: 5px; color: #0B7D45"><span style="width: 6px; height: 6px; border-radius: 3px; background: #0B7D45"></span>Synced</span>
+        <span style="display: inline-flex; align-items: center; gap: 5px; color: #A15C07"><span style="width: 6px; height: 6px; border-radius: 3px; background: #D97706"></span>Queued</span>
+        <span style="display: inline-flex; align-items: center; gap: 5px; color: #B42318"><span style="width: 6px; height: 6px; border-radius: 3px; background: #B42318"></span>Failed</span>
+        <span style="display: inline-flex; align-items: center; gap: 5px; color: #0B1210"><span style="width: 6px; height: 6px; border-radius: 3px; background: #9BC31F"></span>Live</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 0 14px; height: 54px; border-radius: 14px; background: #EEF9C8; font-family: 'Geist Mono', monospace; font-size: 14px">
+        <span style="font-size: 12px; color: #4A5550">129</span><span style="flex: 1; font-weight: 600">5012345678900</span><span style="font-family: 'Geist', sans-serif; font-size: 12px; font-weight: 600; color: #0B7D45">now</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="width: 50px; height: 30px; box-sizing: border-box; padding: 3px; border-radius: 15px; background: #0B7D45; display: flex; justify-content: flex-end"><span style="width: 24px; height: 24px; border-radius: 12px; background: #FFFFFF"></span></span>
+        <span style="width: 50px; height: 30px; box-sizing: border-box; padding: 3px; border-radius: 15px; background: #C9CFC6; display: flex"><span style="width: 24px; height: 24px; border-radius: 12px; background: #FFFFFF"></span></span>
+        <div style="flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 3px; border-radius: 12px; background: #E9ECE6">
+          <span style="height: 30px; border-radius: 9px; background: #FFFFFF; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center">Sheets</span>
+          <span style="height: 30px; font-size: 12px; display: flex; align-items: center; justify-content: center">Excel</span>
+          <span style="height: 30px; font-size: 12px; display: flex; align-items: center; justify-content: center">CSV</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1400,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const colors = [
+      { name: 'Paper', hex: '#F5F6F2' },
+      { name: 'Surface', hex: '#FFFFFF' },
+      { name: 'Ink', hex: '#0B1210' },
+      { name: 'Ink 2', hex: '#4A5550' },
+      { name: 'Muted', hex: '#5F6964' },
+      { name: 'Line', hex: '#E3E6E0' },
+      { name: 'Emerald', hex: '#0B7D45' },
+      { name: 'Emerald tint', hex: '#E3F4EA' },
+      { name: 'Lime signal', hex: '#D4F56A' },
+      { name: 'Lime row', hex: '#EEF9C8' },
+      { name: 'Night', hex: '#0B0F0D' },
+      { name: 'Amber', hex: '#D97706' }
+    ];
+    return { colors };
+  }
+}
+</script>
+</body>
+</html>

@@ -46,6 +46,7 @@ dependencies:
   package_info_plus: ^8.3.0
   geolocator: ^13.0.4
   flutter_svg: ^2.3.0
+  lucide_icons_flutter: ^4.0.1
 
 dev_dependencies:
   flutter_test:

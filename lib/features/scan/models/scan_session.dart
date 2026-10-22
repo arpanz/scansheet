@@ -120,10 +120,15 @@ class ScanSession {
   final bool isActive;
   final bool warnDuplicates;
   final bool showScanConfirmation;
+
+  /// Scanning a code that is already in the sheet adds to its Qty cell
+  /// instead of creating a new row.
+  final bool mergeRepeats;
   final SessionDestination destination;
   final String? templateId;
   final String? spreadsheetId;
   final String? sheetName;
+
   /// User-picked or template-derived icon key. Null = use generic fallback.
   final String? iconName;
 
@@ -136,6 +141,7 @@ class ScanSession {
     this.isActive = true,
     this.warnDuplicates = false,
     this.showScanConfirmation = false,
+    this.mergeRepeats = false,
     this.destination = SessionDestination.localCsv,
     this.templateId,
     this.spreadsheetId,
@@ -146,6 +152,21 @@ class ScanSession {
   static const int maxColumns = 10;
 
   int get columnCount => columns.length;
+
+  /// Column that "Repeats add to Qty" increments: the first numeric manual
+  /// column, else a manual column named Qty/Quantity/Count. -1 if none.
+  int get qtyColumnIndex {
+    final numeric = columns.indexWhere(
+      (c) => c.type == SessionColumnType.manual && c.isNumeric,
+    );
+    if (numeric >= 0) return numeric;
+    const names = {'qty', 'quantity', 'count'};
+    return columns.indexWhere(
+      (c) =>
+          c.type == SessionColumnType.manual &&
+          names.contains(c.name.trim().toLowerCase()),
+    );
+  }
 
   List<int> get scanColumnIndices => [
     for (int i = 0; i < columns.length; i++)
@@ -193,6 +214,7 @@ class ScanSession {
     bool? isActive,
     bool? warnDuplicates,
     bool? showScanConfirmation,
+    bool? mergeRepeats,
     SessionDestination? destination,
     String? templateId,
     String? spreadsheetId,
@@ -208,6 +230,7 @@ class ScanSession {
       isActive: isActive ?? this.isActive,
       warnDuplicates: warnDuplicates ?? this.warnDuplicates,
       showScanConfirmation: showScanConfirmation ?? this.showScanConfirmation,
+      mergeRepeats: mergeRepeats ?? this.mergeRepeats,
       destination: destination ?? this.destination,
       templateId: templateId ?? this.templateId,
       spreadsheetId: spreadsheetId ?? this.spreadsheetId,
@@ -225,6 +248,7 @@ class ScanSession {
     'isActive': isActive,
     'warnDuplicates': warnDuplicates,
     'showScanConfirmation': showScanConfirmation,
+    'mergeRepeats': mergeRepeats,
     'destination': destination.name,
     'templateId': templateId,
     'spreadsheetId': spreadsheetId,
@@ -245,6 +269,7 @@ class ScanSession {
     isActive: map['isActive'] as bool? ?? false,
     warnDuplicates: map['warnDuplicates'] as bool? ?? false,
     showScanConfirmation: map['showScanConfirmation'] as bool? ?? false,
+    mergeRepeats: map['mergeRepeats'] as bool? ?? false,
     destination: SessionDestination.values.firstWhere(
       (e) => e.name == map['destination'],
       orElse: () => SessionDestination.localCsv,

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ScanSheet Pro</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D4F56A}a:hover{color:#E6FA9E}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0B0F0D; font-family: 'Geist', system-ui, sans-serif; color: #FFFFFF; display: flex; flex-direction: column; padding: 56px 24px 34px; overflow: hidden; position: relative">
+  <div style="position: absolute; left: 50%; top: -120px; width: 520px; height: 420px; margin-left: -260px; border-radius: 50%; background: radial-gradient(circle, rgba(212,245,106,0.20) 0%, rgba(212,245,106,0) 65%)"></div>
+
+  <div style="position: relative; display: flex; justify-content: flex-end; height: 44px">
+    <a href="Settings.dc.html" aria-label="Close" style="width: 44px; height: 44px; margin-right: -10px; border-radius: 22px; display: flex; align-items: center; justify-content: center; color: #FFFFFF">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+    </a>
+  </div>
+
+  <div style="position: relative; margin-top: 8px; display: flex; flex-direction: column; gap: 14px">
+    <span style="align-self: flex-start; height: 28px; padding: 0 12px; border-radius: 14px; background: #D4F56A; color: #0B1210; font-family: 'Geist Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 1px; display: inline-flex; align-items: center">SCANSHEET PRO</span>
+    <h1 style="margin: 0; font-size: 36px; line-height: 1.04; font-weight: 600; letter-spacing: -1.2px">Scan without<br>limits.</h1>
+  </div>
+
+  <div style="position: relative; margin-top: 26px; display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; gap: 14px; align-items: center">
+      <div style="width: 36px; height: 36px; border-radius: 11px; background: #18201C; border: 1px solid #2C3631; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4F56A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 8a4 4 0 0 0-4 4 4 4 0 0 1-8 0 4 4 0 0 1 8 0 4 4 0 1 0 4-4z"></path></svg></div>
+      <div style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 15px; font-weight: 600">Unlimited sheets</span><span style="font-size: 13px; color: #AEB8B2">Run as many sessions as you need</span></div>
+    </div>
+    <div style="display: flex; gap: 14px; align-items: center">
+      <div style="width: 36px; height: 36px; border-radius: 11px; background: #18201C; border: 1px solid #2C3631; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4F56A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"></path><path d="M21 3v5h-5"></path></svg></div>
+      <div style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 15px; font-weight: 600">Live Google Sheets sync</span><span style="font-size: 13px; color: #AEB8B2">Every row, the second you scan it</span></div>
+    </div>
+    <div style="display: flex; gap: 14px; align-items: center">
+      <div style="width: 36px; height: 36px; border-radius: 11px; background: #18201C; border: 1px solid #2C3631; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4F56A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path></svg></div>
+      <div style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 15px; font-weight: 600">No ads, ever</span><span style="font-size: 13px; color: #AEB8B2">Nothing between you and the camera</span></div>
+    </div>
+  </div>
+
+  <div style="position: relative; margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #141A17; border: 1px solid #232C27; font-size: 13px; line-height: 1.4; color: #C9D2CC">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9D2CC" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="flex: none"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v4h1"></path></svg>
+    You’re on Free: 3 open sheets, Excel and CSV export, with ads. You’ve used 3 of 3.
+  </div>
+  <div role="radiogroup" aria-label="Plan" style="position: relative; margin-top: 14px; display: flex; flex-direction: column; gap: 10px">
+    <sc-for list="{{plans}}" as="p" hint-placeholder-count="2">
+      <button role="radio" aria-checked="{{p.on}}" onClick="{{p.pick}}" style="position: relative; display: flex; align-items: center; gap: 14px; height: 72px; padding: 0 16px; border-radius: 18px; border: {{p.border}}; background: {{p.bg}}; color: #FFFFFF; text-align: left; cursor: pointer">
+        <span style="width: 22px; height: 22px; box-sizing: border-box; border-radius: 11px; border: {{p.ring}}; background: {{p.dotBg}}"></span>
+        <span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 16px; font-weight: 600">{{p.name}}</span><span style="font-size: 13px; color: #AEB8B2">{{p.note}}</span></span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 16px; font-weight: 500">{{p.price}}</span>
+        <sc-if value="{{p.badge}}" hint-placeholder-val="{{false}}">
+          <span style="position: absolute; right: 16px; top: -10px; height: 22px; padding: 0 8px; border-radius: 6px; background: #D4F56A; color: #0B1210; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; display: inline-flex; align-items: center">BEST VALUE</span>
+        </sc-if>
+      </button>
+    </sc-for>
+  </div>
+
+  <button style="position: relative; margin-top: 16px; height: 56px; border: 0; border-radius: 16px; background: #D4F56A; color: #0B1210; font-size: 16px; font-weight: 600; cursor: pointer">{{cta}}</button>
+  <div style="position: relative; margin-top: 12px; display: flex; justify-content: center; gap: 18px; font-size: 13px">
+    <a href="#" style="color: #C9D2CC; text-decoration: none; padding: 6px 0">Restore purchase</a>
+    <a href="#" style="color: #C9D2CC; text-decoration: none; padding: 6px 0">Terms</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { plan: 'yearly' };
+  }
+  renderVals() {
+    const plan = this.state.plan;
+    const plans = [
+      { id: 'yearly', name: 'Yearly', note: 'Cancel anytime', price: '[PRICE]/yr', badge: true },
+      { id: 'lifetime', name: 'Lifetime', note: 'Pay once, keep it forever', price: '[PRICE]', badge: false }
+    ].map((p) => {
+      const on = p.id === plan;
+      return {
+        ...p,
+        on: on ? 'true' : 'false',
+        border: on ? '1.5px solid #D4F56A' : '1px solid #2C3631',
+        bg: on ? '#141A17' : 'transparent',
+        ring: on ? '6px solid #D4F56A' : '1.5px solid #5F6964',
+        dotBg: on ? '#0B0F0D' : 'transparent',
+        pick: () => this.setState({ plan: p.id })
+      };
+    });
+    return { plans, cta: plan === 'yearly' ? 'Start Pro yearly' : 'Get Pro for life' };
+  }
+}
+</script>
+</body>
+</html>

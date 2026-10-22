@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>What will you scan first</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0B7D45}a:hover{color:#075E33}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F6F2; font-family: 'Geist', system-ui, sans-serif; color: #0B1210; display: flex; flex-direction: column; padding: 56px 24px 34px; overflow: hidden">
+
+  <div style="display: flex; align-items: center; gap: 12px; height: 44px">
+    <a href="Main.dc.html" aria-label="Back" style="width: 44px; height: 44px; margin-left: -10px; display: flex; align-items: center; justify-content: center; color: #0B1210">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+    </a>
+    <div style="flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px">
+      <div style="height: 4px; border-radius: 2px; background: #0B1210"></div><div style="height: 4px; border-radius: 2px; background: #D9DDD5"></div><div style="height: 4px; border-radius: 2px; background: #D9DDD5"></div>
+    </div>
+    <div style="width: 34px"></div>
+  </div>
+
+  <div style="margin-top: 22px; display: flex; flex-direction: column; gap: 8px">
+    <h1 style="margin: 0; font-size: 30px; line-height: 1.1; font-weight: 600; letter-spacing: -0.9px">What will you<br>scan first?</h1>
+    <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #4A5550">We’ll set up the right columns. You can change them anytime.</p>
+  </div>
+
+  <div style="margin-top: 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+    <sc-for list="{{items}}" as="item" hint-placeholder-count="6">
+      <button onClick="{{item.pick}}" style="position: relative; height: 128px; box-sizing: border-box; padding: 14px; border-radius: 18px; border: {{item.border}}; background: {{item.bg}}; color: #0B1210; text-align: left; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer">
+        <div style="width: 34px; height: 34px; border-radius: 10px; background: {{item.iconBg}}; display: flex; align-items: center; justify-content: center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{item.iconColor}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.icon}}"></path></svg>
+        </div>
+        <sc-if value="{{item.selected}}" hint-placeholder-val="{{false}}">
+          <div style="position: absolute; right: 12px; top: 12px; width: 22px; height: 22px; border-radius: 11px; background: #0B1210; display: flex; align-items: center; justify-content: center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D4F56A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>
+          </div>
+        </sc-if>
+        <div style="display: flex; flex-direction: column; gap: 3px">
+          <span style="font-size: 15px; font-weight: 600">{{item.label}}</span>
+          <span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5F6964; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{item.cols}}</span>
+        </div>
+      </button>
+    </sc-for>
+  </div>
+
+  <a href="Onb5b-Destination.dc.html" style="margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 8px; height: 56px; border-radius: 16px; background: #0B1210; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none">Create {{selectedLabel}} sheet</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { picked: 'inventory' };
+  }
+  renderVals() {
+    const defs = [
+      { id: 'inventory', label: 'Inventory', short: 'an inventory', cols: 'Item · Qty · Time', icon: 'M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8' },
+      { id: 'attendance', label: 'Attendance', short: 'an attendance', cols: 'Name · ID · Check-in', icon: 'M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM17 11l2 2 4-4' },
+      { id: 'assets', label: 'Asset tracking', short: 'an asset', cols: 'Tag · Location · Status', icon: 'M20 12l-8 8-8-8V4h8zM8.5 8.5h.01' },
+      { id: 'events', label: 'Event check-in', short: 'a check-in', cols: 'Ticket · Gate · Time', icon: 'M3 9a3 3 0 0 0 0 6v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a3 3 0 0 1 0-6V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2zM13 4v16' },
+      { id: 'prices', label: 'Price list', short: 'a price', cols: 'Barcode · Name · MRP', icon: 'M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' },
+      { id: 'blank', label: 'Start blank', short: 'a blank', cols: 'Your own columns', icon: 'M12 5v14M5 12h14' }
+    ];
+    const picked = this.state.picked;
+    const items = defs.map((d) => {
+      const on = d.id === picked;
+      return {
+        ...d,
+        selected: on,
+        border: on ? '1.5px solid #0B1210' : '1px solid #E3E6E0',
+        bg: on ? '#FFFFFF' : '#FFFFFF',
+        iconBg: on ? '#D4F56A' : '#F0F2EE',
+        iconColor: '#0B1210',
+        pick: () => this.setState({ picked: d.id })
+      };
+    });
+    const sel = defs.find((d) => d.id === picked);
+    return { items, selectedLabel: sel ? sel.short : 'my' };
+  }
+}
+</script>
+</body>
+</html>

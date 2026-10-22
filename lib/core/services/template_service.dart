@@ -21,89 +21,112 @@ class TemplateService {
   // ─────────────────────────────────────────────────────────────────────────
 
   static List<SessionTemplate> getBuiltInTemplates() => [
-        SessionTemplate(
-          id: 'builtin_inventory',
-          name: 'Inventory',
-          icon: 'inventory_2_rounded',
-          isBuiltIn: true,
-          createdAt: DateTime(2025),
-          columns: [
-            const SessionColumn(name: 'Barcode', type: SessionColumnType.scan),
-            const SessionColumn(name: 'Item Name', type: SessionColumnType.manual),
-            const SessionColumn(name: 'Qty', type: SessionColumnType.increment),
-            const SessionColumn(
-              name: 'Location',
-              type: SessionColumnType.fixed,
-              fixedValue: '',
-            ),
-            const SessionColumn(name: 'Timestamp', type: SessionColumnType.timestamp),
-          ],
+    SessionTemplate(
+      id: 'builtin_inventory',
+      name: 'Inventory',
+      icon: 'inventory_2_rounded',
+      isBuiltIn: true,
+      createdAt: DateTime(2025),
+      columns: [
+        const SessionColumn(name: 'Barcode', type: SessionColumnType.scan),
+        const SessionColumn(name: 'Item Name', type: SessionColumnType.manual),
+        const SessionColumn(
+          name: 'Qty',
+          type: SessionColumnType.manual,
+          isNumeric: true,
+          defaultValue: '1',
         ),
-        SessionTemplate(
-          id: 'builtin_attendance',
-          name: 'Attendance',
-          icon: 'people_rounded',
-          isBuiltIn: true,
-          createdAt: DateTime(2025),
-          columns: [
-            const SessionColumn(name: 'ID / Badge', type: SessionColumnType.scan),
-            const SessionColumn(name: 'Name', type: SessionColumnType.manual),
-            const SessionColumn(name: 'Timestamp', type: SessionColumnType.timestamp),
-            const SessionColumn(
-              name: 'Status',
-              type: SessionColumnType.fixed,
-              fixedValue: 'Present',
-            ),
-          ],
+        const SessionColumn(
+          name: 'Location',
+          type: SessionColumnType.fixed,
+          fixedValue: '',
         ),
-        SessionTemplate(
-          id: 'builtin_event_checkin',
-          name: 'Event Check-in',
-          icon: 'confirmation_number_rounded',
-          isBuiltIn: true,
-          createdAt: DateTime(2025),
-          columns: [
-            const SessionColumn(name: 'Ticket Code', type: SessionColumnType.scan),
-            const SessionColumn(name: 'Attendee', type: SessionColumnType.manual),
-            const SessionColumn(name: 'Timestamp', type: SessionColumnType.timestamp),
-            const SessionColumn(
-              name: 'Gate',
-              type: SessionColumnType.fixed,
-              fixedValue: 'Main',
-            ),
-          ],
+        const SessionColumn(
+          name: 'Timestamp',
+          type: SessionColumnType.timestamp,
         ),
-        SessionTemplate(
-          id: 'builtin_asset_tracking',
-          name: 'Asset Tracking',
-          icon: 'devices_rounded',
-          isBuiltIn: true,
-          createdAt: DateTime(2025),
-          columns: [
-            const SessionColumn(name: 'Asset Code', type: SessionColumnType.scan),
-            const SessionColumn(name: 'Asset Tag', type: SessionColumnType.manual),
-            const SessionColumn(
-              name: 'Location',
-              type: SessionColumnType.fixed,
-              fixedValue: '',
-            ),
-            const SessionColumn(name: 'Timestamp', type: SessionColumnType.timestamp),
-          ],
+      ],
+    ),
+    SessionTemplate(
+      id: 'builtin_attendance',
+      name: 'Attendance',
+      icon: 'people_rounded',
+      isBuiltIn: true,
+      createdAt: DateTime(2025),
+      columns: [
+        const SessionColumn(name: 'ID / Badge', type: SessionColumnType.scan),
+        const SessionColumn(name: 'Name', type: SessionColumnType.manual),
+        const SessionColumn(
+          name: 'Timestamp',
+          type: SessionColumnType.timestamp,
         ),
-        SessionTemplate(
-          id: 'builtin_price_list',
-          name: 'Price List',
-          icon: 'sell_rounded',
-          isBuiltIn: true,
-          createdAt: DateTime(2025),
-          columns: [
-            const SessionColumn(name: 'Barcode', type: SessionColumnType.scan),
-            const SessionColumn(name: 'Product Name', type: SessionColumnType.manual),
-            const SessionColumn(name: 'MRP', type: SessionColumnType.manual),
-            const SessionColumn(name: 'Timestamp', type: SessionColumnType.timestamp),
-          ],
+        const SessionColumn(
+          name: 'Status',
+          type: SessionColumnType.fixed,
+          fixedValue: 'Present',
         ),
-      ];
+      ],
+    ),
+    SessionTemplate(
+      id: 'builtin_event_checkin',
+      name: 'Event Check-in',
+      icon: 'confirmation_number_rounded',
+      isBuiltIn: true,
+      createdAt: DateTime(2025),
+      columns: [
+        const SessionColumn(name: 'Ticket Code', type: SessionColumnType.scan),
+        const SessionColumn(name: 'Attendee', type: SessionColumnType.manual),
+        const SessionColumn(
+          name: 'Timestamp',
+          type: SessionColumnType.timestamp,
+        ),
+        const SessionColumn(
+          name: 'Gate',
+          type: SessionColumnType.fixed,
+          fixedValue: 'Main',
+        ),
+      ],
+    ),
+    SessionTemplate(
+      id: 'builtin_asset_tracking',
+      name: 'Asset Tracking',
+      icon: 'devices_rounded',
+      isBuiltIn: true,
+      createdAt: DateTime(2025),
+      columns: [
+        const SessionColumn(name: 'Asset Code', type: SessionColumnType.scan),
+        const SessionColumn(name: 'Asset Tag', type: SessionColumnType.manual),
+        const SessionColumn(
+          name: 'Location',
+          type: SessionColumnType.fixed,
+          fixedValue: '',
+        ),
+        const SessionColumn(
+          name: 'Timestamp',
+          type: SessionColumnType.timestamp,
+        ),
+      ],
+    ),
+    SessionTemplate(
+      id: 'builtin_price_list',
+      name: 'Price List',
+      icon: 'sell_rounded',
+      isBuiltIn: true,
+      createdAt: DateTime(2025),
+      columns: [
+        const SessionColumn(name: 'Barcode', type: SessionColumnType.scan),
+        const SessionColumn(
+          name: 'Product Name',
+          type: SessionColumnType.manual,
+        ),
+        const SessionColumn(name: 'MRP', type: SessionColumnType.manual),
+        const SessionColumn(
+          name: 'Timestamp',
+          type: SessionColumnType.timestamp,
+        ),
+      ],
+    ),
+  ];
 
   // ─────────────────────────────────────────────────────────────────────────
   // User templates (persisted in Hive)
@@ -208,33 +231,32 @@ class SessionTemplate {
     String? name,
     String? icon,
     List<SessionColumn>? columns,
-  }) =>
-      SessionTemplate(
-        id: id,
-        name: name ?? this.name,
-        icon: icon ?? this.icon,
-        columns: columns ?? this.columns,
-        isBuiltIn: isBuiltIn,
-        createdAt: createdAt,
-      );
+  }) => SessionTemplate(
+    id: id,
+    name: name ?? this.name,
+    icon: icon ?? this.icon,
+    columns: columns ?? this.columns,
+    isBuiltIn: isBuiltIn,
+    createdAt: createdAt,
+  );
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'name': name,
-        'icon': icon,
-        'columns': columns.map((c) => c.toMap()).toList(),
-        'isBuiltIn': isBuiltIn,
-        'createdAt': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'name': name,
+    'icon': icon,
+    'columns': columns.map((c) => c.toMap()).toList(),
+    'isBuiltIn': isBuiltIn,
+    'createdAt': createdAt.toIso8601String(),
+  };
 
   factory SessionTemplate.fromMap(Map map) => SessionTemplate(
-        id: map['id'] as String,
-        name: map['name'] as String,
-        icon: map['icon'] as String? ?? 'grid_view_rounded',
-        columns: (map['columns'] as List)
-            .map((c) => SessionColumn.fromMap(c as Map))
-            .toList(),
-        isBuiltIn: map['isBuiltIn'] as bool? ?? false,
-        createdAt: DateTime.parse(map['createdAt'] as String),
-      );
+    id: map['id'] as String,
+    name: map['name'] as String,
+    icon: map['icon'] as String? ?? 'grid_view_rounded',
+    columns: (map['columns'] as List)
+        .map((c) => SessionColumn.fromMap(c as Map))
+        .toList(),
+    isBuiltIn: map['isBuiltIn'] as bool? ?? false,
+    createdAt: DateTime.parse(map['createdAt'] as String),
+  );
 }

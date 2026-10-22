@@ -21,6 +21,10 @@ class GoogleSheetsService {
 
   GoogleSignInAccount? _currentUser;
   http.Client? _authClient;
+  DateTime? _authClientAt;
+
+  // Access tokens live ~60 min; rebuild the client well before that.
+  static const _authClientTtl = Duration(minutes: 40);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Auth state
@@ -69,9 +73,13 @@ class GoogleSheetsService {
 
   Future<http.Client> _getClient() async {
     if (_currentUser == null) throw GSheetsException('Not signed in.');
-    if (_authClient != null) return _authClient!;
+    final fresh =
+        _authClientAt != null &&
+        DateTime.now().difference(_authClientAt!) < _authClientTtl;
+    if (_authClient != null && fresh) return _authClient!;
     final auth = await _currentUser!.authHeaders;
     _authClient = GoogleAuthClient(auth);
+    _authClientAt = DateTime.now();
     return _authClient!;
   }
 
@@ -94,9 +102,10 @@ class GoogleSheetsService {
   Future<List<SpreadsheetInfo>> listSpreadsheets({String? query}) async {
     try {
       final api = await _driveApi();
-      var q = "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false";
+      var q =
+          "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false";
       if (query != null && query.isNotEmpty) {
-        q += " and name contains '${query.replaceAll("'", "\\'")}'"; 
+        q += " and name contains '${query.replaceAll("'", "\\'")}'";
       }
       final result = await api.files.list(
         q: q,
@@ -104,12 +113,16 @@ class GoogleSheetsService {
         pageSize: 50,
         $fields: 'files(id,name,modifiedTime,owners)',
       );
-      return (result.files ?? []).map((f) => SpreadsheetInfo(
-        id: f.id ?? '',
-        title: f.name ?? 'Untitled',
-        modifiedTime: f.modifiedTime,
-        ownerEmail: f.owners?.firstOrNull?.emailAddress,
-      )).toList();
+      return (result.files ?? [])
+          .map(
+            (f) => SpreadsheetInfo(
+              id: f.id ?? '',
+              title: f.name ?? 'Untitled',
+              modifiedTime: f.modifiedTime,
+              ownerEmail: f.owners?.firstOrNull?.emailAddress,
+            ),
+          )
+          .toList();
     } catch (e) {
       throw GSheetsException('Failed to list spreadsheets: $e');
     }
@@ -166,29 +179,76 @@ class GoogleSheetsService {
   }
 
   /// Append rows to a worksheet. [rows] is a list of string lists.
-  Future<void> appendRows(
+  /// Returns the 1-based sheet row number of the first appended row, when
+  /// the API reports it.
+  Future<int?> appendRows(
     String spreadsheetId,
     String sheetName,
     List<List<String>> rows,
   ) async {
-    if (rows.isEmpty) return;
+    if (rows.isEmpty) return null;
     try {
       final api = await _sheetsApi();
       final range = "'$sheetName'!A1";
-      await api.spreadsheets.values.append(
+      final result = await api.spreadsheets.values.append(
         sheets.ValueRange(values: rows),
         spreadsheetId,
         range,
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
       );
+      return _firstRowOf(result.updates?.updatedRange);
     } catch (e) {
       throw GSheetsException('Failed to append rows: $e');
     }
   }
 
+  /// Overwrite one sheet row (1-based) starting at column A.
+  Future<void> updateRow(
+    String spreadsheetId,
+    String sheetName,
+    int row,
+    List<String> values,
+  ) async {
+    try {
+      final api = await _sheetsApi();
+      await api.spreadsheets.values.update(
+        sheets.ValueRange(values: [values]),
+        spreadsheetId,
+        "'$sheetName'!A$row",
+        valueInputOption: 'USER_ENTERED',
+      );
+    } catch (e) {
+      throw GSheetsException('Failed to update row: $e');
+    }
+  }
+
+  /// Blank out one sheet row (1-based). Rows are cleared rather than deleted
+  /// so row numbers of everything below stay stable.
+  Future<void> clearRow(String spreadsheetId, String sheetName, int row) async {
+    try {
+      final api = await _sheetsApi();
+      await api.spreadsheets.values.clear(
+        sheets.ClearValuesRequest(),
+        spreadsheetId,
+        "'$sheetName'!$row:$row",
+      );
+    } catch (e) {
+      throw GSheetsException('Failed to clear row: $e');
+    }
+  }
+
+  /// Parses the start row from an A1 range like `'Sheet1'!A5:E7`.
+  static int? _firstRowOf(String? a1) {
+    if (a1 == null) return null;
+    final cells = a1.split('!').last;
+    final match = RegExp(r'[A-Z]+(\d+)').firstMatch(cells);
+    return match == null ? null : int.tryParse(match.group(1)!);
+  }
+
   /// Write a header row if the sheet is empty, then append data rows.
-  Future<void> appendWithHeaders(
+  /// Returns the sheet row number of the first data row, when known.
+  Future<int?> appendWithHeaders(
     String spreadsheetId,
     String sheetName,
     List<String> headers,
@@ -198,7 +258,9 @@ class GoogleSheetsService {
     final toAppend = <List<String>>[];
     if (existing.isEmpty) toAppend.add(headers);
     toAppend.addAll(dataRows);
-    await appendRows(spreadsheetId, sheetName, toAppend);
+    final first = await appendRows(spreadsheetId, sheetName, toAppend);
+    if (first == null) return null;
+    return existing.isEmpty ? first + 1 : first;
   }
 }
 

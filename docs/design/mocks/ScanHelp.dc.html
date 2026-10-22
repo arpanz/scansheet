@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scan closed early</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D4F56A}a:hover{color:#E6FA9E}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0B0F0D; font-family: 'Geist', system-ui, sans-serif; color: #FFFFFF; display: flex; flex-direction: column; padding: 56px 20px 34px; overflow: hidden">
+
+  <div style="display: flex; justify-content: flex-end; height: 44px">
+    <a href="HomeEmpty.dc.html" aria-label="Close" style="width: 44px; height: 44px; margin-right: -8px; border-radius: 22px; background: rgba(255,255,255,0.1); color: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+    </a>
+  </div>
+
+  <div style="margin-top: 40px; display: flex; flex-direction: column; gap: 10px">
+    <h1 style="margin: 0; font-size: 30px; line-height: 1.1; font-weight: 600; letter-spacing: -0.9px">No scan this time.<br>Anything in the way?</h1>
+    <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #AEB8B2">Pick one and we’ll help you fix it.</p>
+  </div>
+
+  <div style="margin-top: 28px; display: flex; flex-direction: column; gap: 10px">
+    <sc-for list="{{reasons}}" as="r" hint-placeholder-count="4">
+      <div style="border-radius: 18px; border: {{r.border}}; background: {{r.bg}}; overflow: hidden">
+        <button onClick="{{r.pick}}" aria-expanded="{{r.on}}" style="width: 100%; display: flex; align-items: center; gap: 14px; height: 64px; padding: 0 16px; border: 0; background: transparent; color: #FFFFFF; text-align: left; cursor: pointer">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{r.stroke}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{r.icon}}"></path></svg>
+          <span style="flex: 1; font-size: 16px; font-weight: 500">{{r.label}}</span>
+        </button>
+        <sc-if value="{{r.on}}" hint-placeholder-val="{{false}}">
+          <div style="padding: 0 16px 16px 52px; display: flex; flex-direction: column; gap: 12px">
+            <span style="font-size: 14px; line-height: 1.45; color: #C9D2CC">{{r.tip}}</span>
+            <a href="{{r.href}}" style="align-self: flex-start; height: 40px; padding: 0 14px; border-radius: 12px; background: #D4F56A; color: #0B1210; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; text-decoration: none">{{r.action}}</a>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+  </div>
+
+  <a href="HomeEmpty.dc.html" style="margin-top: auto; height: 48px; display: flex; align-items: center; justify-content: center; color: #C9D2CC; font-size: 15px; font-weight: 500; text-decoration: none">Nothing’s wrong, just closing</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: 'dark' };
+  }
+  renderVals() {
+    const defs = [
+      { id: 'dark', label: 'Too dark to read', tip: 'The torch helps a lot. We can also start the scanner with it on every time.', action: 'Scan with torch on', href: 'Scanner.dc.html', icon: 'M8 2h8l-1 6H9zM9 8h6v3l-1 2v9h-4v-9l-1-2z' },
+      { id: 'noread', label: 'The code won’t read', tip: 'Worn or tiny codes happen. Type the number instead and it still lands in the same row.', action: 'Type the code', href: 'ConfirmScan.dc.html', icon: 'M2 6h20v12H2zM6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8' },
+      { id: 'nothing', label: 'Nothing to scan yet', tip: 'No problem. Your sheet is saved and waits right on the home screen.', action: 'Back to home', href: 'HomeEmpty.dc.html', icon: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z' },
+      { id: 'other', label: 'Something else', tip: 'Tell us in a line. It goes straight to the person who builds ScanSheet.', action: 'Send feedback', href: '#', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' }
+    ];
+    const reasons = defs.map((d) => {
+      const on = d.id === this.state.open;
+      return {
+        ...d,
+        on,
+        border: on ? '1.5px solid #D4F56A' : '1px solid #2C3631',
+        bg: on ? '#141A17' : 'transparent',
+        stroke: on ? '#D4F56A' : '#C9D2CC',
+        pick: () => this.setState({ open: on ? '' : d.id })
+      };
+    });
+    return { reasons };
+  }
+}
+</script>
+</body>
+</html>

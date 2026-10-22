@@ -42,6 +42,15 @@ class SyncQueueService {
 
   static Future<void> init() async {
     _box = await Hive.openBox(_boxName);
+    // A run interrupted by the app being killed leaves items "syncing".
+    for (final item in getAll()) {
+      if (item.status == SyncStatus.syncing) {
+        await _safeBox.put(
+          item.id,
+          item.copyWith(status: SyncStatus.pending).toMap(),
+        );
+      }
+    }
     _refreshStats();
   }
 
@@ -49,11 +58,98 @@ class SyncQueueService {
   // Public API
   // ───────────────────────────────────────────────
 
-  /// Add a new row to the sync queue.
+  /// Add a new row to the sync queue. If this row index already owns a
+  /// sheet row (it was synced, then undone), the new row overwrites it there.
   static Future<void> enqueue(SyncQueueItem item) async {
+    final existing = get(item.id);
+    final toStore = existing?.sheetRow != null
+        ? item.copyWith(op: SyncOp.update, sheetRow: existing!.sheetRow)
+        : item;
+    await _safeBox.put(item.id, toStore.toMap());
+    _refreshStats();
+  }
+
+  static SyncQueueItem? get(String id) {
+    final raw = _safeBox.get(id);
+    if (raw == null) return null;
+    try {
+      return SyncQueueItem.fromMap(Map<String, dynamic>.from(raw as Map));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> put(SyncQueueItem item) async {
     await _safeBox.put(item.id, item.toMap());
     _refreshStats();
   }
+
+  static Future<void> remove(String id) async {
+    await _safeBox.delete(id);
+    _refreshStats();
+  }
+
+  /// A locally edited row (correction, Qty merge) must be re-sent.
+  static Future<void> rowUpdated(
+    String sessionId,
+    int rowIndex,
+    List<String> values,
+  ) async {
+    final existing = get('${sessionId}_$rowIndex');
+    if (existing == null) return;
+    await put(
+      existing.copyWith(
+        rowData: values,
+        op: existing.sheetRow != null ? SyncOp.update : SyncOp.append,
+        status: SyncStatus.pending,
+        attemptCount: 0,
+      ),
+    );
+  }
+
+  /// A locally deleted row: drop it if it never reached the sheet,
+  /// otherwise blank its sheet row.
+  static Future<void> rowDeleted(String sessionId, int rowIndex) async {
+    final existing = get('${sessionId}_$rowIndex');
+    if (existing == null) return;
+    if (existing.sheetRow == null) {
+      await remove(existing.id);
+      return;
+    }
+    await put(
+      existing.copyWith(
+        op: SyncOp.clear,
+        status: SyncStatus.pending,
+        attemptCount: 0,
+      ),
+    );
+  }
+
+  /// Rows of one session that are not yet in the sheet.
+  static int pendingForSession(String sessionId) => getAll()
+      .where((i) => i.sessionId == sessionId && i.status != SyncStatus.synced)
+      .length;
+
+  static bool hasFailuresForSession(String sessionId) => getAll().any(
+    (i) => i.sessionId == sessionId && i.status == SyncStatus.failed,
+  );
+
+  /// When the earliest failed item becomes eligible for retry, if any.
+  static DateTime? nextRetryAt() {
+    DateTime? next;
+    for (final item in getAll()) {
+      if (item.status != SyncStatus.failed) continue;
+      final at = (item.lastAttemptAt ?? item.createdAt).add(_backoffFor(item));
+      if (next == null || at.isBefore(next)) next = at;
+    }
+    return next;
+  }
+
+  static Duration _backoffFor(SyncQueueItem item) =>
+      _backoffDurations[item.attemptCount.clamp(
+        0,
+        _backoffDurations.length - 1,
+      )];
 
   /// Returns all items sorted by createdAt ascending.
   static List<SyncQueueItem> getAll() {
@@ -76,11 +172,9 @@ class SyncQueueService {
       if (item.status == SyncStatus.synced) return false;
       if (item.status == SyncStatus.syncing) return false;
       if (item.status == SyncStatus.failed) {
-        // Exponential backoff check.
-        final delay = _backoffDurations[
-            item.attemptCount.clamp(0, _backoffDurations.length - 1)];
-        final nextRetry =
-            (item.lastAttemptAt ?? item.createdAt).add(delay);
+        final nextRetry = (item.lastAttemptAt ?? item.createdAt).add(
+          _backoffFor(item),
+        );
         return now.isAfter(nextRetry);
       }
       return true; // pending
@@ -154,8 +248,9 @@ class SyncQueueService {
 
   /// Retry all failed items immediately (reset backoff).
   static Future<void> retryFailed() async {
-    final failed =
-        getAll().where((i) => i.status == SyncStatus.failed).toList();
+    final failed = getAll()
+        .where((i) => i.status == SyncStatus.failed)
+        .toList();
     for (final item in failed) {
       final reset = item.copyWith(
         status: SyncStatus.pending,
@@ -176,19 +271,15 @@ class SyncQueueService {
     DateTime? lastSync;
     for (final item in all) {
       if (item.status == SyncStatus.synced && item.lastAttemptAt != null) {
-        if (lastSync == null ||
-            item.lastAttemptAt!.isAfter(lastSync)) {
+        if (lastSync == null || item.lastAttemptAt!.isAfter(lastSync)) {
           lastSync = item.lastAttemptAt;
         }
       }
     }
     stats.value = SyncQueueStats(
-      pendingCount:
-          all.where((i) => i.status == SyncStatus.pending).length,
-      failedCount:
-          all.where((i) => i.status == SyncStatus.failed).length,
-      syncedCount:
-          all.where((i) => i.status == SyncStatus.synced).length,
+      pendingCount: all.where((i) => i.status == SyncStatus.pending).length,
+      failedCount: all.where((i) => i.status == SyncStatus.failed).length,
+      syncedCount: all.where((i) => i.status == SyncStatus.synced).length,
       totalCount: all.length,
       lastSyncAt: lastSync,
     );

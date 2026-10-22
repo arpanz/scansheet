@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Several codes in view</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D4F56A}a:hover{color:#E6FA9E}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0B0F0D; font-family: 'Geist', system-ui, sans-serif; color: #FFFFFF; position: relative; overflow: hidden">
+  <div style="position: absolute; inset: 0; background: radial-gradient(100% 60% at 50% 40%, #3A443E 0%, #171D1A 60%, #0B0F0D 100%)"></div>
+  <div style="position: absolute; left: 0; right: 0; top: 380px; height: 14px; background: #2A322E"></div>
+  <div style="position: absolute; left: 0; right: 0; top: 560px; height: 14px; background: #2A322E"></div>
+  <div style="position: absolute; left: 22px; top: 250px; width: 104px; height: 128px; border-radius: 6px; background: #8A6A45"></div>
+  <div style="position: absolute; left: 144px; top: 220px; width: 110px; height: 158px; border-radius: 6px; background: #6E7F5C"></div>
+  <div style="position: absolute; left: 272px; top: 262px; width: 98px; height: 116px; border-radius: 6px; background: #7A5A5E"></div>
+
+  <div style="position: absolute; left: 0; right: 0; top: 56px; padding: 0 16px; display: flex; align-items: center; gap: 8px">
+    <a href="Scanner.dc.html" aria-label="Back to scanner" style="width: 44px; height: 44px; border-radius: 22px; background: rgba(255,255,255,0.14); color: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+    </a>
+    <span style="flex: 1; height: 44px; border-radius: 22px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600">3 codes in view — tap one</span>
+    <div style="width: 44px"></div>
+  </div>
+
+  <sc-for list="{{codes}}" as="c" hint-placeholder-count="3">
+    <button onClick="{{c.pick}}" aria-pressed="{{c.on}}" aria-label="Use code {{c.n}}" style="position: absolute; left: {{c.x}}px; top: {{c.y}}px; width: {{c.w}}px; height: 56px; padding: 0; border: 0; border-radius: 10px; background: #EDF0EA; box-shadow: {{c.ring}}; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 1px">
+      <span style="width: 2px; height: 30px; background: #111"></span><span style="width: 1px; height: 30px; background: #111"></span><span style="width: 3px; height: 30px; background: #111"></span><span style="width: 1px; height: 30px; background: #111"></span><span style="width: 2px; height: 30px; background: #111"></span><span style="width: 3px; height: 30px; background: #111"></span><span style="width: 1px; height: 30px; background: #111"></span><span style="width: 2px; height: 30px; background: #111"></span><span style="width: 1px; height: 30px; background: #111"></span><span style="width: 3px; height: 30px; background: #111"></span><span style="width: 2px; height: 30px; background: #111"></span><span style="width: 1px; height: 30px; background: #111"></span>
+      <span style="position: absolute; left: -10px; top: -10px; width: 26px; height: 26px; border-radius: 13px; background: {{c.badgeBg}}; color: {{c.badgeFg}}; font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center">{{c.n}}</span>
+    </button>
+  </sc-for>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 16px 34px; border-radius: 28px 28px 0 0; background: #F5F6F2; color: #0B1210; display: flex; flex-direction: column; gap: 12px">
+    <div style="align-self: center; width: 36px; height: 5px; border-radius: 3px; background: #C9CFC6"></div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: #FFFFFF; border: 1px solid #E3E6E0">
+      <span style="width: 32px; height: 32px; border-radius: 16px; background: #0B1210; color: #D4F56A; font-family: 'Geist Mono', monospace; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex: none">{{sel.n}}</span>
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0">
+        <span style="font-size: 15px; font-weight: 600">{{sel.name}}</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 12px; color: #5F6964">{{sel.code}}</span>
+      </div>
+    </div>
+    <div style="display: flex; gap: 10px">
+      <a href="Scanner.dc.html" style="flex: 1; height: 52px; box-sizing: border-box; border: 1px solid #D3D8D1; border-radius: 16px; background: #FFFFFF; color: #0B1210; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none">Add all 3</a>
+      <a href="Scanner.dc.html" style="flex: 1.4; height: 52px; border-radius: 16px; background: #0B1210; color: #FFFFFF; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none">Add code {{sel.n}}</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { picked: 2 };
+  }
+  renderVals() {
+    const defs = [
+      { n: 1, x: 32, y: 300, w: 84, name: 'Basmati rice · 5 kg', code: '8906010500057' },
+      { n: 2, x: 152, y: 286, w: 94, name: 'Whole wheat biscuits · 800 g', code: '8901234567890' },
+      { n: 3, x: 280, y: 306, w: 80, name: 'Green tea · 100 bags', code: '8901030865278' }
+    ];
+    const codes = defs.map((d) => {
+      const on = d.n === this.state.picked;
+      return {
+        ...d,
+        on: on ? 'true' : 'false',
+        ring: on ? '0 0 0 4px #D4F56A, 0 0 30px 6px rgba(212,245,106,0.45)' : '0 0 0 2px rgba(255,255,255,0.75)',
+        badgeBg: on ? '#D4F56A' : '#FFFFFF',
+        badgeFg: '#0B1210',
+        pick: () => this.setState({ picked: d.n })
+      };
+    });
+    return { codes, sel: defs.find((d) => d.n === this.state.picked) };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Confirm scan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0B7D45}a:hover{color:#075E33}
+button,input{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0B0F0D; font-family: 'Geist', system-ui, sans-serif; color: #0B1210; position: relative; overflow: hidden">
+  <div style="position: absolute; inset: 0; background: radial-gradient(90% 55% at 50% 30%, #35403A 0%, #161C19 55%, #0B0F0D 100%)"></div>
+  <div style="position: absolute; left: 50px; top: 150px; width: 290px; height: 180px; opacity: 0.5">
+    <div style="position: absolute; left: 0; top: 0; width: 34px; height: 34px; border-left: 4px solid #D4F56A; border-top: 4px solid #D4F56A; border-top-left-radius: 18px"></div>
+    <div style="position: absolute; right: 0; top: 0; width: 34px; height: 34px; border-right: 4px solid #D4F56A; border-top: 4px solid #D4F56A; border-top-right-radius: 18px"></div>
+    <div style="position: absolute; left: 0; bottom: 0; width: 34px; height: 34px; border-left: 4px solid #D4F56A; border-bottom: 4px solid #D4F56A; border-bottom-left-radius: 18px"></div>
+    <div style="position: absolute; right: 0; bottom: 0; width: 34px; height: 34px; border-right: 4px solid #D4F56A; border-bottom: 4px solid #D4F56A; border-bottom-right-radius: 18px"></div>
+  </div>
+  <div style="position: absolute; inset: 0; background: rgba(11,15,13,0.45)"></div>
+
+  <div role="dialog" aria-label="Confirm row 130" style="position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 20px 34px; border-radius: 28px 28px 0 0; background: #F5F6F2; display: flex; flex-direction: column; gap: 16px">
+    <div style="align-self: center; width: 36px; height: 5px; border-radius: 3px; background: #C9CFC6"></div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <span style="font-size: 13px; font-weight: 600; color: #4A5550">Row 130</span>
+      <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; height: 24px; padding: 0 8px; border-radius: 6px; background: #E9ECE6; display: inline-flex; align-items: center">EAN‑13</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: -8px">
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0">
+        <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px">Whole wheat biscuits · 800 g</span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 15px; color: #4A5550">8901234567890 <span style="font-family: 'Geist', sans-serif; font-size: 12px; color: #5F6964">· name from product lookup</span></span>
+      </div>
+      <button aria-label="Copy code" style="width: 44px; height: 44px; border: 0; border-radius: 12px; background: #E9ECE6; color: #0B1210; display: flex; align-items: center; justify-content: center; cursor: pointer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+      </button>
+    </div>
+
+    <div style="display: flex; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #FDF1D8; color: #6B3D05">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A15C07" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"></path></svg>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 14px; font-weight: 600">Already in row 42</span>
+        <span style="font-size: 13px">Scanned at 10:42 with Qty 1. Count it there, or skip.</span>
+      </div>
+    </div>
+
+    <div style="border-radius: 18px; background: #FFFFFF; border: 1px solid #E3E6E0; padding: 4px 14px">
+      <div style="display: flex; align-items: center; justify-content: space-between; min-height: 60px; border-bottom: 1px solid #EEF0EB">
+        <span style="font-size: 15px; font-weight: 500">Qty</span>
+        <div style="display: flex; align-items: center; gap: 4px; padding: 3px; border-radius: 12px; background: #F0F2EE">
+          <button aria-label="Decrease quantity" onClick="{{dec}}" style="width: 40px; height: 40px; border: 0; border-radius: 9px; background: #FFFFFF; color: #0B1210; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(11,18,16,0.08)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path></svg>
+          </button>
+          <span style="width: 44px; text-align: center; font-family: 'Geist Mono', monospace; font-size: 18px; font-weight: 600">{{qty}}</span>
+          <button aria-label="Increase quantity" onClick="{{inc}}" style="width: 40px; height: 40px; border: 0; border-radius: 9px; background: #0B1210; color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+          </button>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-bottom: 1px solid #EEF0EB">
+        <span style="font-size: 15px; font-weight: 500">Condition</span>
+        <div role="radiogroup" aria-label="Condition" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+          <sc-for list="{{conds}}" as="c" hint-placeholder-count="3">
+            <button role="radio" aria-checked="{{c.on}}" onClick="{{c.pick}}" style="height: 44px; border: {{c.border}}; border-radius: 12px; background: {{c.bg}}; color: {{c.fg}}; font-size: 14px; font-weight: 600; cursor: pointer">{{c.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 12px 0">
+        <label for="note" style="font-size: 15px; font-weight: 500">Note</label>
+        <input id="note" placeholder="Optional — e.g. damaged box" style="height: 44px; box-sizing: border-box; padding: 0 12px; border-radius: 10px; border: 1px solid #D3D8D1; background: #FAFBF8; font-size: 15px; color: #0B1210; outline: none">
+      </div>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 6px">
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 8px; background: #E9ECE6; font-size: 12px; color: #4A5550"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg><span style="font-family: 'Geist Mono', monospace">10:58</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 8px; background: #E9ECE6; font-size: 12px; color: #4A5550"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12l-8 8-8-8V4h8z"></path></svg>Aisle <span style="font-family: 'Geist Mono', monospace">B‑12</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 8px; background: #E9ECE6; font-size: 12px; color: #4A5550"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"></path></svg><span style="font-family: 'Geist Mono', monospace">28.61, 77.20</span></span>
+    </div>
+
+    <div style="display: flex; gap: 10px">
+      <a href="Scanner.dc.html" style="width: 120px; height: 56px; border-radius: 16px; border: 1px solid #D3D8D1; background: #FFFFFF; color: #0B1210; font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none">Skip</a>
+      <a href="Scanner.dc.html" style="flex: 1; height: 56px; border-radius: 16px; background: #0B1210; color: #FFFFFF; font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none">Add to row 42</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { qty: 1, cond: 'Good' };
+  }
+  renderVals() {
+    const q = this.state.qty;
+    const conds = ['Good', 'Damaged', 'Missing'].map((label) => {
+      const on = label === this.state.cond;
+      return {
+        label,
+        on: on ? 'true' : 'false',
+        border: on ? '1.5px solid #0B1210' : '1px solid #D3D8D1',
+        bg: on ? '#0B1210' : '#FFFFFF',
+        fg: on ? '#FFFFFF' : '#0B1210',
+        pick: () => this.setState({ cond: label })
+      };
+    });
+    return {
+      conds,
+      qty: q,
+      inc: () => this.setState({ qty: q + 1 }),
+      dec: () => this.setState({ qty: Math.max(0, q - 1) })
+    };
+  }
+}
+</script>
+</body>
+</html>

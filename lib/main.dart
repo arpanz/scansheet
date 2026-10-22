@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/ads/ad_manager.dart';
 import 'core/services/google_sheets_service.dart';
+import 'core/services/sheets_sync_service.dart';
 import 'core/services/history_service.dart';
 import 'core/services/scan_history_service.dart';
 import 'core/services/scan_session_service.dart';
@@ -17,11 +18,9 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/app_router.dart';
 import 'core/utils/review_service.dart';
 import 'core/utils/update_service.dart';
-import 'features/history/screens/history_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
-import 'features/scan/screens/scan_screen.dart';
 import 'features/settings/screens/paywall_screen.dart';
-import 'features/settings/screens/settings_screen.dart';
+import 'features/shell/app_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,10 +40,11 @@ void main() async {
   await TemplateService.init();
 
   final initialThemeMode = await _loadInitialThemeMode();
-  final showOnboarding   = await OnboardingScreen.shouldShow();
-  final scanningPrefs    = await ScanningPreferences.load();
+  final showOnboarding = await OnboardingScreen.shouldShow();
+  final scanningPrefs = await ScanningPreferences.load();
 
   await GoogleSheetsService.instance.init();
+  await SheetsSyncService.instance.start();
 
   await MobileAds.instance.initialize();
   await AdManager.instance.initialize();
@@ -69,7 +69,7 @@ void main() async {
 
 Future<ThemeMode> _loadInitialThemeMode() async {
   final prefs = await SharedPreferences.getInstance();
-  final savedTheme = prefs.getString('theme_mode') ?? 'dark';
+  final savedTheme = prefs.getString('theme_mode') ?? 'system';
   return savedTheme == 'light'
       ? ThemeMode.light
       : savedTheme == 'system'
@@ -107,7 +107,6 @@ class MainHomeScreen extends StatefulWidget {
 
 class _MainHomeScreenState extends State<MainHomeScreen>
     with WidgetsBindingObserver {
-  int _currentIndex = 0;
   StreamSubscription<dynamic>? _updateInstallSubscription;
 
   @override
@@ -124,6 +123,7 @@ class _MainHomeScreenState extends State<MainHomeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       AdManager.instance.revalidateEntitlement();
+      SheetsSyncService.instance.syncSoon();
       UpdateService.handleAppResume(context);
     }
   }
@@ -137,105 +137,6 @@ class _MainHomeScreenState extends State<MainHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return PopScope(
-      canPop: _currentIndex == 0,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) setState(() => _currentIndex = 0);
-      },
-      child: Scaffold(
-        resizeToAvoidBottomInset: false,
-        body: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 280),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (child, animation) =>
-              FadeTransition(opacity: animation, child: child),
-          child: IndexedStack(
-            key: ValueKey(_currentIndex),
-            index: _currentIndex,
-            children: [
-              ScanScreen(
-                isActive: _currentIndex == 0,
-                onNavigateToHistory: () => setState(() => _currentIndex = 1),
-              ),
-              const HistoryScreen(),
-              const SettingsScreen(),
-            ],
-          ),
-        ),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF1C1C22)
-                    : const Color(0xFFFCFCFD),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF2A2A32).withValues(alpha: 0.6)
-                      : const Color(0xFFE4E4EB).withValues(alpha: 0.6),
-                  width: 0.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                    spreadRadius: -4,
-                  ),
-                ],
-              ),
-              child: NavigationBar(
-                selectedIndex: _currentIndex,
-                onDestinationSelected: (i) {
-                  HapticFeedback.selectionClick();
-                  setState(() => _currentIndex = i);
-                },
-                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                animationDuration: const Duration(milliseconds: 360),
-                indicatorShape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                height: 60,
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                surfaceTintColor: Colors.transparent,
-                destinations: [
-                  NavigationDestination(
-                    icon: const Icon(Icons.qr_code_scanner_rounded),
-                    selectedIcon: Icon(
-                      Icons.qr_code_scanner,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    label: 'Scan',
-                  ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.history_rounded),
-                    selectedIcon: Icon(
-                      Icons.history,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    label: 'History',
-                  ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.settings_rounded),
-                    selectedIcon: Icon(
-                      Icons.settings,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    label: 'Settings',
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    return const AppShell();
   }
 }

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home, dark mode</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#4FC48A}a:hover{color:#7BD8A8}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0E1311; font-family: 'Geist', system-ui, sans-serif; color: #EEF2EF; position: relative; overflow: hidden">
+  <div style="padding: 56px 20px 0; display: flex; flex-direction: column; gap: 18px">
+
+    <div style="display: flex; align-items: center; justify-content: space-between; height: 44px">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #9AA5A0"><span style="width: 6px; height: 6px; border-radius: 3px; background: #4FC48A"></span>Today <span style="font-family: 'Geist Mono', monospace; color: #EEF2EF">46</span> rows · all synced</span>
+        <span style="font-size: 24px; font-weight: 600; letter-spacing: -0.6px">Your sheets</span>
+      </div>
+      <a href="Settings.dc.html" aria-label="Account and settings" style="width: 44px; height: 44px; border-radius: 22px; background: #D4F56A; color: #0B1210; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; text-decoration: none">A</a>
+    </div>
+
+    <div style="border-radius: 24px; background: #182019; border: 1px solid #2A3530; padding: 18px; display: flex; flex-direction: column; gap: 16px; position: relative; overflow: hidden">
+      <div style="position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; border-radius: 90px; background: radial-gradient(circle, rgba(212,245,106,0.18) 0%, rgba(212,245,106,0) 70%)"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; background: rgba(212,245,106,0.14); color: #D4F56A; font-size: 12px; font-weight: 600; letter-spacing: 0.4px"><span style="width: 6px; height: 6px; border-radius: 3px; background: #D4F56A"></span>IN PROGRESS</span>
+        <span style="font-size: 12px; color: #9AA5A0">Synced 2 min ago</span>
+      </div>
+      <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 12px">
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+          <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px">Warehouse audit</span>
+          <span style="font-size: 13px; color: #9AA5A0">Item · Product · Qty · Condition</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end">
+          <span style="font-family: 'Geist Mono', monospace; font-size: 34px; font-weight: 500; letter-spacing: -1px; line-height: 1">129</span>
+          <span style="font-size: 12px; color: #9AA5A0">rows</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px">
+        <a href="Scanner.dc.html" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; border-radius: 14px; background: #D4F56A; color: #0B1210; font-size: 15px; font-weight: 600; text-decoration: none">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M7 12h10"></path></svg>
+          Resume scanning
+        </a>
+        <a href="SheetView.dc.html" aria-label="Open sheet" style="width: 48px; height: 48px; border-radius: 14px; background: rgba(255,255,255,0.08); color: #EEF2EF; display: flex; align-items: center; justify-content: center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18M3 15h18M9 3v18"></path></svg>
+        </a>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <a href="NewSheet.dc.html" style="display: flex; flex-direction: column; gap: 14px; padding: 14px; border-radius: 18px; background: #161C19; border: 1px solid #252D29; color: #EEF2EF; text-decoration: none">
+        <div style="width: 36px; height: 36px; border-radius: 11px; background: rgba(79,196,138,0.14); display: flex; align-items: center; justify-content: center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4FC48A" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">New sheet</span><span style="font-size: 12px; color: #9AA5A0">Pick columns, then scan</span></div>
+      </a>
+      <a href="Library.dc.html" style="display: flex; flex-direction: column; gap: 14px; padding: 14px; border-radius: 18px; background: #161C19; border: 1px solid #252D29; color: #EEF2EF; text-decoration: none">
+        <div style="width: 36px; height: 36px; border-radius: 11px; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EEF2EF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"></path></svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Read a code</span><span style="font-size: 12px; color: #9AA5A0">One-off, kept in history</span></div>
+      </a>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <span style="font-size: 17px; font-weight: 600; letter-spacing: -0.2px">Recent sheets</span>
+        <a href="Library.dc.html" style="font-size: 14px; font-weight: 500; color: #4FC48A; text-decoration: none; padding: 10px 0">See all</a>
+      </div>
+      <div style="border-radius: 18px; background: #161C19; border: 1px solid #252D29; overflow: hidden">
+        <a href="SheetView.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; color: #EEF2EF; text-decoration: none; border-bottom: 1px solid #252D29">
+          <div style="width: 38px; height: 38px; border-radius: 11px; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EEF2EF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a3 3 0 0 0 0 6v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a3 3 0 0 1 0-6V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2zM13 4v16"></path></svg>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 15px; font-weight: 600">Diwali meetup check-in</span><span style="font-size: 12px; color: #9AA5A0">342 rows · Google Sheets</span></div>
+          <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #4FC48A; font-weight: 500"><span style="width: 6px; height: 6px; border-radius: 3px; background: #4FC48A"></span>Synced</span>
+        </a>
+        <a href="SheetView.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; color: #EEF2EF; text-decoration: none; border-bottom: 1px solid #252D29">
+          <div style="width: 38px; height: 38px; border-radius: 11px; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EEF2EF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12l-8 8-8-8V4h8z"></path></svg>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 15px; font-weight: 600">Office laptops</span><span style="font-size: 12px; color: #9AA5A0">58 rows · Google Sheets</span></div>
+          <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #F2B45A; font-weight: 500"><span style="width: 6px; height: 6px; border-radius: 3px; background: #F2B45A"></span>3 queued</span>
+        </a>
+        <a href="SheetView.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; color: #EEF2EF; text-decoration: none">
+          <div style="width: 38px; height: 38px; border-radius: 11px; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EEF2EF" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 15px; font-weight: 600">Shop price list</span><span style="font-size: 12px; color: #9AA5A0">86 rows · Excel</span></div>
+          <span style="font-size: 12px; color: #9AA5A0">Yesterday</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <nav aria-label="Main" style="position: absolute; left: 0; right: 0; bottom: 0; height: 92px; box-sizing: border-box; padding: 10px 28px 26px; background: rgba(14,19,17,0.96); border-top: 1px solid #252D29; display: flex; align-items: center; justify-content: space-between">
+    <a href="HomeDark.dc.html" aria-current="page" style="width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #EEF2EF; text-decoration: none; font-size: 11px; font-weight: 600">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Home
+    </a>
+    <a href="Scanner.dc.html" aria-label="Scan" style="width: 64px; height: 64px; margin-top: -26px; border-radius: 22px; background: #D4F56A; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 24px rgba(0,0,0,0.4)">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B1210" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M7 12h10"></path></svg>
+    </a>
+    <a href="Library.dc.html" style="width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #9AA5A0; text-decoration: none; font-size: 11px; font-weight: 500">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>Library
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

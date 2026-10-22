@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../features/scan/models/scan_session.dart';
 import '../models/sync_queue_item.dart';
@@ -31,6 +32,10 @@ class ScanSessionService {
     assert(_rowsBox != null, 'Call ScanSessionService.init() before use.');
     return _rowsBox!;
   }
+
+  /// Fires whenever any sheet or row changes, for live list screens.
+  static Listenable get changes =>
+      Listenable.merge([metaBox.listenable(), rowsBox.listenable()]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Session CRUD
@@ -135,6 +140,7 @@ class ScanSessionService {
   /// Replace an existing row. Used when correcting scanned values.
   static Future<void> updateRow(String sessionId, SessionRow row) async {
     await rowsBox.put(_rowKey(sessionId, row.rowIndex), row.toMap());
+    await SyncQueueService.rowUpdated(sessionId, row.rowIndex, row.values);
   }
 
   /// Load all rows for a session, sorted by rowIndex ascending.
@@ -157,13 +163,13 @@ class ScanSessionService {
   static Future<void> deleteLastRow(String sessionId) async {
     final rows = getRows(sessionId);
     if (rows.isEmpty) return;
-    final last = rows.last;
-    await rowsBox.delete(_rowKey(sessionId, last.rowIndex));
+    await deleteRow(sessionId, rows.last.rowIndex);
   }
 
   /// Delete a specific row by its index.
   static Future<void> deleteRow(String sessionId, int rowIndex) async {
     await rowsBox.delete(_rowKey(sessionId, rowIndex));
+    await SyncQueueService.rowDeleted(sessionId, rowIndex);
   }
 
   /// Delete all rows for a session (used by "Clear All Rows" in session screen).
