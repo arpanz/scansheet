@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../../core/services/google_sheets_service.dart';
 import '../../core/services/scan_session_service.dart';
 import '../../core/services/template_service.dart';
+import '../../core/services/usage_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
 import '../scan/models/column_kind.dart';
 import '../scan/models/scan_session.dart';
 import '../scan/screens/scan_session_screen.dart';
+import '../sync/plan_limits.dart';
 import 'add_column_sheet.dart';
 
 class NewSheetScreen extends StatefulWidget {
@@ -93,7 +95,7 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
     setState(() => _loading = true);
     try {
       String? spreadsheetId;
-      final destination = switch (_destination) {
+      var destination = switch (_destination) {
         'sheets' => SessionDestination.googleSheets,
         'xlsx' => SessionDestination.localXlsx,
         _ => SessionDestination.localCsv,
@@ -107,7 +109,20 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
             return;
           }
         }
-        spreadsheetId = await service.createSpreadsheet(name);
+        if (!mounted) return;
+        if (!UsageService.instance.canOpenSheet()) {
+          switch (await showOpenSheetsLimit(context)) {
+            case OpenSheetChoice.proceed:
+              break;
+            case OpenSheetChoice.keepOnPhone:
+              destination = SessionDestination.localXlsx;
+            case OpenSheetChoice.cancel:
+              return;
+          }
+        }
+        if (destination == SessionDestination.googleSheets) {
+          spreadsheetId = await service.createSpreadsheet(name);
+        }
       }
       final session = ScanSession(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -129,7 +144,15 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
         FadeSlideRoute(page: ScanSessionScreen(session: session)),
       );
     } catch (e) {
-      if (mounted) showSsToast(context, 'Could not create sheet: $e');
+      debugPrint('Create sheet failed: $e');
+      if (mounted) {
+        showSsToast(
+          context,
+          '$e'.contains('sign_in_failed')
+              ? 'Couldn’t sign in to Google. Try again, or save as Excel.'
+              : 'Couldn’t create the sheet. Check your connection and try again.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

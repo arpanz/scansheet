@@ -20,6 +20,7 @@ import '../../sheet/sheet_view_screen.dart';
 import 'done_for_now_screen.dart';
 import 'scan_help_screen.dart';
 import '../widgets/scanner/scan_confirm_sheet.dart';
+import '../widgets/scanner/read_text_sheet.dart';
 
 class ScanSessionScreen extends StatefulWidget {
   final ScanSession session;
@@ -31,6 +32,7 @@ class ScanSessionScreen extends StatefulWidget {
 
 class _ScanSessionScreenState extends State<ScanSessionScreen> {
   late final MobileScannerController _camera;
+  final _visitStarted = DateTime.now();
   late ScanSession _session;
   late final bool _vibrate;
   List<SessionRow> _rows = [];
@@ -311,6 +313,19 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     if (mounted) _resume();
   }
 
+  Future<void> _readText() async {
+    _sheetOpen = true;
+    await _camera.stop();
+    if (!mounted) return;
+    final value = await captureText(context);
+    _sheetOpen = false;
+    if (value != null && value.isNotEmpty && mounted) {
+      _lastAt = null;
+      await _handleValue(value);
+    }
+    if (mounted) _resume();
+  }
+
   Future<void> _openSheet() async {
     _sheetOpen = true;
     await _camera.stop();
@@ -333,6 +348,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             session: _session,
             addedThisVisit: _visitRows,
             totalRows: _rows.length,
+            visitStarted: _visitStarted,
           );
     await Navigator.of(context).push(FadeSlideRoute(page: page));
     if (mounted) _resume();
@@ -454,10 +470,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                         children: [
                           _mode('Barcode', true),
                           GestureDetector(
-                            onTap: () => showSsToast(
-                              context,
-                              'Read text is coming in the next update',
-                            ),
+                            onTap: _readText,
                             child: _mode('Read text', false),
                           ),
                         ],

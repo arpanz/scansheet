@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/ads/ad_manager.dart';
 import 'core/services/google_sheets_service.dart';
+import 'core/services/launch_actions.dart';
 import 'core/services/sheets_sync_service.dart';
+import 'core/services/usage_service.dart';
 import 'core/services/history_service.dart';
 import 'core/services/product_lookup_service.dart';
 import 'core/services/scan_history_service.dart';
@@ -22,6 +24,8 @@ import 'core/utils/update_service.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/settings/screens/paywall_screen.dart';
 import 'features/shell/app_shell.dart';
+
+final appNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,10 +50,11 @@ void main() async {
   final scanningPrefs = await ScanningPreferences.load();
 
   await GoogleSheetsService.instance.init();
-  await SheetsSyncService.instance.start();
 
   await MobileAds.instance.initialize();
   await AdManager.instance.initialize();
+  await UsageService.instance.init();
+  await SheetsSyncService.instance.start();
   await ReviewService.trackDailyLaunch();
 
   AdManager.onShowPaywall = (context) async {
@@ -67,6 +72,7 @@ void main() async {
       child: MyApp(showOnboarding: showOnboarding),
     ),
   );
+  unawaited(LaunchActions.init(appNavigatorKey));
 }
 
 Future<ThemeMode> _loadInitialThemeMode() async {
@@ -87,6 +93,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: 'ScanSheet',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

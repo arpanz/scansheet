@@ -147,47 +147,37 @@ class _AddColumnFormState extends State<_AddColumnForm> {
               itemBuilder: (context, i) {
                 final kind = ColumnKind.values[i];
                 final selected = kind == _kind;
-                // On-device OCR isn't built yet (plan step 5b).
-                final soon = kind == ColumnKind.readText;
                 // Selected: lime icon on ink in light, ink on lime in dark.
                 final (Color bg, Color icon, Color text) = !selected
                     ? (c.surface, c.ink, c.ink)
                     : context.isDark
                     ? (SsColors.brandLime, SsColors.brandInk, SsColors.brandInk)
                     : (SsColors.brandInk, SsColors.brandLime, Colors.white);
-                return Opacity(
-                  opacity: soon ? 0.5 : 1,
-                  child: Material(
-                    color: bg,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: BorderSide(color: selected ? bg : c.line),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: soon
-                          ? () => showSsToast(
-                              context,
-                              'Read text is coming in the next update',
-                            )
-                          : () => _select(kind),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(kind.icon, size: 20, color: icon),
-                          const SizedBox(height: 5),
-                          Text(
-                            soon ? 'Soon' : kind.label,
-                            maxLines: 2,
-                            textAlign: TextAlign.center,
-                            style: SsText.sans(
-                              size: 10,
-                              weight: FontWeight.w600,
-                              color: text,
-                            ),
+                return Material(
+                  color: bg,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(color: selected ? bg : c.line),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => _select(kind),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(kind.icon, size: 20, color: icon),
+                        const SizedBox(height: 5),
+                        Text(
+                          kind.label,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          style: SsText.sans(
+                            size: 10,
+                            weight: FontWeight.w600,
+                            color: text,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 );

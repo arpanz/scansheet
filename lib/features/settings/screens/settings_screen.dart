@@ -5,11 +5,13 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/ads/ad_manager.dart';
 import '../../../core/services/google_sheets_service.dart';
 import '../../../core/services/scan_history_service.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/services/scanning_preferences.dart';
 import '../../../core/services/sync_queue_service.dart';
+import '../../../core/services/usage_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ss.dart';
 import '../../../core/utils/app_router.dart';
@@ -27,9 +29,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   String _version = '';
-
-  // Filled by the Firebase usage doc (plan step 8).
-  String? get freePlanUsageText => null;
 
   @override
   void initState() {
@@ -72,11 +71,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 18),
             _AccountCard(onChanged: () => setState(() {})),
             const SizedBox(height: 12),
-            _ProCard(
-              usage: freePlanUsageText,
-              onTap: () => Navigator.of(
-                context,
-              ).push(FadeSlideRoute(page: const PaywallScreen())),
+            ListenableBuilder(
+              listenable: Listenable.merge([
+                UsageService.instance.usage,
+                AdManager.instance.isProNotifier,
+              ]),
+              builder: (context, _) => _ProCard(
+                usage: UsageService.instance.summary,
+                onTap: () => Navigator.of(
+                  context,
+                ).push(FadeSlideRoute(page: const PaywallScreen())),
+              ),
             ),
             const SizedBox(height: 18),
             _Section(

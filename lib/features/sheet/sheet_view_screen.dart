@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/services/scan_session_service.dart';
 import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ss.dart';
 import '../sync/sync_banner.dart';
 import '../scan/models/scan_session.dart';
@@ -347,17 +348,22 @@ class _SheetViewScreenState extends State<SheetViewScreen> {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: SsButton(
-            'Export',
-            kind: SsButtonKind.ghost,
-            icon: LucideIcons.download,
-            large: false,
-            onPressed: () => Navigator.of(context).push(
-              FadeSlideRoute(
-                page: DoneForNowScreen(
-                  session: session,
-                  addedThisVisit: 0,
-                  totalRows: ScanSessionService.getRowCount(session.id),
+          // The bar is ink in both modes: draw the ghost button with dark
+          // tokens so its label stays light.
+          child: Theme(
+            data: AppTheme.darkTheme,
+            child: SsButton(
+              'Export',
+              kind: SsButtonKind.ghost,
+              icon: LucideIcons.download,
+              large: false,
+              onPressed: () => Navigator.of(context).push(
+                FadeSlideRoute(
+                  page: DoneForNowScreen(
+                    session: session,
+                    addedThisVisit: 0,
+                    totalRows: ScanSessionService.getRowCount(session.id),
+                  ),
                 ),
               ),
             ),
@@ -509,13 +515,13 @@ class _RowsTable extends StatelessWidget {
     final widths = [
       for (var i = 0; i < columns.length; i++)
         (rows.fold<int>(
-                  columns[i].name.length,
-                  (n, r) => i < r.values.length && r.values[i].length > n
-                      ? r.values[i].length
-                      : n,
-                ) *
-                8.6 +
-            28)
+                      columns[i].name.length,
+                      (n, r) => i < r.values.length && r.values[i].length > n
+                          ? r.values[i].length
+                          : n,
+                    ) *
+                    8.6 +
+                28)
             .clamp(80.0, 260.0),
     ];
     return Container(

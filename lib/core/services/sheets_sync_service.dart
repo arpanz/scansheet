@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
+import '../ads/ad_manager.dart';
 import '../models/sync_queue_item.dart';
 import 'google_sheets_service.dart';
 import 'scan_session_service.dart';
 import 'sync_queue_service.dart';
+import 'usage_service.dart';
 
 /// Drains the [SyncQueueService] into Google Sheets so rows appear in the
 /// sheet seconds after they are scanned.
@@ -60,6 +62,8 @@ class SheetsSyncService {
     });
     SyncQueueService.stats.addListener(_onQueueChanged);
     _sheets.signedInNotifier.addListener(_onSignInChanged);
+    // Held rows go out as soon as Pro unlocks them.
+    AdManager.instance.isProNotifier.addListener(syncSoon);
     syncSoon();
   }
 
@@ -78,6 +82,7 @@ class SheetsSyncService {
     _debounceTimer?.cancel();
     _retryTimer?.cancel();
     SyncQueueService.stats.removeListener(_onQueueChanged);
+    AdManager.instance.isProNotifier.removeListener(syncSoon);
     _sheets.signedInNotifier.removeListener(_onSignInChanged);
   }
 
@@ -128,7 +133,10 @@ class SheetsSyncService {
               !missing.contains(i.spreadsheetId),
         )
         .toList();
-    if (ready.isEmpty) return;
+    if (ready.isEmpty) {
+      UsageService.instance.syncPaused.value = false;
+      return;
+    }
 
     final appends = <String, List<SyncQueueItem>>{};
     for (final item in ready) {
@@ -143,12 +151,26 @@ class SheetsSyncService {
         await _syncInPlace(item);
       }
     }
+    // Free plan: new rows past the monthly allowance stay safe on the phone
+    // and wait; edits to rows already in the sheet still go through.
+    final usage = UsageService.instance;
+    var allowed = usage.rowsAllowed;
+    var held = false;
     for (final group in appends.values) {
-      for (var i = 0; i < group.length; i += _maxBatch) {
-        final end = (i + _maxBatch).clamp(0, group.length);
-        await _appendGroup(group.sublist(i, end));
+      var rows = group;
+      if (allowed != null) {
+        if (rows.length > allowed) {
+          rows = rows.sublist(0, allowed);
+          held = true;
+        }
+        allowed -= rows.length;
+      }
+      for (var i = 0; i < rows.length; i += _maxBatch) {
+        final end = (i + _maxBatch).clamp(0, rows.length);
+        await _appendGroup(rows.sublist(i, end));
       }
     }
+    usage.syncPaused.value = held;
   }
 
   Future<void> _appendGroup(List<SyncQueueItem> items) async {
@@ -164,6 +186,7 @@ class SheetsSyncService {
       final dataStart = start == null
           ? null
           : (header != null ? start + 1 : start);
+      await UsageService.instance.recordSynced(items.length);
       for (var k = 0; k < items.length; k++) {
         await _finish(
           items[k],

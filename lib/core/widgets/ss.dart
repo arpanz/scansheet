@@ -879,10 +879,13 @@ Future<T?> showSsSheet<T>(
   required WidgetBuilder builder,
   bool dark = false,
   bool scrollControlled = true,
+  bool dismissible = true,
 }) {
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: scrollControlled,
+    isDismissible: dismissible,
+    enableDrag: dismissible,
     useSafeArea: true,
     backgroundColor: dark ? SsColors.nightSurface : context.ss.paper,
     builder: (ctx) => Padding(

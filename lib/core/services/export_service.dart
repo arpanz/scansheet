@@ -312,6 +312,19 @@ class ExportService {
     }
   }
 
+  /// Save straight to Files (system save dialog), no export dialog.
+  static Future<void> saveFile(
+    BuildContext context,
+    String filePath,
+    Uint8List fileBytes,
+    String fileExtension,
+  ) => _handleSave(context, filePath, fileBytes, fileExtension);
+
+  /// Open the share sheet straight away.
+  static Future<void> shareFile(String filePath, String text) => SharePlus
+      .instance
+      .share(ShareParams(files: [XFile(filePath)], text: text));
+
   static Future<void> _handleSave(
     BuildContext context,
     String filePath,

@@ -14,6 +14,7 @@ import '../sheet/new_sheet_screen.dart';
 import '../settings/screens/connect_sheets_screen.dart';
 import '../settings/screens/settings_screen.dart';
 import '../sheet/sheet_view_screen.dart';
+import '../sync/plan_limits.dart';
 import '../sync/sync_banner.dart';
 
 /// Home tab. Busy state per docs/design/mocks/Home.dc.html, first run per
@@ -91,6 +92,8 @@ class _BusyHome extends StatelessWidget {
             title: 'Your sheets',
           ),
           const SizedBox(height: 18),
+          const SyncBanner(),
+          const UsageMeter(),
           if (current != null) ...[
             _InProgressCard(sheet: current),
             const SizedBox(height: 18),

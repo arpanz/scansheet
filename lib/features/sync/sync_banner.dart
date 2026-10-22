@@ -5,10 +5,12 @@ import '../../core/services/google_sheets_service.dart';
 import '../../core/services/scan_session_service.dart';
 import '../../core/services/sheets_sync_service.dart';
 import '../../core/services/sync_queue_service.dart';
+import '../../core/services/usage_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
 import '../scan/models/scan_session.dart';
 import '../settings/screens/connect_sheets_screen.dart';
+import 'plan_limits.dart';
 
 /// The one sync problem worth showing right now, most urgent first
 /// (docs/design/mocks/States.dc.html). Rows are never lost: every state
@@ -28,6 +30,7 @@ class SyncBanner extends StatelessWidget {
         sync.authExpired,
         sync.missingSheets,
         GoogleSheetsService.instance.signedInNotifier,
+        UsageService.instance.syncPaused,
       ]),
       builder: (context, _) {
         final items = SyncQueueService.getAll().where(
@@ -48,6 +51,9 @@ class SyncBanner extends StatelessWidget {
         final Widget child;
         if (lost.isNotEmpty) {
           child = _SheetGone(session: lost.first);
+        } else if (UsageService.instance.syncPaused.value &&
+            GoogleSheetsService.instance.isSignedIn) {
+          child = LimitReachedCard(waiting: waiting);
         } else if (sync.authExpired.value ||
             !GoogleSheetsService.instance.isSignedIn) {
           child = _Reconnect(waiting: waiting);

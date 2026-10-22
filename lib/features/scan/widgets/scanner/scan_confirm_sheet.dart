@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/ss.dart';
 import '../../models/scan_session.dart';
+import 'read_text_sheet.dart';
 
 /// What the user chose in the confirm sheet.
 sealed class ConfirmOutcome {
@@ -272,6 +273,9 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
                       _TextField(
                         label: _session.columns[i].name,
                         controller: _text[i]!,
+                        readText:
+                            _session.columns[i].type ==
+                            SessionColumnType.readText,
                       ),
                   ],
                 ],
@@ -471,7 +475,12 @@ class _NumberField extends StatelessWidget {
 class _TextField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
-  const _TextField({required this.label, required this.controller});
+  final bool readText;
+  const _TextField({
+    required this.label,
+    required this.controller,
+    this.readText = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -506,6 +515,16 @@ class _TextField extends StatelessWidget {
                 borderRadius: BorderRadius.circular(SsRadius.sm),
                 borderSide: BorderSide(color: c.ink, width: 1.5),
               ),
+              suffixIcon: readText
+                  ? IconButton(
+                      tooltip: 'Read text',
+                      icon: const Icon(LucideIcons.scanText),
+                      onPressed: () async {
+                        final value = await captureText(context);
+                        if (value != null) controller.text = value;
+                      },
+                    )
+                  : null,
             ),
           ),
         ],
