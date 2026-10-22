@@ -697,6 +697,9 @@ class _FieldRow extends StatelessWidget {
     SessionColumnType.increment => const Color(0xFFF59E0B),
     SessionColumnType.fixed => const Color(0xFF6B7280),
     SessionColumnType.location => const Color(0xFFEF4444),
+    SessionColumnType.pickList => const Color(0xFF84CC16),
+    SessionColumnType.productInfo => const Color(0xFF0B7D45),
+    SessionColumnType.readText => const Color(0xFF64748B),
   };
 
   IconData _typeIcon(SessionColumnType t) => switch (t) {
@@ -706,6 +709,9 @@ class _FieldRow extends StatelessWidget {
     SessionColumnType.increment => Icons.tag_rounded,
     SessionColumnType.fixed => Icons.push_pin_rounded,
     SessionColumnType.location => Icons.location_on_rounded,
+    SessionColumnType.pickList => Icons.list_rounded,
+    SessionColumnType.productInfo => Icons.inventory_2_rounded,
+    SessionColumnType.readText => Icons.document_scanner_rounded,
   };
 }
 

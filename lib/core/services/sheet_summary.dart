@@ -114,7 +114,7 @@ String relativeTime(DateTime t) {
   return '${t.day} ${months[t.month - 1]}';
 }
 
-/// Lucide icon for a sheet's stored icon key (keys from SessionSetupScreen
+/// Lucide icon for a sheet's stored icon key (keys from the sheet setup flow
 /// and template icon names).
 IconData sheetIcon(String? key) {
   final k = key ?? '';

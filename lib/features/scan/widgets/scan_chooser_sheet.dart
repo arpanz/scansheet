@@ -5,7 +5,7 @@ import '../../../core/utils/app_router.dart';
 import '../../../core/widgets/ss.dart';
 import '../screens/scan_screen.dart';
 import '../screens/scan_session_screen.dart';
-import '../screens/session_setup_screen.dart';
+import '../../sheet/new_sheet_screen.dart';
 
 /// "Scan into…" chooser (docs/design/mocks/ScanChooser.dc.html), shown by the
 /// Scan button when no sheet is in progress.
@@ -86,7 +86,7 @@ class _ScanChooser extends StatelessWidget {
                 child: _ActionTile(
                   icon: LucideIcons.plus,
                   label: 'New sheet',
-                  onTap: () => onOpen(const SessionSetupScreen()),
+                  onTap: () => onOpen(const NewSheetScreen()),
                 ),
               ),
               const SizedBox(width: 8),
@@ -145,7 +145,7 @@ class _RecentRow extends StatelessWidget {
           : SsIconTile(sheetIcon(sheet.session.iconName), size: 40),
       title: sheet.session.name,
       subtitle:
-          '${sheet.rowCount} rows · ${first ? 'last scan ${last.toLowerCase()}' : last}',
+          '${sheet.rowCount} ${sheet.rowCount == 1 ? 'row' : 'rows'} · ${first ? 'last scan ${last.toLowerCase()}' : last}',
       trailing: Text(
         'Continue',
         style: SsText.sans(size: 13, weight: FontWeight.w600, color: c.emerald),

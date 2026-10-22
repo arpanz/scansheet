@@ -8,6 +8,9 @@ enum SessionColumnType {
   increment, // Auto-numbered: 1, 2, 3…
   fixed, // Same value every row
   location, // Auto-filled with GPS lat,lng at scan time
+  pickList, // One tap from [SessionColumn.choices]; default pre-picked
+  productInfo, // Filled from the scanned barcode via product lookup
+  readText, // Printed text read on-device (OCR)
 }
 
 enum SessionDestination { localCsv, localXlsx, googleSheets }
@@ -19,6 +22,7 @@ class SessionColumn {
   final String? defaultValue; // pre-fills the field in confirmation sheet
   final bool isNumeric; // shows stepper (– N +) instead of TextField
   final int stepSize; // stepper increment, defaults to 1
+  final List<String> choices; // pick-list options
 
   const SessionColumn({
     required this.name,
@@ -27,6 +31,7 @@ class SessionColumn {
     this.defaultValue,
     this.isNumeric = false,
     this.stepSize = 1,
+    this.choices = const [],
   });
 
   SessionColumn copyWith({
@@ -36,6 +41,7 @@ class SessionColumn {
     String? defaultValue,
     bool? isNumeric,
     int? stepSize,
+    List<String>? choices,
   }) {
     return SessionColumn(
       name: name ?? this.name,
@@ -44,6 +50,7 @@ class SessionColumn {
       defaultValue: defaultValue ?? this.defaultValue,
       isNumeric: isNumeric ?? this.isNumeric,
       stepSize: stepSize ?? this.stepSize,
+      choices: choices ?? this.choices,
     );
   }
 
@@ -54,6 +61,7 @@ class SessionColumn {
     'defaultValue': defaultValue,
     'isNumeric': isNumeric,
     'stepSize': stepSize,
+    'choices': choices,
   };
 
   factory SessionColumn.fromMap(Map map) => SessionColumn(
@@ -66,6 +74,7 @@ class SessionColumn {
     defaultValue: map['defaultValue'] as String?,
     isNumeric: map['isNumeric'] as bool? ?? false,
     stepSize: map['stepSize'] as int? ?? 1,
+    choices: List<String>.from(map['choices'] as List? ?? const []),
   );
 }
 
@@ -173,6 +182,20 @@ class ScanSession {
       if (columns[i].type == SessionColumnType.scan) i,
   ];
 
+  /// Columns the confirm sheet lets the user fill or change.
+  List<int> get reviewColumnIndices => [
+    for (int i = 0; i < columns.length; i++)
+      if (const {
+        SessionColumnType.manual,
+        SessionColumnType.pickList,
+        SessionColumnType.readText,
+      }.contains(columns[i].type))
+        i,
+  ];
+
+  int get productColumnIndex =>
+      columns.indexWhere((c) => c.type == SessionColumnType.productInfo);
+
   List<int> get manualColumnIndices => [
     for (int i = 0; i < columns.length; i++)
       if (columns[i].type == SessionColumnType.manual) i,
@@ -193,8 +216,14 @@ class ScanSession {
           values.add(col.fixedValue ?? '');
         case SessionColumnType.location:
           values.add('…');
+        case SessionColumnType.pickList:
+          values.add(
+            col.defaultValue ?? (col.choices.isEmpty ? '' : col.choices.first),
+          );
         case SessionColumnType.scan:
         case SessionColumnType.manual:
+        case SessionColumnType.productInfo:
+        case SessionColumnType.readText:
           values.add('');
       }
     }

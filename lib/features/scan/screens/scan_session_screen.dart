@@ -6,13 +6,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/services/location_service.dart';
+import '../../../core/services/product_lookup_service.dart';
 import '../../../core/services/scan_session_service.dart';
+import '../../../core/services/scanning_preferences.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ss.dart';
 import '../../../core/utils/app_router.dart';
 import '../models/scan_session.dart';
+import '../../sheet/sheet_view_screen.dart';
 import 'done_for_now_screen.dart';
 import 'scan_help_screen.dart';
 import '../widgets/scanner/scan_confirm_sheet.dart';
@@ -28,6 +32,7 @@ class ScanSessionScreen extends StatefulWidget {
 class _ScanSessionScreenState extends State<ScanSessionScreen> {
   late final MobileScannerController _camera;
   late ScanSession _session;
+  late final bool _vibrate;
   List<SessionRow> _rows = [];
   int _activeScanColumnIndex = 0;
   int _visitRows = 0;
@@ -46,7 +51,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     super.initState();
     _session = widget.session;
     _rows = ScanSessionService.getRows(_session.id);
-    _camera = MobileScannerController();
+    final prefs = context.read<ScanningPreferences>();
+    _vibrate = prefs.vibrateEnabled;
+    _torch = prefs.torchDefault;
+    _camera = MobileScannerController(torchEnabled: _torch);
     _resetPending();
     if (_session.columns.any((c) => c.type == SessionColumnType.location)) {
       LocationService.instance.warmUp();
@@ -156,6 +164,12 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       }
     }
     final values = List<String>.from(_pendingRow!.values)..[colIndex] = value;
+    final productIndex = _session.productColumnIndex;
+    if (productIndex >= 0 && colIndex == firstScan) {
+      values[productIndex] =
+          await ProductLookupService.instance.lookup(value) ?? '';
+      if (!mounted) return;
+    }
     final updated = _pendingRow!.copyWith(
       values: values,
       barcodeFormat: format,
@@ -215,7 +229,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       _success = true;
       _resetPending();
     });
-    HapticFeedback.mediumImpact();
+    if (_vibrate) HapticFeedback.mediumImpact();
     _flash('Added · row ${finalRow.rowIndex + 1}');
   }
 
@@ -229,11 +243,13 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       _session.id,
       target.copyWith(values: values),
     );
-    HapticFeedback.selectionClick();
-    Future.delayed(
-      const Duration(milliseconds: 90),
-      HapticFeedback.selectionClick,
-    );
+    if (_vibrate) {
+      HapticFeedback.selectionClick();
+      Future.delayed(
+        const Duration(milliseconds: 90),
+        HapticFeedback.selectionClick,
+      );
+    }
     if (!mounted) return;
     setState(() {
       _rows = ScanSessionService.getRows(_session.id);
@@ -293,6 +309,19 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       await _handleValue(value);
     }
     if (mounted) _resume();
+  }
+
+  Future<void> _openSheet() async {
+    _sheetOpen = true;
+    await _camera.stop();
+    if (!mounted) return;
+    await Navigator.of(
+      context,
+    ).push(FadeSlideRoute(page: SheetViewScreen(session: _session)));
+    _sheetOpen = false;
+    if (!mounted) return;
+    setState(() => _rows = ScanSessionService.getRows(_session.id));
+    _resume();
   }
 
   Future<void> _done() async {
@@ -379,22 +408,25 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                           _roundButton(LucideIcons.x, onTap: _close),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Container(
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .14),
-                                borderRadius: BorderRadius.circular(22),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '${_session.name}  ·  ${_rows.length}',
-                                style: SsText.sans(
-                                  size: 14,
-                                  weight: FontWeight.w600,
-                                  color: Colors.white,
+                            child: GestureDetector(
+                              onTap: _openSheet,
+                              child: Container(
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: .14),
+                                  borderRadius: BorderRadius.circular(22),
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '${_session.name}  ·  ${_rows.length}',
+                                  style: SsText.sans(
+                                    size: 14,
+                                    weight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ),
                           ),

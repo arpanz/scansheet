@@ -29,6 +29,16 @@ class SheetsSyncService {
   /// Last sync error shown in UI states; null once a sync succeeds.
   final ValueNotifier<String?> lastError = ValueNotifier(null);
 
+  /// Spreadsheets that were deleted or lost access (404/403). Rows for them
+  /// stay queued until the user picks a new home for them.
+  final ValueNotifier<Set<String>> missingSheets = ValueNotifier(const {});
+
+  /// Google rejected our credentials; the user must sign in again.
+  final ValueNotifier<bool> authExpired = ValueNotifier(false);
+
+  /// Connectivity, for the offline banner.
+  final ValueNotifier<bool> online = ValueNotifier(true);
+
   final _firstTabCache = <String, String>{};
   final _headerReady = <String>{};
   Timer? _debounceTimer;
@@ -42,13 +52,25 @@ class SheetsSyncService {
 
   Future<void> start() async {
     _online = _isOnline(await Connectivity().checkConnectivity());
+    online.value = _online;
     _connectivitySub = Connectivity().onConnectivityChanged.listen((result) {
       _online = _isOnline(result);
+      online.value = _online;
       if (_online) syncSoon();
     });
     SyncQueueService.stats.addListener(_onQueueChanged);
-    _sheets.signedInNotifier.addListener(syncSoon);
+    _sheets.signedInNotifier.addListener(_onSignInChanged);
     syncSoon();
+  }
+
+  void _onSignInChanged() {
+    if (_sheets.isSignedIn) authExpired.value = false;
+    syncSoon();
+  }
+
+  /// The user moved a sheet's rows elsewhere; stop flagging it.
+  void forgetMissing(String spreadsheetId) {
+    missingSheets.value = {...missingSheets.value}..remove(spreadsheetId);
   }
 
   void dispose() {
@@ -56,7 +78,7 @@ class SheetsSyncService {
     _debounceTimer?.cancel();
     _retryTimer?.cancel();
     SyncQueueService.stats.removeListener(_onQueueChanged);
-    _sheets.signedInNotifier.removeListener(syncSoon);
+    _sheets.signedInNotifier.removeListener(_onSignInChanged);
   }
 
   /// Schedule a sync shortly, coalescing rapid calls.
@@ -97,11 +119,13 @@ class SheetsSyncService {
       !result.contains(ConnectivityResult.none);
 
   Future<void> _runOnce() async {
+    final missing = missingSheets.value;
     final ready = SyncQueueService.getPendingItems()
         .where(
           (i) =>
               i.destination == SyncDestination.googleSheets &&
-              (i.spreadsheetId?.isNotEmpty ?? false),
+              (i.spreadsheetId?.isNotEmpty ?? false) &&
+              !missing.contains(i.spreadsheetId),
         )
         .toList();
     if (ready.isEmpty) return;
@@ -215,6 +239,7 @@ class SheetsSyncService {
   Future<void> _fail(SyncQueueItem item, Object error) async {
     debugPrint('Sheets sync failed for ${item.id}: $error');
     lastError.value = error is GSheetsException ? error.message : '$error';
+    _classify(lastError.value!, item.spreadsheetId);
     final current = SyncQueueService.get(item.id);
     if (current == null) return;
     await SyncQueueService.put(
@@ -225,6 +250,22 @@ class SheetsSyncService {
         errorMessage: lastError.value,
       ),
     );
+  }
+
+  void _classify(String message, String? spreadsheetId) {
+    final m = message.toLowerCase();
+    if (m.contains('401') ||
+        m.contains('unauthenticated') ||
+        m.contains('invalid_grant') ||
+        m.contains('not signed in')) {
+      authExpired.value = true;
+    } else if (spreadsheetId != null &&
+        (m.contains('404') ||
+            m.contains('403') ||
+            m.contains('not found') ||
+            m.contains('permission'))) {
+      missingSheets.value = {...missingSheets.value, spreadsheetId};
+    }
   }
 
   Future<void> _markSyncing(List<SyncQueueItem> items) async {

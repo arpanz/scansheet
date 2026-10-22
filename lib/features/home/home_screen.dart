@@ -10,9 +10,11 @@ import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
 import '../scan/screens/scan_screen.dart';
 import '../scan/screens/scan_session_screen.dart';
-import '../scan/screens/session_setup_screen.dart';
+import '../sheet/new_sheet_screen.dart';
 import '../settings/screens/connect_sheets_screen.dart';
 import '../settings/screens/settings_screen.dart';
+import '../sheet/sheet_view_screen.dart';
+import '../sync/sync_banner.dart';
 
 /// Home tab. Busy state per docs/design/mocks/Home.dc.html, first run per
 /// HomeEmpty.dc.html, dark per HomeDark.dc.html (all through tokens).
@@ -279,7 +281,10 @@ class _InProgressCard extends StatelessWidget {
                       background: Colors.white.withValues(
                         alpha: context.isDark ? 0.08 : 0.1,
                       ),
-                      onPressed: resume,
+                      onPressed: () => _open(
+                        context,
+                        SheetViewScreen(session: sheet.session),
+                      ),
                     ),
                   ],
                 ),
@@ -304,7 +309,7 @@ class _QuickTiles extends StatelessWidget {
             icon: SsIconTile.accent(context, LucideIcons.plus),
             title: 'New sheet',
             subtitle: 'Pick columns, then scan',
-            onTap: () => _open(context, const SessionSetupScreen()),
+            onTap: () => _open(context, const NewSheetScreen()),
           ),
         ),
         const SizedBox(width: 10),
@@ -377,9 +382,9 @@ class _SheetRow extends StatelessWidget {
     return SsListRow(
       leading: SsIconTile(sheetIcon(sheet.session.iconName), size: 38),
       title: sheet.session.name,
-      subtitle: '${sheet.rowCount} rows · ${sheet.destinationLabel}',
+      subtitle: '${sheet.rowCount} ${sheet.rowCount == 1 ? 'row' : 'rows'} · ${sheet.destinationLabel}',
       trailing: status,
-      onTap: () => _open(context, ScanSessionScreen(session: sheet.session)),
+      onTap: () => _open(context, SheetViewScreen(session: sheet.session)),
     );
   }
 }
@@ -426,7 +431,7 @@ class _FirstRunHomeState extends State<_FirstRunHome> {
           context,
           current != null
               ? ScanSessionScreen(session: current.session)
-              : const SessionSetupScreen(),
+              : const NewSheetScreen(),
         ),
       ),
       _Step(
@@ -666,7 +671,7 @@ class _CreateCard extends StatelessWidget {
           SsButton(
             'New sheet',
             large: false,
-            onPressed: () => _open(context, const SessionSetupScreen()),
+            onPressed: () => _open(context, const NewSheetScreen()),
           ),
         ],
       ),

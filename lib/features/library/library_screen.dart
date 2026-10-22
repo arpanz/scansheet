@@ -8,8 +8,8 @@ import '../../core/services/sheet_summary.dart';
 import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
-import '../scan/screens/scan_session_screen.dart';
-import '../scan/screens/session_setup_screen.dart';
+import '../sheet/sheet_view_screen.dart';
+import '../sheet/new_sheet_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -36,33 +36,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _rename(SheetSummary summary) async {
-    final controller = TextEditingController(text: summary.session.name);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Rename sheet'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(labelText: 'Sheet name'),
-          onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+    final name = await showSsTextPrompt(
+      context,
+      title: 'Rename sheet',
+      label: 'Sheet name',
+      initial: summary.session.name,
     );
-    controller.dispose();
-    if (name == null || name.isEmpty || !mounted) return;
+    if (name == null || !mounted) return;
     await ScanSessionService.saveSession(summary.session.copyWith(name: name));
   }
 
@@ -133,7 +113,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _Header(onNewSheet: () => _push(const SessionSetupScreen())),
+            _Header(onNewSheet: () => _push(const NewSheetScreen())),
             const SizedBox(height: 16),
             SsSegmented<String>(
               options: const [
@@ -179,11 +159,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       filter: _filter,
                       summaries: filtered,
                       onFilter: (value) => setState(() => _filter = value),
-                      onOpen: (s) =>
-                          _push(ScanSessionScreen(session: s.session)),
+                      onOpen: (s) => _push(SheetViewScreen(session: s.session)),
                       onEdit: _rename,
                       onDelete: _deleteSheet,
-                      onNewSheet: () => _push(const SessionSetupScreen()),
+                      onNewSheet: () => _push(const NewSheetScreen()),
                     );
                   }
                   final history = ScanHistoryService.getAll().where((entry) {

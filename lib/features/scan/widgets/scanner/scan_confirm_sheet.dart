@@ -70,6 +70,7 @@ class _ConfirmSheet extends StatefulWidget {
 class _ConfirmSheetState extends State<_ConfirmSheet> {
   final _text = <int, TextEditingController>{};
   final _numbers = <int, int>{};
+  final _picks = <int, String>{};
 
   ScanSession get _session => widget.session;
   int get _qtyIndex => _session.qtyColumnIndex;
@@ -78,9 +79,13 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
   @override
   void initState() {
     super.initState();
-    for (final i in _session.manualColumnIndices) {
+    for (final i in _session.reviewColumnIndices) {
       final col = _session.columns[i];
       final current = widget.row.values[i];
+      if (col.type == SessionColumnType.pickList) {
+        _picks[i] = current;
+        continue;
+      }
       final initial = current.isNotEmpty
           ? current
           : (col.defaultValue ?? (col.isNumeric ? '${col.stepSize}' : ''));
@@ -100,6 +105,14 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
     super.dispose();
   }
 
+  /// Product name filled by the lookup, shown as the title.
+  String? get _product {
+    final i = _session.productColumnIndex;
+    if (i < 0) return null;
+    final v = widget.row.values[i];
+    return v.isEmpty ? null : v;
+  }
+
   String get _code {
     final scans = _session.scanColumnIndices;
     for (final i in scans.reversed) {
@@ -112,6 +125,7 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
     final values = List<String>.from(widget.row.values);
     _text.forEach((i, c) => values[i] = c.text.trim());
     _numbers.forEach((i, n) => values[i] = '$n');
+    _picks.forEach((i, v) => values[i] = v);
     return widget.row.copyWith(values: values);
   }
 
@@ -169,14 +183,46 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  _code,
-                  style: SsText.mono(
-                    size: 20,
-                    weight: FontWeight.w600,
-                    color: c.ink,
-                  ),
-                ),
+                child: _product == null
+                    ? Text(
+                        _code,
+                        style: SsText.mono(
+                          size: 20,
+                          weight: FontWeight.w600,
+                          color: c.ink,
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _product!,
+                            style: SsText.sans(
+                              size: 20,
+                              weight: FontWeight.w600,
+                              spacing: -0.4,
+                              color: c.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text.rich(
+                            TextSpan(
+                              text: _code,
+                              style: SsText.mono(
+                                size: 15,
+                                weight: FontWeight.w400,
+                                color: c.ink2,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: ' · name from product lookup',
+                                  style: SsText.caption(color: c.muted),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
               ),
               const SizedBox(width: 10),
               SsIconButton(
@@ -194,7 +240,7 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
             const SizedBox(height: 16),
             _DuplicateBanner(row: dup, qtyIndex: _qtyIndex),
           ],
-          if (_text.isNotEmpty || _numbers.isNotEmpty) ...[
+          if (_session.reviewColumnIndices.isNotEmpty) ...[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -206,19 +252,27 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
               child: Column(
                 children: [
                   for (final (k, i)
-                      in _session.manualColumnIndices.indexed) ...[
+                      in _session.reviewColumnIndices.indexed) ...[
                     if (k > 0) Divider(height: 1, color: c.lineSoft),
-                    _numbers.containsKey(i)
-                        ? _NumberField(
-                            label: _session.columns[i].name,
-                            value: _numbers[i]!,
-                            step: _session.columns[i].stepSize,
-                            onChanged: (v) => setState(() => _numbers[i] = v),
-                          )
-                        : _TextField(
-                            label: _session.columns[i].name,
-                            controller: _text[i]!,
-                          ),
+                    if (_picks.containsKey(i))
+                      _PickField(
+                        label: _session.columns[i].name,
+                        choices: _session.columns[i].choices,
+                        value: _picks[i]!,
+                        onChanged: (v) => setState(() => _picks[i] = v),
+                      )
+                    else if (_numbers.containsKey(i))
+                      _NumberField(
+                        label: _session.columns[i].name,
+                        value: _numbers[i]!,
+                        step: _session.columns[i].stepSize,
+                        onChanged: (v) => setState(() => _numbers[i] = v),
+                      )
+                    else
+                      _TextField(
+                        label: _session.columns[i].name,
+                        controller: _text[i]!,
+                      ),
                   ],
                 ],
               ),
@@ -489,6 +543,106 @@ class _Chip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PickField extends StatelessWidget {
+  final String label;
+  final List<String> choices;
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  const _PickField({
+    required this.label,
+    required this.choices,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ss;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            label,
+            style: SsText.sans(weight: FontWeight.w500, color: c.ink),
+          ),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, box) {
+              const gap = 6.0;
+              final perRow = choices.length.clamp(1, 3);
+              final w = (box.maxWidth - gap * (perRow - 1)) / perRow;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (final choice in choices)
+                    SizedBox(
+                      width: w,
+                      height: 44,
+                      child: _Choice(
+                        label: choice,
+                        selected: choice == value,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          onChanged(choice);
+                        },
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Choice extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _Choice({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ss;
+    return Material(
+      color: selected ? c.ink : c.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: selected ? c.ink : c.strongBorder,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Center(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: SsText.sans(
+              size: 14,
+              weight: FontWeight.w600,
+              color: selected ? c.onInk : c.ink,
+            ),
+          ),
+        ),
       ),
     );
   }

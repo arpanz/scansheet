@@ -1002,3 +1002,75 @@ class _CornerPainter extends CustomPainter {
   bool shouldRepaint(_CornerPainter old) =>
       old.color != color || old.top != top || old.left != left;
 }
+
+/// Single-field prompt (rename etc.). Returns the trimmed text, or null if
+/// cancelled or empty. The field's controller lives in the dialog's own
+/// state so it outlives the closing animation.
+Future<String?> showSsTextPrompt(
+  BuildContext context, {
+  required String title,
+  required String label,
+  String initial = '',
+  String action = 'Save',
+}) async {
+  final value = await showDialog<String>(
+    context: context,
+    builder: (_) => _TextPrompt(
+      title: title,
+      label: label,
+      initial: initial,
+      action: action,
+    ),
+  );
+  return (value == null || value.isEmpty) ? null : value;
+}
+
+class _TextPrompt extends StatefulWidget {
+  final String title;
+  final String label;
+  final String initial;
+  final String action;
+
+  const _TextPrompt({
+    required this.title,
+    required this.label,
+    required this.initial,
+    required this.action,
+  });
+
+  @override
+  State<_TextPrompt> createState() => _TextPromptState();
+}
+
+class _TextPromptState extends State<_TextPrompt> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.pop(context, _controller.text.trim());
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: InputDecoration(labelText: widget.label),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(onPressed: _submit, child: Text(widget.action)),
+      ],
+    );
+  }
+}

@@ -125,6 +125,34 @@ class SyncQueueService {
     );
   }
 
+  /// Points every queued row of a session at a new spreadsheet and resends
+  /// all of them (the new sheet starts empty).
+  static Future<void> resendSession(
+    String sessionId,
+    String spreadsheetId,
+    String? sheetName,
+    List<(int, List<String>)> rows,
+  ) async {
+    await clearForSession(sessionId);
+    final now = DateTime.now();
+    for (final (index, values) in rows) {
+      await _safeBox.put(
+        '${sessionId}_$index',
+        SyncQueueItem(
+          id: '${sessionId}_$index',
+          sessionId: sessionId,
+          rowIndex: index,
+          rowData: values,
+          destination: SyncDestination.googleSheets,
+          spreadsheetId: spreadsheetId,
+          sheetName: sheetName,
+          createdAt: now,
+        ).toMap(),
+      );
+    }
+    _refreshStats();
+  }
+
   /// Rows of one session that are not yet in the sheet.
   static int pendingForSession(String sessionId) => getAll()
       .where((i) => i.sessionId == sessionId && i.status != SyncStatus.synced)

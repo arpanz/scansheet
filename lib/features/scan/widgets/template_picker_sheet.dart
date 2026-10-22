@@ -17,8 +17,9 @@ class TemplatePickerResult {
       const TemplatePickerResult._(dismissed: false, template: null);
   factory TemplatePickerResult.fromTemplate(SessionTemplate t) =>
       TemplatePickerResult._(dismissed: false, template: t);
-  static const TemplatePickerResult dismiss =
-      TemplatePickerResult._(dismissed: true);
+  static const TemplatePickerResult dismiss = TemplatePickerResult._(
+    dismissed: true,
+  );
 }
 
 /// Bottom sheet that lets the user pick a template (built-in or custom)
@@ -27,7 +28,7 @@ class TemplatePickerResult {
 /// Usage:
 /// ```dart
 /// final result = await TemplatePicker.show(context);
-/// if (!result.dismissed) { /* open SessionSetupScreen */ }
+/// if (!result.dismissed) { /* open NewSheetScreen */ }
 /// ```
 class TemplatePicker {
   static Future<TemplatePickerResult> show(BuildContext context) async {
@@ -67,8 +68,7 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
     'grid_view_rounded': Icons.grid_view_rounded,
   };
 
-  IconData _iconFor(String name) =>
-      _iconMap[name] ?? Icons.grid_view_rounded;
+  IconData _iconFor(String name) => _iconMap[name] ?? Icons.grid_view_rounded;
 
   @override
   Widget build(BuildContext context) {
@@ -86,8 +86,7 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
         return Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF121215) : const Color(0xFFFCFCFD),
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border(
               top: BorderSide(
                 color: isDark
@@ -171,8 +170,7 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
                       color: context.themeTextSecondary,
                     ),
                     isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 11),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 11),
                   ),
                 ),
               ),
@@ -188,7 +186,9 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
                     Navigator.pop(context, TemplatePickerResult.blank());
                   },
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -198,7 +198,9 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
                           color: context.themeCard,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                              color: context.themeBorder, width: 1),
+                            color: context.themeBorder,
+                            width: 1,
+                          ),
                         ),
                         child: Icon(
                           Icons.add_rounded,
@@ -273,8 +275,7 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
                         controller: scrollController,
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                         itemCount: templates.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: 8),
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
                         itemBuilder: (_, i) => _TemplateCard(
                           template: templates[i],
                           iconData: _iconFor(templates[i].icon),
@@ -302,9 +303,10 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
   }
 
   Future<void> _duplicateTemplate(
-      BuildContext context, SessionTemplate template) async {
-    final nameController =
-        TextEditingController(text: '${template.name} copy');
+    BuildContext context,
+    SessionTemplate template,
+  ) async {
+    final nameController = TextEditingController(text: '${template.name} copy');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -316,23 +318,29 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Save')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Save'),
+          ),
         ],
       ),
     );
     if (confirmed == true && nameController.text.trim().isNotEmpty) {
       await TemplateService.duplicateTemplate(
-          template.id, nameController.text.trim());
+        template.id,
+        nameController.text.trim(),
+      );
       if (mounted) setState(() {});
     }
   }
 
   Future<void> _deleteTemplate(
-      BuildContext context, SessionTemplate template) async {
+    BuildContext context,
+    SessionTemplate template,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -340,13 +348,16 @@ class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
         content: Text('"${template.name}" will be permanently removed.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Delete',
-                  style:
-                      TextStyle(color: Theme.of(context).colorScheme.error))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
         ],
       ),
     );
@@ -409,12 +420,16 @@ class _TemplateCard extends StatelessWidget {
                     if (template.isBuiltIn)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: context.themeCard,
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                              color: context.themeBorder, width: 0.5),
+                            color: context.themeBorder,
+                            width: 0.5,
+                          ),
                         ),
                         child: Text(
                           'Built-in',
@@ -459,8 +474,7 @@ class _TemplateCard extends StatelessWidget {
               if (onDelete != null)
                 PopupMenuItem(
                   value: 'delete',
-                  child:
-                      Text('Delete', style: TextStyle(color: Colors.red)),
+                  child: Text('Delete', style: TextStyle(color: Colors.red)),
                 ),
             ],
           ),

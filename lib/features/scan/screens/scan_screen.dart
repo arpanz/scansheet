@@ -21,10 +21,11 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/services/scan_history_service.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/services/template_service.dart';
+import '../../../core/services/sheet_summary.dart';
 import '../models/scan_session.dart';
 import 'scan_session_screen.dart';
 import 'all_sessions_screen.dart';
-import 'session_setup_screen.dart';
+import '../../sheet/new_sheet_screen.dart';
 import 'export_templates_screen.dart';
 import '../widgets/template_picker_sheet.dart';
 import '../../../core/utils/app_router.dart';
@@ -390,14 +391,7 @@ class _ScanScreenState extends State<ScanScreen> {
     if (result.dismissed || !mounted) return;
     await Navigator.push(
       context,
-      FadeSlideRoute(
-        page: SessionSetupScreen(
-          initialTemplate: result.template,
-          onSessionEnded: () {
-            if (mounted) setState(() {});
-          },
-        ),
-      ),
+      FadeSlideRoute(page: NewSheetScreen(template: result.template)),
     );
     if (mounted) setState(() {});
   }
@@ -406,14 +400,7 @@ class _ScanScreenState extends State<ScanScreen> {
     _stopScanner();
     await Navigator.push(
       context,
-      FadeSlideRoute(
-        page: SessionSetupScreen(
-          initialTemplate: template,
-          onSessionEnded: () {
-            if (mounted) setState(() {});
-          },
-        ),
-      ),
+      FadeSlideRoute(page: NewSheetScreen(template: template)),
     );
     if (mounted) setState(() {});
   }
@@ -1529,8 +1516,8 @@ class _RecentSessionTile extends StatelessWidget {
     final IconData cardIcon;
     final Color cardColor;
     if (iconKey != null) {
-      cardIcon = sessionIconData(iconKey);
-      cardColor = sessionIconColor(iconKey);
+      cardIcon = sheetIcon(iconKey);
+      cardColor = context.ss.emerald;
     } else if (template != null) {
       cardIcon = _templateIconForTile(template.icon);
       cardColor = const Color(0xFF006A6B);

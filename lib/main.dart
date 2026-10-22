@@ -9,6 +9,7 @@ import 'core/ads/ad_manager.dart';
 import 'core/services/google_sheets_service.dart';
 import 'core/services/sheets_sync_service.dart';
 import 'core/services/history_service.dart';
+import 'core/services/product_lookup_service.dart';
 import 'core/services/scan_history_service.dart';
 import 'core/services/scan_session_service.dart';
 import 'core/services/scanning_preferences.dart';
@@ -38,6 +39,7 @@ void main() async {
   await ScanSessionService.init();
   await SyncQueueService.init();
   await TemplateService.init();
+  await ProductLookupService.instance.init();
 
   final initialThemeMode = await _loadInitialThemeMode();
   final showOnboarding = await OnboardingScreen.shouldShow();

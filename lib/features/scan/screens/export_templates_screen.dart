@@ -89,7 +89,13 @@ class _ExportTemplatesScreenState extends State<ExportTemplatesScreen> {
           idx == 0 ? '12 May 2026, 09:00' : '12 May 2026, 09:01',
         SessionColumnType.increment => '${idx + 1}',
         SessionColumnType.fixed => c.fixedValue ?? 'Value',
-        SessionColumnType.location => idx == 0 ? '37.422, -122.084' : '37.423, -122.085',
+        SessionColumnType.location =>
+          idx == 0 ? '37.422, -122.084' : '37.423, -122.085',
+        SessionColumnType.pickList =>
+          c.defaultValue ?? (c.choices.isEmpty ? 'Good' : c.choices.first),
+        SessionColumnType.productInfo =>
+          idx == 0 ? 'Whole wheat biscuits' : 'Green tea 25 bags',
+        SessionColumnType.readText => idx == 0 ? 'EXP 03/27' : 'EXP 11/26',
       };
     }).toList();
   }
