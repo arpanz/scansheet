@@ -21,6 +21,7 @@ import 'done_for_now_screen.dart';
 import 'scan_help_screen.dart';
 import '../widgets/scanner/scan_confirm_sheet.dart';
 import '../widgets/scanner/read_text_sheet.dart';
+import '../widgets/scanner/value_sheet.dart';
 
 class ScanSessionScreen extends StatefulWidget {
   final ScanSession session;
@@ -41,7 +42,12 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   int _zoom = 0;
   bool _torch = false, _processing = false, _success = false;
   bool _multiPaused = false, _cameraError = false, _sheetOpen = false;
+  bool _toastNeutral = false;
   String? _lastValue, _toast;
+  // Same value columns: the next code sets this column ("Scan a label"),
+  // and the last change, so Undo can put the old value back.
+  int? _captureLabelFor;
+  ({int column, String previous})? _valueUndo;
   DateTime? _lastAt;
   Timer? _toastTimer;
   List<Barcode> _multi = [];
@@ -65,6 +71,11 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     _resetPending();
     if (_session.columns.any((c) => c.type == SessionColumnType.location)) {
       LocationService.instance.warmUp();
+    }
+    if (_session.columns.any(
+      (c) => c.type == SessionColumnType.fixed && c.askAtStart,
+    )) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _askStartValues());
     }
   }
 
@@ -118,6 +129,8 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       return;
     _lastValue = value;
     _lastAt = now;
+    final label = _labelTarget(value);
+    if (label != null) return _setValue(label.column, label.value);
     final scans = _session.scanColumnIndices;
     if (scans.isEmpty) return;
     setState(() => _processing = true);
@@ -234,6 +247,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       _visitRows++;
       _processing = false;
       _success = true;
+      _valueUndo = null;
       _resetPending();
     });
     if (_vibrate) HapticFeedback.mediumImpact();
@@ -260,16 +274,108 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     if (!mounted) return;
     setState(() {
       _rows = ScanSessionService.getRows(_session.id);
+      _valueUndo = null;
       _resetPending();
     });
     _flash('Qty $nextQty · row ${target.rowIndex + 1}');
   }
 
-  void _flash(String message) {
+  /// A code that sets a Same value column instead of adding a row: the next
+  /// code after "Scan a label", or one starting with the column's prefix.
+  ({int column, String value})? _labelTarget(String code) {
+    final capture = _captureLabelFor;
+    if (capture != null) {
+      _captureLabelFor = null;
+      return (column: capture, value: code);
+    }
+    return _session.labelFor(code);
+  }
+
+  /// Switches a Same value column for the rows scanned from now on.
+  Future<void> _setValue(int index, String value, {bool undo = false}) async {
+    _processing = true;
+    final col = _session.columns[index];
+    final previous = col.fixedValue ?? '';
+    if (value == previous) {
+      _flash('${col.name} is already $value', neutral: true);
+      return;
+    }
+    final columns = List.of(_session.columns)
+      ..[index] = undo ? col.copyWith(fixedValue: value) : col.withValue(value);
+    final changed = _session.copyWith(columns: columns);
+    await ScanSessionService.saveSession(changed);
+    if (!mounted) return;
+    setState(() {
+      _session = changed;
+      // A row half-way through its scan columns takes the new value too.
+      final pending = _pendingRow;
+      if (pending != null) {
+        _pendingRow = pending.copyWith(
+          values: List.of(pending.values)..[index] = value,
+        );
+      }
+      _valueUndo = undo ? null : (column: index, previous: previous);
+    });
+    if (_vibrate) {
+      HapticFeedback.lightImpact();
+      Future.delayed(
+        const Duration(milliseconds: 120),
+        HapticFeedback.lightImpact,
+      );
+    }
+    _flash(
+      undo ? '${col.name} back to $value' : '${col.name} is now $value',
+      neutral: true,
+    );
+  }
+
+  Future<void> _changeValue(int index) async {
+    _sheetOpen = true;
+    await _camera.stop();
+    if (!mounted) return;
+    final choice = await showValueSheet(
+      context,
+      column: _session.columns[index],
+    );
+    _sheetOpen = false;
+    await _applyValueChoice(index, choice);
+    if (mounted) _resume();
+  }
+
+  Future<void> _applyValueChoice(int index, ValueChoice? choice) async {
+    switch (choice) {
+      case ValueSet(:final value):
+        await _setValue(index, value);
+      case ValueScanLabel():
+        if (mounted) setState(() => _captureLabelFor = index);
+      case null:
+        break;
+    }
+  }
+
+  /// "Ask when scanning starts": one sheet per column, before the first scan.
+  /// Choosing "Scan a label" stops asking; the rest keep their values.
+  Future<void> _askStartValues() async {
+    _sheetOpen = true;
+    await _camera.stop();
+    for (var i = 0; i < _session.columns.length; i++) {
+      final col = _session.columns[i];
+      if (col.type != SessionColumnType.fixed || !col.askAtStart) continue;
+      if (!mounted) return;
+      final choice = await showValueSheet(context, column: col, starting: true);
+      await _applyValueChoice(i, choice);
+      if (choice is ValueScanLabel) break;
+    }
+    _sheetOpen = false;
+    _resume();
+  }
+
+  void _flash(String message, {bool neutral = false}) {
     if (!mounted) return;
     setState(() {
       _toast = message;
-      _success = true;
+      _toastNeutral = neutral;
+      _success = !neutral;
       _processing = false;
     });
     _toastTimer?.cancel();
@@ -290,6 +396,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   }
 
   Future<void> _undo() async {
+    final change = _valueUndo;
+    if (change != null) {
+      return _setValue(change.column, change.previous, undo: true);
+    }
     if (_rows.isEmpty) return;
     await ScanSessionService.deleteRow(_session.id, _rows.last.rowIndex);
     if (mounted)
@@ -399,6 +509,15 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     final cornerColor = _success
         ? SsColors.brandLime
         : Colors.white.withValues(alpha: .8);
+    // Value changes and "Scan a label" use a white toast; rows use lime.
+    final capture = _captureLabelFor;
+    final toastText =
+        _toast ??
+        (capture == null
+            ? null
+            : 'Scan a ${_session.columns[capture].name.toLowerCase()} label');
+    final neutral = _toast == null || _toastNeutral;
+    final toastColor = neutral ? Colors.white : SsColors.brandLime;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
@@ -510,22 +629,21 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                       height: 36,
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
-                        child: _toast == null
+                        child: toastText == null
                             ? const SizedBox.shrink()
                             : Container(
+                                key: ValueKey(toastText),
                                 height: 36,
                                 padding: const EdgeInsets.only(
                                   left: 6,
                                   right: 14,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: SsColors.brandLime,
+                                  color: toastColor,
                                   borderRadius: BorderRadius.circular(18),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: SsColors.brandLime.withValues(
-                                        alpha: .25,
-                                      ),
+                                      color: toastColor.withValues(alpha: .25),
                                       blurRadius: 22,
                                     ),
                                   ],
@@ -540,15 +658,19 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                                         color: SsColors.brandInk,
                                         shape: BoxShape.circle,
                                       ),
-                                      child: const Icon(
-                                        LucideIcons.check,
-                                        color: SsColors.brandLime,
+                                      child: Icon(
+                                        neutral
+                                            ? LucideIcons.tag
+                                            : LucideIcons.check,
+                                        color: neutral
+                                            ? Colors.white
+                                            : SsColors.brandLime,
                                         size: 14,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      _toast!,
+                                      toastText,
                                       style: SsText.sans(
                                         size: 14,
                                         weight: FontWeight.w600,
@@ -859,6 +981,25 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              if (_session.columns.any(
+                (c) => c.type == SessionColumnType.fixed,
+              )) ...[
+                SizedBox(
+                  height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (var i = 0; i < _session.columns.length; i++)
+                        if (_session.columns[i].type == SessionColumnType.fixed)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: _valueChip(i),
+                          ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               Row(
                 children: [
                   Expanded(
@@ -1017,6 +1158,61 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// "Bin  B-13 ▾": tap to change a Same value column (ScannerValue.dc.html).
+  /// Highlighted right after a change and while waiting for its label.
+  Widget _valueChip(int index) {
+    final col = _session.columns[index];
+    final value = col.fixedValue ?? '';
+    final active = _valueUndo?.column == index || _captureLabelFor == index;
+    return Semantics(
+      button: true,
+      label: '${col.name} ${value.isEmpty ? 'not set' : value}, change',
+      child: GestureDetector(
+        onTap: () => _changeValue(index),
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.only(left: 12, right: 10),
+          decoration: BoxDecoration(
+            color: active ? const Color(0xFFEEF9C8) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: active ? SsColors.brandInk : const Color(0xFFD3D8D1),
+              width: active ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                col.name,
+                style: SsText.sans(
+                  size: 14,
+                  weight: FontWeight.w500,
+                  color: const Color(0xFF4A5550),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                value.isEmpty ? 'Set' : value,
+                style: SsText.mono(
+                  size: 14,
+                  weight: FontWeight.w600,
+                  color: SsColors.brandInk,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                LucideIcons.chevronDown,
+                size: 14,
+                color: SsColors.brandInk,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

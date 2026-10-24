@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/widgets/ss.dart';
 import '../scan/models/column_kind.dart';
@@ -26,8 +27,11 @@ class _AddColumnFormState extends State<_AddColumnForm> {
   late final TextEditingController _step;
   late final TextEditingController _value;
   late final TextEditingController _choiceInput;
+  late final TextEditingController _prefix;
   late List<String> _choices;
   late String? _defaultChoice;
+  late bool _labelOn;
+  late bool _askAtStart;
 
   @override
   void initState() {
@@ -42,6 +46,9 @@ class _AddColumnFormState extends State<_AddColumnForm> {
           : col?.defaultValue ?? (_kind == ColumnKind.number ? '1' : ''),
     );
     _choiceInput = TextEditingController();
+    _prefix = TextEditingController(text: col?.labelPrefix ?? '');
+    _labelOn = (col?.labelPrefix ?? '').isNotEmpty;
+    _askAtStart = col?.askAtStart ?? false;
     _choices = List.of(col?.choices ?? const ['Good', 'Damaged', 'Missing']);
     _defaultChoice =
         col?.defaultValue ?? (_choices.isEmpty ? null : _choices.first);
@@ -53,6 +60,7 @@ class _AddColumnFormState extends State<_AddColumnForm> {
     _step.dispose();
     _value.dispose();
     _choiceInput.dispose();
+    _prefix.dispose();
     super.dispose();
   }
 
@@ -82,6 +90,8 @@ class _AddColumnFormState extends State<_AddColumnForm> {
       return;
     }
     final value = _value.text.trim();
+    final fixed = _kind == ColumnKind.fixed;
+    final prefix = _prefix.text.trim();
     Navigator.of(context).pop(
       SessionColumn(
         name: name,
@@ -98,6 +108,11 @@ class _AddColumnFormState extends State<_AddColumnForm> {
             : 1,
         choices: _kind == ColumnKind.pickList
             ? List.unmodifiable(_choices)
+            : const [],
+        labelPrefix: fixed && _labelOn && prefix.isNotEmpty ? prefix : null,
+        askAtStart: fixed && _askAtStart,
+        recentValues: fixed
+            ? widget.editing?.recentValues ?? const []
             : const [],
       ),
     );
@@ -219,11 +234,83 @@ class _AddColumnFormState extends State<_AddColumnForm> {
                 ],
               ),
             ],
-            if (_kind == ColumnKind.fixed) ...[
-              const SizedBox(height: 10),
-              _Field(label: 'Value', controller: _value),
-            ],
-            if (_kind == ColumnKind.pickList) ...[
+            if (_kind == ColumnKind.fixed)
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.only(top: 10),
+                  children: [
+                    _Field(label: 'Starting value', controller: _value),
+                    const SizedBox(height: 12),
+                    Text(
+                      'While scanning',
+                      style: SsText.sans(
+                        size: 13,
+                        weight: FontWeight.w500,
+                        color: c.ink2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    SsListGroup(
+                      children: [
+                        SsListRow(
+                          title: 'Change by scanning a label',
+                          subtitle:
+                              'Tapping the value in the scanner always works too',
+                          trailing: _switch(_labelOn, (v) {
+                            _labelOn = v;
+                            if (v && _prefix.text.trim().isEmpty) {
+                              _prefix.text = 'BIN-';
+                            }
+                          }),
+                        ),
+                        if (_labelOn)
+                          SsListRow(
+                            title: 'Labels start with',
+                            subtitle:
+                                'These set the value, they don’t add a row',
+                            trailing: SizedBox(
+                              width: 92,
+                              height: 44,
+                              child: TextField(
+                                controller: _prefix,
+                                style: SsText.mono(size: 15, color: c.ink),
+                                decoration: InputDecoration(
+                                  hintText: 'BIN-',
+                                  filled: true,
+                                  fillColor: c.surface,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: c.line),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: c.ink,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        SsListRow(
+                          title: 'Ask when scanning starts',
+                          subtitle:
+                              'Good for a batch or shift that changes daily',
+                          trailing: _switch(
+                            _askAtStart,
+                            (v) => _askAtStart = v,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              )
+            else if (_kind == ColumnKind.pickList) ...[
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -317,6 +404,15 @@ class _AddColumnFormState extends State<_AddColumnForm> {
       ),
     );
   }
+
+  Widget _switch(bool value, void Function(bool) onChanged) => Switch(
+    value: value,
+    onChanged: (v) {
+      HapticFeedback.selectionClick();
+      setState(() => onChanged(v));
+    },
+    activeTrackColor: context.ss.emerald,
+  );
 
   void _addChoice() {
     final value = _choiceInput.text.trim();

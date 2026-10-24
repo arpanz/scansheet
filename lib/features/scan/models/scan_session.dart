@@ -23,6 +23,9 @@ class SessionColumn {
   final bool isNumeric; // shows stepper (– N +) instead of TextField
   final int stepSize; // stepper increment, defaults to 1
   final List<String> choices; // pick-list options
+  final String? labelPrefix; // fixed: codes with this prefix set the value
+  final bool askAtStart; // fixed: ask for the value when scanning starts
+  final List<String> recentValues; // fixed: newest first, at most 6
 
   const SessionColumn({
     required this.name,
@@ -32,6 +35,9 @@ class SessionColumn {
     this.isNumeric = false,
     this.stepSize = 1,
     this.choices = const [],
+    this.labelPrefix,
+    this.askAtStart = false,
+    this.recentValues = const [],
   });
 
   SessionColumn copyWith({
@@ -42,6 +48,9 @@ class SessionColumn {
     bool? isNumeric,
     int? stepSize,
     List<String>? choices,
+    String? labelPrefix,
+    bool? askAtStart,
+    List<String>? recentValues,
   }) {
     return SessionColumn(
       name: name ?? this.name,
@@ -51,7 +60,21 @@ class SessionColumn {
       isNumeric: isNumeric ?? this.isNumeric,
       stepSize: stepSize ?? this.stepSize,
       choices: choices ?? this.choices,
+      labelPrefix: labelPrefix ?? this.labelPrefix,
+      askAtStart: askAtStart ?? this.askAtStart,
+      recentValues: recentValues ?? this.recentValues,
     );
+  }
+
+  /// Returns a copy with [fixedValue] set to [value], inserting it at the
+  /// front of [recentValues] (deduplicated, capped at 6).
+  SessionColumn withValue(String value) {
+    final old = (fixedValue?.isNotEmpty ?? false) && fixedValue != value
+        ? fixedValue!
+        : null;
+    final rest = recentValues.where((v) => v != value && v != old);
+    final recents = [value, ?old, ...rest].take(6).toList();
+    return copyWith(fixedValue: value, recentValues: recents);
   }
 
   Map<String, dynamic> toMap() => {
@@ -62,6 +85,9 @@ class SessionColumn {
     'isNumeric': isNumeric,
     'stepSize': stepSize,
     'choices': choices,
+    'labelPrefix': labelPrefix,
+    'askAtStart': askAtStart,
+    'recentValues': recentValues,
   };
 
   factory SessionColumn.fromMap(Map map) => SessionColumn(
@@ -75,6 +101,9 @@ class SessionColumn {
     isNumeric: map['isNumeric'] as bool? ?? false,
     stepSize: map['stepSize'] as int? ?? 1,
     choices: List<String>.from(map['choices'] as List? ?? const []),
+    labelPrefix: map['labelPrefix'] as String?,
+    askAtStart: map['askAtStart'] as bool? ?? false,
+    recentValues: List<String>.from(map['recentValues'] as List? ?? const []),
   );
 }
 
@@ -161,6 +190,20 @@ class ScanSession {
   static const int maxColumns = 10;
 
   int get columnCount => columns.length;
+
+  /// A code that starts with a Same value column's label prefix sets that
+  /// column (prefix stripped, case-insensitive). Null for an ordinary code.
+  ({int column, String value})? labelFor(String code) {
+    for (var i = 0; i < columns.length; i++) {
+      final col = columns[i];
+      final prefix = col.labelPrefix ?? '';
+      if (col.type != SessionColumnType.fixed || prefix.isEmpty) continue;
+      if (!code.toUpperCase().startsWith(prefix.toUpperCase())) continue;
+      final value = code.substring(prefix.length).trim();
+      return (column: i, value: value.isEmpty ? code : value);
+    }
+    return null;
+  }
 
   /// Column that "Repeats add to Qty" increments: the first numeric manual
   /// column, else a manual column named Qty/Quantity/Count. -1 if none.

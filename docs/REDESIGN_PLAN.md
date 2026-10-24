@@ -60,3 +60,61 @@ Types: Scan (multiple allowed), Product info (auto from barcode via open product
 
 ## Open placeholders
 Prices (`[PRICE]`), user name/email, teammate names in designs.
+
+## Lists and live values (added 2026-10-24)
+
+Why: in persona walkthroughs (warehouse count, shift attendance, asset audit, production QC), every one of them stalled on the same two gaps. ScanSheet can't tell who or what a code is, and it can't change a bin or batch value mid-session. Canvas boards: "Lists & live values" row (ListImport, NewSheetList, ScannerList, SheetViewList, AddColumnValue, ScannerValue).
+
+### A. Lists ("check against a list")
+- A **list** is a reusable table imported once: a code column plus other columns (e.g. Badge ID → Name, Department; SKU → Item, Expected qty). It's kept on the phone and can be attached to any number of sheets (the same staff list every morning).
+- **Sources:** a Google Sheets tab (reuse the existing spreadsheet list from `step3_destination.dart`, then `spreadsheets.values.get` on the tab; the current scopes already allow it) or an .xlsx/.csv from the phone (`file_picker` + `excel`/`csv`, already dependencies). Google lists refresh silently whenever scanning starts while online and fall back to the cached copy offline.
+- **Import screen (ListImport):** pick the source, name the list, pick which column holds the code (show a sample value under each header), tick which columns fill in on scan, and optionally pick an "Expected count" column for stock counts.
+- **Code matching:** trim, case-insensitive, and treat a UPC-A code and its EAN-13 form (with a leading 0) as the same code.
+- **New sheet (NewSheetList):** a "Check against a list" card. "Codes not on the list" is a three-way choice: Ask · Add and flag · Skip. Attaching a list switches "Warn on repeats" on by default. New column kind **From list** (tag `FROM LIST`, emerald outline) fills in one field of the list's row.
+- **Scanner (ScannerList):** the header shows `found/total`, and the bottom panel shows a progress bar with "N not here yet".
+  - *Matched:* lime frame and a toast with the name; the card shows the name, code and fields.
+  - *Not on list:* amber frame (`#F2A93B` on the dark scanner) and a card with Skip / Add anyway.
+  - *Repeat:* white frame, "X is already here · 08:52", Skip / Add again.
+  - Haptics: success = medium; not on list = double heavy; repeat = light.
+- **Sheet view (SheetViewList):** a progress bar plus three count cards that double as tabs.
+  - Attendance: Here · Not yet · Not on list.
+  - Stock (when the list has an Expected column): Match · Off count (shown as `−3` in Error red, `+2` in Emerald, "37 of 40") · Not counted. Counted qty = the sum of the sheet's Qty column for that code.
+- **Export:** Excel gets a second sheet and Google Sheets a second tab, named "Not scanned" (attendance) or "Count vs expected" (stock), rewritten on every Done for now. Rows added via "Add and flag" carry a trailing `On list` = `No` column.
+- **Library:** a third tab, **Lists**, where you can rename, refresh, see entries, delete, and see which sheets use each list.
+
+### B. Live values (change a Same value while scanning)
+- A Same value column gains: **Change by scanning a label** with a "Labels start with" prefix (e.g. `BIN-`), and **Ask when scanning starts** (for batch, shift or gate). Tapping the chip in the scanner always works.
+- **Scanner (ScannerValue):** the bottom panel shows one chip per Same value column (`Bin  B-13 ▾`).
+  - Tapping a chip opens "Bin for the next scans": **Scan a bin label** (a one-shot capture that ignores the prefix), up to 6 recent values, a field to type a new one, and Use.
+  - A matching label scan sets the value (the prefix is stripped) and adds no row. It shows a white frame, the toast "Bin is now B-13", the chip highlighted in lime-row, and Undo.
+  - Rows already scanned keep their old value.
+- **Precedence in `_handle`:** label-prefix check → list lookup → repeats/Qty merge → confirm sheet.
+
+### Model changes
+- `SessionColumn`: `labelPrefix` (String?), `askAtStart` (bool), `recentValues` (List<String>, max 6), `listField` (String?, for From list).
+- New `SessionColumnType.fromList` and `ColumnKind.fromList`.
+- `ScanSession`: `lookupListId` (String?), `unknownCodes` (`ask|flag|skip`).
+- `SessionRow`: `notOnList` (bool).
+- A value change is `session.copyWith(columns: …fixedValue…)` + `saveSession` + `_resetPending()`. `buildEmptyRow` already reads `fixedValue`.
+- New `LookupList` model and `LookupListService` (Hive box `lookup_lists`). Store entries as a `Map<normalizedCode, List<String>>` with headers and import metadata.
+
+### Build order (B first: smaller, and unblocks counts right away)
+11. B1 Model fields and migration defaults; Add column UI for Same value (prefix, ask at start).
+12. B2 Scanner chips, picker sheet, Undo, prefix scan, one-shot "Scan a label", ask-at-start sheet before the camera opens.
+13. A1 `LookupList` model and service, file import (xlsx/csv), ListImport screen.
+14. A2 Google Sheets tab import and refresh; Library › Lists tab.
+15. A3 New sheet list card, From list column kind, unknown-code policy.
+16. A4 Scanner matching states and progress; Sheet view tabs (attendance and stock).
+17. A5 Export / Google second tab; flagged rows.
+18. Templates:
+    - Attendance → Badge + From list Name/Department + Time, list required.
+    - Inventory → Location becomes Bin with prefix `BIN-` and ask at start.
+    - New **Stock count** template (list with Expected).
+    - New **Production / QC** template: Serial scan, Batch (ask at start), Pass/Fail pick-list.
+
+### Decisions
+- Free plan: lists free up to 100 entries each; Pro for larger lists (decided 2026-10-24).
+
+### Open decisions
+- Should the label prefix be stripped from the stored value? (Planned: yes.)
+- Attendance In/Out (first scan = In, next = Out, with duration) is the natural follow-up, but it's out of scope here.

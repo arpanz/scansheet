@@ -78,7 +78,7 @@ enum ColumnKind {
     SsTagKind.neutral,
     LucideIcons.tag,
     'Aisle',
-    'The same value on every row, like a shelf, gate or batch number.',
+    'The same value on every row until you change it, like a bin, batch or gate.',
   ),
   auto(
     'Auto no.',
@@ -149,10 +149,13 @@ enum ColumnKind {
     readText => 'Printed text, read on the phone',
     time => 'Filled in when scanned',
     location => 'GPS at scan time',
-    fixed =>
+    fixed => [
       (c.fixedValue ?? '').isEmpty
           ? 'Same on every row'
-          : 'Always “${c.fixedValue}”',
+          : 'Starts as “${c.fixedValue}”',
+      if ((c.labelPrefix ?? '').isNotEmpty) 'scan ${c.labelPrefix} labels',
+      if (c.askAtStart) 'asked at start',
+    ].join(' · '),
     auto => '1, 2, 3… in scan order',
   };
 }
