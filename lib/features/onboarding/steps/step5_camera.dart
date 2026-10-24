@@ -31,7 +31,8 @@ class _OnbCameraStepState extends State<OnbCameraStep> {
             );
       final name = template?.name ?? 'My sheet';
       final columns =
-          template?.columns ??
+          // No list on a first run: From list columns become typed ones.
+          template?.columnsWithoutList ??
           const [
             SessionColumn(name: 'Scan', type: SessionColumnType.scan),
             SessionColumn(name: 'Time', type: SessionColumnType.timestamp),

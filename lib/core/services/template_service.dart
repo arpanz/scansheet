@@ -55,14 +55,62 @@ class TemplateService {
       icon: 'people_rounded',
       isBuiltIn: true,
       createdAt: DateTime(2025),
+      listPrompt:
+          'Pick your staff list: badge IDs with names and departments. '
+          'Each scan fills them in and shows who isn’t here yet.',
       columns: [
         const SessionColumn(name: 'ID / Badge', type: SessionColumnType.scan),
-        const SessionColumn(name: 'Name', type: SessionColumnType.manual),
+        const SessionColumn(
+          name: 'Name',
+          type: SessionColumnType.fromList,
+          listField: 'Name',
+        ),
+        const SessionColumn(
+          name: 'Department',
+          type: SessionColumnType.fromList,
+          listField: 'Department',
+        ),
         const SessionColumn(
           name: 'In / Out',
           type: SessionColumnType.pickList,
           choices: ['In', 'Out'],
           defaultValue: 'In',
+        ),
+        const SessionColumn(
+          name: 'Timestamp',
+          type: SessionColumnType.timestamp,
+        ),
+      ],
+    ),
+    SessionTemplate(
+      id: 'builtin_stock_count',
+      name: 'Stock count',
+      icon: 'inventory_2_rounded',
+      isBuiltIn: true,
+      createdAt: DateTime(2025),
+      listPrompt:
+          'Pick your stock list with an expected count for each item. '
+          'The sheet then shows what matches, what’s off and what’s not '
+          'counted yet.',
+      columns: [
+        const SessionColumn(name: 'SKU', type: SessionColumnType.scan),
+        const SessionColumn(
+          name: 'Item',
+          type: SessionColumnType.fromList,
+          listField: 'Item',
+        ),
+        const SessionColumn(
+          name: 'Qty',
+          type: SessionColumnType.manual,
+          isNumeric: true,
+          defaultValue: '1',
+        ),
+        const SessionColumn(
+          name: 'Bin',
+          type: SessionColumnType.fixed,
+          fixedValue: '',
+          labelPrefix: 'BIN-',
+          askAtStart: true,
         ),
         const SessionColumn(
           name: 'Timestamp',
@@ -231,6 +279,7 @@ class TemplateService {
       isBuiltIn: false,
       createdAt: DateTime.now(),
       columns: List.from(source.columns),
+      listPrompt: source.listPrompt,
     );
     await saveTemplate(copy);
     return copy;
@@ -249,6 +298,10 @@ class SessionTemplate {
   final bool isBuiltIn;
   final DateTime createdAt;
 
+  /// Why this template wants a list, shown when it's picked. Null = it
+  /// doesn't use one.
+  final String? listPrompt;
+
   const SessionTemplate({
     required this.id,
     required this.name,
@@ -256,7 +309,17 @@ class SessionTemplate {
     required this.columns,
     required this.isBuiltIn,
     required this.createdAt,
+    this.listPrompt,
   });
+
+  /// The columns for a sheet with no list: From list columns become plain
+  /// typed columns, so the template still works on a first run.
+  List<SessionColumn> get columnsWithoutList => [
+    for (final c in columns)
+      c.type == SessionColumnType.fromList
+          ? SessionColumn(name: c.name, type: SessionColumnType.manual)
+          : c,
+  ];
 
   /// Short description shown under the template name in the picker.
   String get columnSummary {
@@ -277,6 +340,7 @@ class SessionTemplate {
     columns: columns ?? this.columns,
     isBuiltIn: isBuiltIn,
     createdAt: createdAt,
+    listPrompt: listPrompt,
   );
 
   Map<String, dynamic> toMap() => {
@@ -286,6 +350,7 @@ class SessionTemplate {
     'columns': columns.map((c) => c.toMap()).toList(),
     'isBuiltIn': isBuiltIn,
     'createdAt': createdAt.toIso8601String(),
+    'listPrompt': listPrompt,
   };
 
   factory SessionTemplate.fromMap(Map map) => SessionTemplate(
@@ -297,5 +362,6 @@ class SessionTemplate {
         .toList(),
     isBuiltIn: map['isBuiltIn'] as bool? ?? false,
     createdAt: DateTime.parse(map['createdAt'] as String),
+    listPrompt: map['listPrompt'] as String?,
   );
 }

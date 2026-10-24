@@ -298,7 +298,8 @@ class _TeamScreenState extends State<TeamScreen> {
         const SizedBox(height: 6),
         Text(
           'Teammates scan this in ScanSheet and their rows land in the same '
-          'Google Sheet, with the same columns.',
+          'Google Sheet, with the same columns'
+          '${team.hasList ? ' and list' : ''}.',
           style: SsText.body(color: c.ink2),
         ),
         const SizedBox(height: 18),

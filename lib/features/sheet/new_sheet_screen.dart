@@ -46,6 +46,11 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
         ? [const SessionColumn(name: 'Item code', type: SessionColumnType.scan)]
         : List.of(template.columns);
     _templateIcon = template?.icon;
+    if (template?.listPrompt != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _askForList(template!),
+      );
+    }
   }
 
   @override
@@ -69,7 +74,8 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
       if (i != _list!.codeColumn && h.isNotEmpty) h,
   ];
 
-  Future<void> _pickList() async {
+  /// Returns whether a list is attached afterwards.
+  Future<bool> _pickList() async {
     final lists = LookupListService.all();
     final picked = lists.isEmpty
         ? 'import'
@@ -112,13 +118,67 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
               ),
             ),
           );
-    if (!mounted || picked == null) return;
+    if (!mounted || picked == null) return _list != null;
     final list = picked == 'import'
         ? await Navigator.of(
             context,
           ).push<LookupList>(FadeSlideRoute(page: const ListImportScreen()))
         : LookupListService.get(picked);
     if (list != null && mounted) _attach(list);
+    return _list != null;
+  }
+
+  /// A template built around a list (Attendance, Stock count) asks for one.
+  /// Without it, its From list columns become typed columns.
+  Future<void> _askForList(SessionTemplate template) async {
+    if (!mounted) return;
+    final pick = await showSsSheet<bool>(
+      context,
+      builder: (ctx) {
+        final c = ctx.ss;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SsIconTile(
+                  LucideIcons.listChecks,
+                  background: c.emeraldTint,
+                  color: c.emerald,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                '${template.name} works best with a list',
+                style: SsText.heading(color: c.ink),
+              ),
+              const SizedBox(height: 6),
+              Text(template.listPrompt!, style: SsText.body(color: c.ink2)),
+              const SizedBox(height: 20),
+              SsButton(
+                'Pick a list',
+                icon: LucideIcons.listChecks,
+                onPressed: () => Navigator.pop(ctx, true),
+              ),
+              const SizedBox(height: 8),
+              SsButton(
+                'Not now',
+                kind: SsButtonKind.ghost,
+                large: false,
+                onPressed: () => Navigator.pop(ctx, false),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (!mounted) return;
+    if (pick == true && await _pickList()) return;
+    if (mounted) setState(() => _columns = template.columnsWithoutList);
   }
 
   /// Attaching a list keeps From list columns it can fill, adds one per
@@ -169,6 +229,12 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
       _columns = List.of(template.columns);
       _templateIcon = template.icon;
     });
+    // A staff list attached for Attendance is the wrong list for a stock
+    // count: a template built around a list starts without one and asks.
+    if (template.listPrompt != null) {
+      setState(() => _list = null);
+      return _askForList(template);
+    }
     if (_list case final list?) _attach(list);
   }
 

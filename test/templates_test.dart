@@ -16,6 +16,40 @@ void main() {
     expect(status.defaultValue, 'In');
   });
 
+  test('attendance fills name and department from the staff list', () {
+    final attendance = templates['builtin_attendance']!;
+    expect(attendance.listPrompt, isNotNull);
+    expect(col('builtin_attendance', 'Name').type, SessionColumnType.fromList);
+    expect(col('builtin_attendance', 'Department').listField, 'Department');
+  });
+
+  test('without a list, From list columns become typed columns', () {
+    final columns = templates['builtin_attendance']!.columnsWithoutList;
+    final name = columns.firstWhere((c) => c.name == 'Name');
+    expect(name.type, SessionColumnType.manual);
+    expect(name.isNumeric, isFalse);
+    expect(columns.map((c) => c.name), [
+      'ID / Badge',
+      'Name',
+      'Department',
+      'In / Out',
+      'Timestamp',
+    ]);
+    expect(
+      templates['builtin_inventory']!.columnsWithoutList,
+      templates['builtin_inventory']!.columns,
+    );
+  });
+
+  test('stock count wants a list and counts Qty per bin', () {
+    final stock = templates['builtin_stock_count']!;
+    expect(stock.listPrompt, isNotNull);
+    expect(stock.columns.first.type, SessionColumnType.scan);
+    expect(col('builtin_stock_count', 'Item').listField, 'Item');
+    expect(col('builtin_stock_count', 'Qty').isNumeric, isTrue);
+    expect(col('builtin_stock_count', 'Bin').askAtStart, isTrue);
+  });
+
   test('inventory counts Qty and asks for the bin', () {
     final qty = col('builtin_inventory', 'Qty');
     expect(qty.isNumeric, isTrue);
