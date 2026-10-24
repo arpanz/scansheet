@@ -52,6 +52,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   bool _torch = false, _processing = false, _success = false;
   bool _multiPaused = false, _cameraError = false, _sheetOpen = false;
   bool _toastNeutral = false, _toastWarn = false;
+  bool _locationNoticeShown = false;
   LookupList? _list;
   String? _lastValue, _toast;
   // Same value columns: the next code sets this column ("Scan a label"),
@@ -94,8 +95,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     _torch = prefs.torchDefault;
     _camera = MobileScannerController(torchEnabled: _torch);
     _resetPending();
-    if (_session.columns.any((c) => c.type == SessionColumnType.location)) {
-      LocationService.instance.warmUp();
+    if (_hasLocation) {
+      final location = LocationService.instance;
+      location.status.addListener(_onLocationStatus);
+      location.start();
     }
     if (_session.columns.any(
       (c) => c.type == SessionColumnType.fixed && c.askAtStart,
@@ -136,10 +139,30 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         rows: _rows.length,
       );
     }
+    if (_hasLocation) {
+      LocationService.instance.status.removeListener(_onLocationStatus);
+      LocationService.instance.stop();
+    }
     _toastTimer?.cancel();
     HardwareKeyboard.instance.removeHandler(_onKey);
     _camera.dispose();
     super.dispose();
+  }
+
+  bool get _hasLocation =>
+      _session.columns.any((c) => c.type == SessionColumnType.location);
+
+  /// Said once, never a dialog: rows still save, just without a location.
+  void _onLocationStatus() {
+    final text = switch (LocationService.instance.status.value) {
+      LocationStatus.off => 'Location is off · rows save without it',
+      LocationStatus.denied => 'No location access · rows save without it',
+      _ => null,
+    };
+    if (text != null && !_locationNoticeShown) {
+      _locationNoticeShown = true;
+      _flash(text, neutral: true);
+    }
   }
 
   bool get _armed =>
@@ -439,15 +462,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   }
 
   Future<void> _commit(SessionRow row) async {
-    var finalRow = row;
-    for (var i = 0; i < _session.columns.length; i++) {
-      if (_session.columns[i].type == SessionColumnType.location) {
-        final location = await LocationService.instance.getLocationString();
-        final vals = List<String>.from(finalRow.values)..[i] = location;
-        finalRow = finalRow.copyWith(values: vals);
-      }
-    }
+    final finalRow = row;
     await ScanSessionService.addRow(_session.id, finalRow);
+    if (_hasLocation) unawaited(_fillLocation(_session, finalRow.rowIndex));
     if (!mounted) return;
     setState(() {
       _rows = ScanSessionService.getRows(_session.id);
@@ -483,6 +500,36 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     if (list == null || scan == null || scan >= row.values.length) return null;
     final match = list.lookup(row.values[scan]);
     return match == null ? null : list.titleFor(match);
+  }
+
+  /// Location cells are filled after the row is saved, so a scan never
+  /// waits for a fix or a place lookup. Runs on even if the scanner closes.
+  static Future<void> _fillLocation(ScanSession session, int rowIndex) async {
+    final location = LocationService.instance;
+    final columns = [
+      for (final (i, c) in session.columns.indexed)
+        if (c.type == SessionColumnType.location) (i, c.locationFormat),
+    ];
+    final pos = await location.position();
+    final place = pos != null && columns.any((c) => c.$2.needsPlace)
+        ? await location.placeAt(pos)
+        : null;
+    // Re-read: the row may have been edited or undone meanwhile.
+    final current = ScanSessionService.getRows(
+      session.id,
+    ).where((r) => r.rowIndex == rowIndex).firstOrNull;
+    if (current == null) return;
+    final values = List.of(current.values);
+    for (final (i, format) in columns) {
+      if (i >= values.length || values[i].isNotEmpty) continue;
+      values[i] = pos == null
+          ? location.unavailableText ?? 'Location unavailable'
+          : formatLocation(format, pos.latitude, pos.longitude, place);
+    }
+    await ScanSessionService.updateRow(
+      session.id,
+      current.copyWith(values: values),
+    );
   }
 
   /// "Repeats add to Qty": bump the existing row instead of adding one.

@@ -37,6 +37,7 @@ class _AddColumnFormState extends State<_AddColumnForm> {
   late bool _labelOn;
   late bool _askAtStart;
   late String? _listField;
+  late LocationFormat _locationFormat;
 
   List<ColumnKind> get _kinds => [
     for (final kind in ColumnKind.values)
@@ -60,6 +61,7 @@ class _AddColumnFormState extends State<_AddColumnForm> {
     _labelOn = (col?.labelPrefix ?? '').isNotEmpty;
     _askAtStart = col?.askAtStart ?? false;
     _listField = col?.listField ?? widget.listHeaders.firstOrNull;
+    _locationFormat = col?.locationFormat ?? LocationFormat.coordinates;
     _choices = List.of(col?.choices ?? const ['Good', 'Damaged', 'Missing']);
     _defaultChoice =
         col?.defaultValue ?? (_choices.isEmpty ? null : _choices.first);
@@ -129,6 +131,9 @@ class _AddColumnFormState extends State<_AddColumnForm> {
             ? widget.editing?.recentValues ?? const []
             : const [],
         listField: _kind == ColumnKind.fromList ? _listField : null,
+        locationFormat: _kind == ColumnKind.location
+            ? _locationFormat
+            : LocationFormat.coordinates,
       ),
     );
   }
@@ -403,6 +408,56 @@ class _AddColumnFormState extends State<_AddColumnForm> {
                           ),
                         ],
                       ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (_kind == ColumnKind.location) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Record as',
+                style: SsText.sans(
+                  size: 13,
+                  weight: FontWeight.w500,
+                  color: c.ink2,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Expanded(
+                child: ListView(
+                  children: [
+                    SsListGroup(
+                      children: [
+                        for (final format in LocationFormat.values)
+                          SsListRow(
+                            title: format.label,
+                            subtitle: format.example,
+                            trailing: SsRadio(
+                              selected: format == _locationFormat,
+                            ),
+                            onTap: () => setState(() {
+                              // Name follows the choice unless it was typed.
+                              final auto =
+                                  _name.text.isEmpty ||
+                                  _name.text ==
+                                      ColumnKind.location.defaultName ||
+                                  _name.text == _locationFormat.label;
+                              _locationFormat = format;
+                              if (auto) {
+                                _name.text =
+                                    format == LocationFormat.coordinates
+                                    ? ColumnKind.location.defaultName
+                                    : format.label;
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Names come from the phone’s map service and need '
+                      'internet. Offline, the cell gets the coordinates.',
+                      style: SsText.sans(size: 12, color: c.muted),
                     ),
                   ],
                 ),

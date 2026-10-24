@@ -16,6 +16,25 @@ enum SessionColumnType {
 
 enum SessionDestination { localCsv, localXlsx, googleSheets }
 
+/// What a Location column records. One reading serves every Location
+/// column, so a sheet can have, say, District and PIN code side by side.
+enum LocationFormat {
+  coordinates('Coordinates', '28.613939,77.209021'),
+  address('Full address', 'Janpath, Connaught Place, New Delhi 110001, India'),
+  area('Area', 'Connaught Place, New Delhi'),
+  district('District', 'New Delhi'),
+  state('State', 'Delhi'),
+  postalCode('PIN / postcode', '110001'),
+  country('Country', 'India');
+
+  final String label;
+  final String example;
+  const LocationFormat(this.label, this.example);
+
+  /// Every format but coordinates needs a place lookup.
+  bool get needsPlace => this != coordinates;
+}
+
 /// What happens to a scanned code that isn't on the sheet's list.
 enum UnknownCodes {
   ask, // Show Skip / Add anyway
@@ -35,6 +54,7 @@ class SessionColumn {
   final bool askAtStart; // fixed: ask for the value when scanning starts
   final List<String> recentValues; // fixed: newest first, at most 6
   final String? listField; // fromList: list header to fill in
+  final LocationFormat locationFormat; // location: what to record
 
   const SessionColumn({
     required this.name,
@@ -48,6 +68,7 @@ class SessionColumn {
     this.askAtStart = false,
     this.recentValues = const [],
     this.listField,
+    this.locationFormat = LocationFormat.coordinates,
   });
 
   SessionColumn copyWith({
@@ -62,6 +83,7 @@ class SessionColumn {
     bool? askAtStart,
     List<String>? recentValues,
     String? listField,
+    LocationFormat? locationFormat,
   }) {
     return SessionColumn(
       name: name ?? this.name,
@@ -75,6 +97,7 @@ class SessionColumn {
       askAtStart: askAtStart ?? this.askAtStart,
       recentValues: recentValues ?? this.recentValues,
       listField: listField ?? this.listField,
+      locationFormat: locationFormat ?? this.locationFormat,
     );
   }
 
@@ -101,6 +124,7 @@ class SessionColumn {
     'askAtStart': askAtStart,
     'recentValues': recentValues,
     'listField': listField,
+    'locationFormat': locationFormat.name,
   };
 
   factory SessionColumn.fromMap(Map map) => SessionColumn(
@@ -118,6 +142,10 @@ class SessionColumn {
     askAtStart: map['askAtStart'] as bool? ?? false,
     recentValues: List<String>.from(map['recentValues'] as List? ?? const []),
     listField: map['listField'] as String?,
+    locationFormat: LocationFormat.values.firstWhere(
+      (e) => e.name == map['locationFormat'],
+      orElse: () => LocationFormat.coordinates,
+    ),
   );
 }
 
@@ -276,9 +304,8 @@ class ScanSession {
       if (columns[i].type == SessionColumnType.manual) i,
   ];
 
-  /// Builds a row synchronously. For location columns, inserts a placeholder
-  /// ('…') that must be replaced by calling LocationService asynchronously
-  /// before saving the row. Use [buildRowAsync] when possible.
+  /// Builds a row synchronously. Location cells start empty; the scanner
+  /// fills them when the row is saved, without waiting for a fix.
   SessionRow buildEmptyRow(int rowIndex) {
     final values = <String>[];
     for (final col in columns) {
@@ -289,8 +316,6 @@ class ScanSession {
           values.add('${rowIndex + 1}');
         case SessionColumnType.fixed:
           values.add(col.fixedValue ?? '');
-        case SessionColumnType.location:
-          values.add('…');
         case SessionColumnType.pickList:
           values.add(
             col.defaultValue ?? (col.choices.isEmpty ? '' : col.choices.first),
@@ -306,6 +331,7 @@ class ScanSession {
         case SessionColumnType.productInfo:
         case SessionColumnType.readText:
         case SessionColumnType.fromList:
+        case SessionColumnType.location:
           values.add('');
       }
     }

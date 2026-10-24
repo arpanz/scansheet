@@ -78,7 +78,7 @@ enum ColumnKind {
     SsTagKind.neutral,
     LucideIcons.mapPin,
     'Location',
-    'GPS at scan time. ScanSheet asks for location only when a sheet has this column.',
+    'Where the phone was when the code was read: coordinates, or a place like the district or PIN code. ScanSheet asks for location only when a sheet has this column.',
   ),
   fixed(
     'Same value',
@@ -158,7 +158,10 @@ enum ColumnKind {
     text => 'Typed, optional',
     readText => 'Printed text, read on the phone',
     time => 'Filled in when scanned',
-    location => 'GPS at scan time',
+    location =>
+      c.locationFormat == LocationFormat.coordinates
+          ? 'GPS coordinates at scan time'
+          : '${c.locationFormat.label} at scan time',
     fixed => [
       (c.fixedValue ?? '').isEmpty
           ? 'Same on every row'

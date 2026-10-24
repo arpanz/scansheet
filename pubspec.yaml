@@ -54,6 +54,7 @@ dependencies:
   quick_actions: ^1.1.1
   home_widget: ^0.10.0
   audioplayers: ^6.8.1
+  geocoding: ^5.0.0
 
 dev_dependencies:
   flutter_test:
