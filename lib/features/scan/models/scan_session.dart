@@ -263,8 +263,14 @@ class ScanSession {
           values.add(
             col.defaultValue ?? (col.choices.isEmpty ? '' : col.choices.first),
           );
-        case SessionColumnType.scan:
         case SessionColumnType.manual:
+          // Numbers start at their default so a scan never waits for input.
+          values.add(
+            col.isNumeric
+                ? col.defaultValue ?? '${col.stepSize}'
+                : col.defaultValue ?? '',
+          );
+        case SessionColumnType.scan:
         case SessionColumnType.productInfo:
         case SessionColumnType.readText:
           values.add('');

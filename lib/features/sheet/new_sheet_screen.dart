@@ -9,6 +9,7 @@ import '../../core/widgets/ss.dart';
 import '../scan/models/column_kind.dart';
 import '../scan/models/scan_session.dart';
 import '../scan/screens/scan_session_screen.dart';
+import '../settings/screens/connect_sheets_screen.dart';
 import '../sync/plan_limits.dart';
 import 'add_column_sheet.dart';
 
@@ -25,6 +26,7 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
   late List<SessionColumn> _columns;
   String _destination = 'sheets';
   String? _templateIcon;
+  SheetDestination? _existing;
   bool _mergeRepeats = true;
   bool _warnDuplicates = false;
   bool _showConfirmation = false;
@@ -45,6 +47,15 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
   void dispose() {
     _name.dispose();
     super.dispose();
+  }
+
+  /// Several phones writing to one spreadsheet is how a team shares a sheet
+  /// until team sheets exist.
+  Future<void> _pickExisting() async {
+    final picked = await Navigator.of(
+      context,
+    ).push<SheetDestination>(FadeSlideRoute(page: const ConnectSheetsScreen()));
+    if (picked != null && mounted) setState(() => _existing = picked);
   }
 
   bool get _hasNumber =>
@@ -121,7 +132,8 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
           }
         }
         if (destination == SessionDestination.googleSheets) {
-          spreadsheetId = await service.createSpreadsheet(name);
+          spreadsheetId =
+              _existing?.spreadsheetId ?? await service.createSpreadsheet(name);
         }
       }
       final session = ScanSession(
@@ -135,7 +147,7 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
         mergeRepeats: _hasNumber && _mergeRepeats,
         destination: destination,
         spreadsheetId: spreadsheetId,
-        sheetName: null,
+        sheetName: spreadsheetId == null ? null : _existing?.sheetName,
         iconName: _templateIcon ?? 'inventory',
       );
       await ScanSessionService.saveSession(session);
@@ -223,11 +235,38 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
                   ),
                   const SizedBox(height: 7),
                   Text(switch (_destination) {
+                    'sheets' when _existing != null =>
+                      'Rows go to “${_existing!.spreadsheetTitle}” › '
+                          '${_existing!.sheetName}. Teammates can pick the '
+                          'same spreadsheet on their phones.',
                     'sheets' => 'Rows sync live to a new sheet in My Drive',
                     'xlsx' =>
                       'Saved on this phone, share the .xlsx when you finish',
                     _ => 'Plain file that opens in any spreadsheet tool',
                   }, style: SsText.sans(size: 12, color: c.muted)),
+                  if (_destination == 'sheets')
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: _existing == null
+                            ? _pickExisting
+                            : () => setState(() => _existing = null),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          foregroundColor: c.emerald,
+                        ),
+                        child: Text(
+                          _existing == null
+                              ? 'Use an existing spreadsheet'
+                              : 'Make a new one instead',
+                          style: SsText.sans(
+                            size: 13,
+                            weight: FontWeight.w600,
+                            color: c.emerald,
+                          ),
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 20),
                   Row(
                     children: [

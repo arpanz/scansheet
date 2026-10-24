@@ -247,27 +247,16 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
                     ),
                     if (isSheets) ...[
                       const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _DestinationAction(
-                              label: 'Open in Sheets',
-                              icon: LucideIcons.externalLink,
-                              onTap: _openSheet,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _DestinationAction(
-                              label: 'Share with team',
-                              icon: LucideIcons.userPlus,
-                              onTap: () => showSsToast(
-                                context,
-                                'Team sheets are coming soon',
-                              ),
-                            ),
-                          ),
-                        ],
+                      _DestinationAction(
+                        label: 'Open in Sheets',
+                        icon: LucideIcons.externalLink,
+                        onTap: _openSheet,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Scanning as a team? Each phone can pick this '
+                        'spreadsheet when making a new sheet.',
+                        style: SsText.sans(size: 12, color: c.muted),
                       ),
                     ],
                   ],

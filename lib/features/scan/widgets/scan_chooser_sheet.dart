@@ -21,28 +21,16 @@ Future<void> showScanChooser(BuildContext context) {
 
   return showSsSheet(
     context,
-    builder: (ctx) => _ScanChooser(
-      recent: SheetSummary.all().take(2).toList(),
-      onOpen: go,
-      onTeam: () {
-        navigator.pop();
-        if (context.mounted)
-          showSsToast(context, 'Team sheets are coming soon');
-      },
-    ),
+    builder: (ctx) =>
+        _ScanChooser(recent: SheetSummary.all().take(2).toList(), onOpen: go),
   );
 }
 
 class _ScanChooser extends StatelessWidget {
   final List<SheetSummary> recent;
   final ValueChanged<Widget> onOpen;
-  final VoidCallback onTeam;
 
-  const _ScanChooser({
-    required this.recent,
-    required this.onOpen,
-    required this.onTeam,
-  });
+  const _ScanChooser({required this.recent, required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -91,14 +79,6 @@ class _ScanChooser extends StatelessWidget {
                   icon: LucideIcons.zap,
                   label: 'Just read a code',
                   onTap: () => onOpen(const ReadCodeScreen()),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ActionTile(
-                  icon: LucideIcons.users,
-                  label: 'Join a team sheet',
-                  onTap: onTeam,
                 ),
               ),
             ],

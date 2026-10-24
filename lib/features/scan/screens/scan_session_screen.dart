@@ -48,6 +48,8 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   // and the last change, so Undo can put the old value back.
   int? _captureLabelFor;
   ({int column, String previous})? _valueUndo;
+  // The row the last scan added or bumped; the panel shows and edits it.
+  int? _touchedRow;
   DateTime? _lastAt;
   Timer? _toastTimer;
   List<Barcode> _multi = [];
@@ -147,10 +149,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       await _mergeQty(existing, _session.columns[qtyIndex].stepSize);
       return;
     }
-    final showSheet =
-        !skipConfirmation &&
-        (_session.showScanConfirmation ||
-            _session.manualColumnIndices.isNotEmpty);
+    // Text and Number columns never stop the camera: they're filled in from
+    // the bottom panel afterwards. Only "Review each scan" opens the sheet.
+    final showSheet = !skipConfirmation && _session.showScanConfirmation;
     final colIndex = scans[_activeScanColumnIndex.clamp(0, scans.length - 1)];
     // With the confirm sheet, repeats are handled by its banner instead.
     if (!showSheet &&
@@ -248,6 +249,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       _processing = false;
       _success = true;
       _valueUndo = null;
+      _touchedRow = finalRow.rowIndex;
       _resetPending();
     });
     if (_vibrate) HapticFeedback.mediumImpact();
@@ -275,6 +277,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     setState(() {
       _rows = ScanSessionService.getRows(_session.id);
       _valueUndo = null;
+      _touchedRow = target.rowIndex;
       _resetPending();
     });
     _flash('Qty $nextQty · row ${target.rowIndex + 1}');
@@ -956,7 +959,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   Widget _bottomPanel() {
     // The panel is drawn light in every theme (Scanner.dc.html).
     const c = SsColors.light;
-    final last = _rows.isEmpty ? null : _rows.last;
+    final last =
+        _rows.where((r) => r.rowIndex == _touchedRow).firstOrNull ??
+        _rows.lastOrNull;
     return Positioned(
       left: 0,
       right: 0,
@@ -1040,8 +1045,11 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                   },
                   child: Text('Add all ${_multi.length}'),
                 ),
-              ] else
+              ] else ...[
                 _lastRow(last),
+                if (last != null && _session.manualColumnIndices.isNotEmpty)
+                  ..._fieldsRow(last),
+              ],
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -1160,6 +1168,185 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         ],
       ),
     );
+  }
+
+  /// Text and Number columns of the row just scanned, edited in place so the
+  /// camera never stops: a stepper per Number, a tap-to-type chip per Text.
+  List<Widget> _fieldsRow(SessionRow row) => [
+    const SizedBox(height: 8),
+    SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (final i in _session.manualColumnIndices)
+            if (i < row.values.length)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _session.columns[i].isNumeric
+                    ? _numberField(row, i)
+                    : _textField(row, i),
+              ),
+        ],
+      ),
+    ),
+  ];
+
+  Widget _fieldBox({required Widget child, VoidCallback? onTap}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 44,
+          padding: const EdgeInsets.only(left: 12, right: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE3E6E0)),
+          ),
+          child: child,
+        ),
+      );
+
+  Widget _numberField(SessionRow row, int index) {
+    final col = _session.columns[index];
+    final value = int.tryParse(row.values[index].trim()) ?? 0;
+    return _fieldBox(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            col.name,
+            style: SsText.sans(
+              size: 13,
+              weight: FontWeight.w500,
+              color: const Color(0xFF4A5550),
+            ),
+          ),
+          const SizedBox(width: 6),
+          _stepButton(
+            LucideIcons.minus,
+            '${col.name} down',
+            value - col.stepSize < 0
+                ? null
+                : () => _editField(row, index, '${value - col.stepSize}'),
+          ),
+          SizedBox(
+            width: 40,
+            child: Text(
+              '$value',
+              textAlign: TextAlign.center,
+              style: SsText.mono(
+                size: 16,
+                weight: FontWeight.w600,
+                color: SsColors.brandInk,
+              ),
+            ),
+          ),
+          _stepButton(
+            LucideIcons.plus,
+            '${col.name} up',
+            () => _editField(row, index, '${value + col.stepSize}'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepButton(IconData icon, String label, VoidCallback? onTap) =>
+      Semantics(
+        button: true,
+        label: label,
+        child: GestureDetector(
+          onTap: onTap == null
+              ? null
+              : () {
+                  HapticFeedback.selectionClick();
+                  onTap();
+                },
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F2EE),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              size: 16,
+              color: onTap == null
+                  ? const Color(0xFFB7BEB9)
+                  : SsColors.brandInk,
+            ),
+          ),
+        ),
+      );
+
+  Widget _textField(SessionRow row, int index) {
+    final col = _session.columns[index];
+    final value = row.values[index];
+    return Semantics(
+      button: true,
+      label: '${col.name}: ${value.isEmpty ? 'empty' : value}, edit',
+      child: _fieldBox(
+        onTap: () => _typeField(row, index),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              col.name,
+              style: SsText.sans(
+                size: 13,
+                weight: FontWeight.w500,
+                color: const Color(0xFF4A5550),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 140),
+              child: Text(
+                value.isEmpty ? 'Add' : value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: SsText.sans(
+                  size: 14,
+                  weight: FontWeight.w600,
+                  color: value.isEmpty
+                      ? const Color(0xFF0B7D45)
+                      : SsColors.brandInk,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _typeField(SessionRow row, int index) async {
+    final col = _session.columns[index];
+    _sheetOpen = true;
+    final value = await showSsTextPrompt(
+      context,
+      title: col.name,
+      label: 'Row ${row.rowIndex + 1}',
+      initial: row.values[index],
+    );
+    _sheetOpen = false;
+    if (value != null) await _editField(row, index, value.trim());
+  }
+
+  /// Saves one cell of an existing row; synced rows update in place.
+  Future<void> _editField(SessionRow row, int index, String value) async {
+    final current = _rows.where((r) => r.rowIndex == row.rowIndex).firstOrNull;
+    if (current == null || current.values[index] == value) return;
+    await ScanSessionService.updateRow(
+      _session.id,
+      current.copyWith(values: List.of(current.values)..[index] = value),
+    );
+    if (mounted) {
+      setState(() => _rows = ScanSessionService.getRows(_session.id));
+    }
   }
 
   /// "Bin  B-13 ▾": tap to change a Same value column (ScannerValue.dc.html).

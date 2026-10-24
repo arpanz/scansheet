@@ -824,31 +824,13 @@ class _EmptySheets extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Start from a template, or join a teammate’s sheet with their code.',
+              'Start from a template. To scan as a team, everyone picks the '
+              'same Google spreadsheet.',
               textAlign: TextAlign.center,
               style: SsText.sans(size: 13, color: c.ink2),
             ),
             const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: SsButton(
-                    'New sheet',
-                    large: false,
-                    onPressed: onNewSheet,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SsButton.secondary(
-                    'Join one',
-                    large: false,
-                    onPressed: () =>
-                        showSsToast(context, 'Team sheets are coming soon'),
-                  ),
-                ),
-              ],
-            ),
+            SsButton('New sheet', large: false, onPressed: onNewSheet),
           ],
         ),
       ),
