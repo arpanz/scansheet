@@ -18,6 +18,7 @@ import 'core/services/scanning_preferences.dart';
 import 'core/services/sync_queue_service.dart';
 import 'core/services/template_service.dart';
 import 'core/services/lookup_list_service.dart';
+import 'core/services/team_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_router.dart';
 import 'core/utils/review_service.dart';
@@ -57,6 +58,8 @@ void main() async {
   await AdManager.instance.initialize();
   await UsageService.instance.init();
   await SheetsSyncService.instance.start();
+  // Owners let in teammates who join; never blocks startup.
+  unawaited(TeamService.instance.start());
   await ReviewService.trackDailyLaunch();
 
   AdManager.onShowPaywall = (context) async {

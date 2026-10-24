@@ -6,6 +6,7 @@ import '../../../core/widgets/ss.dart';
 import '../screens/read_code_screen.dart';
 import '../screens/scan_session_screen.dart';
 import '../../sheet/new_sheet_screen.dart';
+import '../../team/join_team_screen.dart';
 
 /// "Scan into…" chooser (docs/design/mocks/ScanChooser.dc.html), shown by the
 /// Scan button when no sheet is in progress.
@@ -82,6 +83,12 @@ class _ScanChooser extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          _ActionTile(
+            icon: LucideIcons.users,
+            label: 'Join a team sheet',
+            onTap: () => onOpen(const JoinTeamScreen()),
           ),
           const SizedBox(height: 14),
           Text(

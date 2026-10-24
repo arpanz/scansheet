@@ -16,6 +16,7 @@ import '../../../core/services/product_lookup_service.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/services/scan_sound.dart';
 import '../../../core/services/scanning_preferences.dart';
+import '../../../core/services/team_service.dart';
 import '../../../core/services/usage_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ss.dart';
@@ -82,6 +83,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     _rows = ScanSessionService.getRows(_session.id);
     _list = LookupListService.get(_session.lookupListId);
     _refreshList();
+    if (_session.teamCode != null) _joinTeam();
     final prefs = context.read<ScanningPreferences>();
     _vibrate = prefs.vibrateEnabled;
     _beep = prefs.soundEnabled;
@@ -102,8 +104,38 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     }
   }
 
+  /// Team sheet: picks up the owner's newer list, warns if sharing
+  /// stopped, and shows this phone as scanning.
+  Future<void> _joinTeam() async {
+    final team = await TeamService.instance.refresh(_session);
+    if (!mounted || team == null) return;
+    if (!team.active) {
+      _flash('${team.ownerName} stopped sharing', warn: true);
+      return;
+    }
+    final session = ScanSessionService.getSession(_session.id);
+    if (session != null && session.lookupListId != _session.lookupListId) {
+      setState(() {
+        _session = session;
+        _list = LookupListService.get(session.lookupListId);
+      });
+    }
+    TeamService.instance.reportPresence(
+      _session,
+      scanning: true,
+      rows: _rows.length,
+    );
+  }
+
   @override
   void dispose() {
+    if (_session.teamCode != null) {
+      TeamService.instance.reportPresence(
+        _session,
+        scanning: false,
+        rows: _rows.length,
+      );
+    }
     _toastTimer?.cancel();
     HardwareKeyboard.instance.removeHandler(_onKey);
     _camera.dispose();
@@ -171,7 +203,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       list,
       pro: UsageService.instance.isPro,
     );
-    if (updated != null && mounted) setState(() => _list = updated);
+    if (updated == null) return;
+    TeamService.instance.pushList(_session, updated);
+    if (mounted) setState(() => _list = updated);
   }
 
   /// Haptics and the beep for one outcome; [notice] for no new row, [warn]
@@ -425,6 +459,13 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       _resetPending();
     });
     final rowNo = finalRow.rowIndex + 1;
+    if (_session.teamCode != null) {
+      TeamService.instance.reportPresence(
+        _session,
+        scanning: true,
+        rows: _rows.length,
+      );
+    }
     if (finalRow.notOnList) {
       _feedback(notice: true);
       _flash('Not on list · row $rowNo', warn: true);
@@ -637,7 +678,14 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     ).push(FadeSlideRoute(page: SheetViewScreen(session: _session)));
     _sheetOpen = false;
     if (!mounted) return;
-    setState(() => _rows = ScanSessionService.getRows(_session.id));
+    // The sheet may have been renamed, shared or left from there.
+    final latest = ScanSessionService.getSession(_session.id) ?? _session;
+    final joined = latest.teamCode != null && _session.teamCode == null;
+    setState(() {
+      _session = latest;
+      _rows = ScanSessionService.getRows(_session.id);
+    });
+    if (joined) _joinTeam();
     _resume();
   }
 

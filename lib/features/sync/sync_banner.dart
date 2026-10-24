@@ -49,7 +49,9 @@ class SyncBanner extends StatelessWidget {
               missing.contains(s.spreadsheetId),
         );
         final Widget child;
-        if (lost.isNotEmpty) {
+        if (lost.isNotEmpty && lost.first.teamCode != null) {
+          child = _WaitingForAccess(session: lost.first);
+        } else if (lost.isNotEmpty) {
           child = _SheetGone(session: lost.first);
         } else if (UsageService.instance.syncPaused.value &&
             GoogleSheetsService.instance.isSignedIn) {
@@ -113,6 +115,36 @@ class _Offline extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A teammate who joined a team sheet before the owner's phone let them in.
+class _WaitingForAccess extends StatelessWidget {
+  final ScanSession session;
+  const _WaitingForAccess({required this.session});
+
+  @override
+  Widget build(BuildContext context) {
+    final sync = SheetsSyncService.instance;
+    return _StateCard(
+      icon: LucideIcons.keyRound,
+      tone: context.ss.amber,
+      title: 'Waiting to be let in',
+      body:
+          'Your rows are safe on this phone. They go to the sheet once the '
+          'owner’s ScanSheet gives you access, which happens when they open '
+          'the app.',
+      actions: [
+        SsButton(
+          'Try now',
+          large: false,
+          onPressed: () {
+            sync.forgetMissing(session.spreadsheetId!);
+            sync.retryNow();
+          },
+        ),
+      ],
     );
   }
 }

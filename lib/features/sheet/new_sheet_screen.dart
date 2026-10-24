@@ -12,6 +12,7 @@ import '../scan/models/scan_session.dart';
 import '../scan/screens/scan_session_screen.dart';
 import '../lists/list_import_screen.dart';
 import '../settings/screens/connect_sheets_screen.dart';
+import '../team/join_team_screen.dart';
 import '../sync/plan_limits.dart';
 import 'add_column_sheet.dart';
 
@@ -328,7 +329,27 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
                   ),
                   const SizedBox(height: 20),
                   _LabeledField(label: 'Name', controller: _name),
-                  const SizedBox(height: 18),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pushReplacement(
+                        FadeSlideRoute(page: const JoinTeamScreen()),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        foregroundColor: c.emerald,
+                      ),
+                      child: Text(
+                        'Joining a teammate’s sheet? Enter their code',
+                        style: SsText.sans(
+                          size: 13,
+                          weight: FontWeight.w600,
+                          color: c.emerald,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
                     'Save to',
                     style: SsText.sans(

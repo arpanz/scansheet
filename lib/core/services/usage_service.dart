@@ -219,10 +219,14 @@ class UsageService {
 
   // ── Firestore mirror ───────────────────────────────────────────────────
 
-  Future<DocumentReference<Map<String, dynamic>>?> _doc() async {
+  /// The Firebase user for the signed-in Google account, signing in to
+  /// Firebase with the same credential when needed. Null when signed out of
+  /// Google or Firebase isn't available.
+  Future<User?> firebaseUser() async {
     if (!_firebaseReady) return null;
     final auth = FirebaseAuth.instance;
     final email = _sheets.currentUser?.email;
+    if (email == null) return null;
     if (auth.currentUser == null || auth.currentUser!.email != email) {
       final idToken = _sheets.currentUser?.authentication.idToken;
       if (idToken == null) return null;
@@ -230,7 +234,11 @@ class UsageService {
         GoogleAuthProvider.credential(idToken: idToken),
       );
     }
-    final uid = auth.currentUser?.uid;
+    return auth.currentUser;
+  }
+
+  Future<DocumentReference<Map<String, dynamic>>?> _doc() async {
+    final uid = (await firebaseUser())?.uid;
     if (uid == null) return null;
     return FirebaseFirestore.instance.collection('users').doc(uid);
   }

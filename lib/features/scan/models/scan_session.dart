@@ -196,6 +196,9 @@ class ScanSession {
   final String? lookupListId;
   final UnknownCodes unknownCodes;
 
+  /// Invite code of the team sheet this belongs to (Scan together), or null.
+  final String? teamCode;
+
   const ScanSession({
     required this.id,
     required this.name,
@@ -213,6 +216,7 @@ class ScanSession {
     this.iconName,
     this.lookupListId,
     this.unknownCodes = UnknownCodes.ask,
+    this.teamCode,
   });
 
   static const int maxColumns = 10;
@@ -312,6 +316,10 @@ class ScanSession {
     );
   }
 
+  /// Leaves the team sheet: copyWith can't set a field back to null.
+  ScanSession withoutTeam() =>
+      ScanSession.fromMap({...toMap(), 'teamCode': null});
+
   ScanSession copyWith({
     String? id,
     String? name,
@@ -329,6 +337,7 @@ class ScanSession {
     String? iconName,
     String? lookupListId,
     UnknownCodes? unknownCodes,
+    String? teamCode,
   }) {
     return ScanSession(
       id: id ?? this.id,
@@ -347,6 +356,7 @@ class ScanSession {
       iconName: iconName ?? this.iconName,
       lookupListId: lookupListId ?? this.lookupListId,
       unknownCodes: unknownCodes ?? this.unknownCodes,
+      teamCode: teamCode ?? this.teamCode,
     );
   }
 
@@ -367,6 +377,7 @@ class ScanSession {
     'iconName': iconName,
     'lookupListId': lookupListId,
     'unknownCodes': unknownCodes.name,
+    'teamCode': teamCode,
   };
 
   factory ScanSession.fromMap(Map map) => ScanSession(
@@ -396,6 +407,7 @@ class ScanSession {
       (e) => e.name == map['unknownCodes'],
       orElse: () => UnknownCodes.ask,
     ),
+    teamCode: map['teamCode'] as String?,
   );
 
   /// A sheet checked against a list that can still add codes not on it

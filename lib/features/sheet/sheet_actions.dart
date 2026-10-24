@@ -4,6 +4,7 @@ import '../../core/services/scan_session_service.dart';
 import '../../core/services/sync_queue_service.dart';
 import '../../core/widgets/ss.dart';
 import '../scan/models/scan_session.dart';
+import '../team/team_screen.dart';
 
 /// One place for a sheet's lifecycle: finish, reopen, rename, clear, delete.
 /// Used from Sheet view, Library, Home and Done for now.
@@ -26,6 +27,8 @@ Future<void> showSheetActions(
       await finishSheet(context, session);
     case _Action.reopen:
       await reopenSheet(context, session);
+    case _Action.team:
+      await openTeam(context, session);
     case _Action.rename:
       await renameSheet(context, session);
     case _Action.clear:
@@ -179,7 +182,7 @@ Future<bool> _confirm(
   return ok ?? false;
 }
 
-enum _Action { finish, reopen, rename, clear, delete }
+enum _Action { finish, reopen, team, rename, clear, delete }
 
 class _ActionsSheet extends StatelessWidget {
   final ScanSession session;
@@ -229,6 +232,17 @@ class _ActionsSheet extends StatelessWidget {
                   title: 'Reopen sheet',
                   subtitle: 'Make it the sheet Scan continues',
                   onTap: () => pick(_Action.reopen),
+                ),
+              if (session.destination == SessionDestination.googleSheets)
+                SsListRow(
+                  leading: SsIconTile(LucideIcons.users, size: 36),
+                  title: session.teamCode == null
+                      ? 'Scan together'
+                      : 'Team · code ${session.teamCode}',
+                  subtitle: session.teamCode == null
+                      ? 'Teammates add rows from their phones'
+                      : 'Who’s in, invite more, stop sharing',
+                  onTap: () => pick(_Action.team),
                 ),
               SsListRow(
                 leading: SsIconTile(LucideIcons.pencil, size: 36),

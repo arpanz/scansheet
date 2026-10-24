@@ -1,10 +1,60 @@
 rules_version = '2';
 
-// Free-plan usage: one doc per Google account (lib/core/services/usage_service.dart).
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Free-plan usage: one doc per Google account (lib/core/services/usage_service.dart).
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Scan together (lib/core/services/team_service.dart). The invite code is
+    // the doc id: anyone signed in who has it can read the setup, but codes
+    // can't be listed.
+    match /teams/{code} {
+      function team() {
+        return get(/databases/$(database)/documents/teams/$(code)).data;
+      }
+      function isOwner() {
+        return signedIn() && team().ownerUid == request.auth.uid;
+      }
+      function isMember() {
+        return signedIn() && exists(
+          /databases/$(database)/documents/teams/$(code)/members/$(request.auth.uid));
+      }
+
+      allow get: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.active == true;
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+
+      match /members/{uid} {
+        allow read: if isOwner() || isMember();
+        // Joining: only yourself, only while shared, only asking for access.
+        allow create: if signedIn() && uid == request.auth.uid && (
+          isOwner()
+          || (team().active == true
+              && request.resource.data.role == 'member'
+              && request.resource.data.access == 'requested'));
+        // Teammates update their own live status; only the owner changes
+        // access or role.
+        allow update: if isOwner() || (signedIn() && uid == request.auth.uid
+          && request.resource.data.access == resource.data.access
+          && request.resource.data.role == resource.data.role);
+        allow delete: if isOwner() || (signedIn() && uid == request.auth.uid);
+      }
+
+      match /data/{doc} {
+        allow read: if isOwner() || isMember();
+        allow write: if isOwner();
+      }
     }
   }
 }

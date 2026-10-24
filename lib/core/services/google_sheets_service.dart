@@ -180,6 +180,40 @@ class GoogleSheetsService {
     }
   }
 
+  /// Gives [email] edit access to a spreadsheet (Scan together). Works for
+  /// spreadsheets ScanSheet created; others must be shared in Google Sheets.
+  Future<void> shareWith(String spreadsheetId, String email) async {
+    try {
+      final api = await _driveApi();
+      await api.permissions.create(
+        drive.Permission(type: 'user', role: 'writer', emailAddress: email),
+        spreadsheetId,
+        sendNotificationEmail: false,
+      );
+    } catch (e) {
+      throw GSheetsException('Failed to share spreadsheet: $e');
+    }
+  }
+
+  /// Takes [email]'s access away again. Best effort.
+  Future<void> unshare(String spreadsheetId, String email) async {
+    try {
+      final api = await _driveApi();
+      final list = await api.permissions.list(
+        spreadsheetId,
+        $fields: 'permissions(id,emailAddress,role)',
+      );
+      for (final p in list.permissions ?? const <drive.Permission>[]) {
+        if (p.role != 'owner' &&
+            p.emailAddress?.toLowerCase() == email.toLowerCase()) {
+          await api.permissions.delete(spreadsheetId, p.id!);
+        }
+      }
+    } catch (e) {
+      debugPrint('Unshare failed: $e');
+    }
+  }
+
   /// Create a new blank spreadsheet with the given title.
   /// Returns the new spreadsheet ID.
   Future<String> createSpreadsheet(String title) async {

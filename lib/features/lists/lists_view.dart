@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/services/lookup_list_service.dart';
 import '../../core/services/scan_session_service.dart';
 import '../../core/services/sheet_summary.dart';
+import '../../core/services/team_service.dart';
 import '../../core/services/usage_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
@@ -162,6 +163,13 @@ class ListsView extends StatelessWidget {
           list,
           pro: UsageService.instance.isPro,
         );
+        if (updated != null) {
+          for (final s in ScanSessionService.getAllSessions()) {
+            if (s.lookupListId == list.id && s.teamCode != null) {
+              TeamService.instance.pushList(s, updated);
+            }
+          }
+        }
         if (context.mounted) {
           showSsToast(
             context,
