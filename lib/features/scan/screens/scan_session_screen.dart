@@ -9,11 +9,14 @@ import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/list_check.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/lookup_list_service.dart';
 import '../../../core/services/product_lookup_service.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/services/scan_sound.dart';
 import '../../../core/services/scanning_preferences.dart';
+import '../../../core/services/usage_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ss.dart';
 import '../../../core/utils/app_router.dart';
@@ -33,6 +36,9 @@ class ScanSessionScreen extends StatefulWidget {
   State<ScanSessionScreen> createState() => _ScanSessionScreenState();
 }
 
+/// "Not on list" on the dark scanner.
+const _amber = Color(0xFFF2A93B);
+
 class _ScanSessionScreenState extends State<ScanSessionScreen> {
   late final MobileScannerController _camera;
   final _visitStarted = DateTime.now();
@@ -44,7 +50,8 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   int _zoom = 0;
   bool _torch = false, _processing = false, _success = false;
   bool _multiPaused = false, _cameraError = false, _sheetOpen = false;
-  bool _toastNeutral = false;
+  bool _toastNeutral = false, _toastWarn = false;
+  LookupList? _list;
   String? _lastValue, _toast;
   // Same value columns: the next code sets this column ("Scan a label"),
   // and the last change, so Undo can put the old value back.
@@ -73,6 +80,8 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       ScanSessionService.saveSession(_session);
     }
     _rows = ScanSessionService.getRows(_session.id);
+    _list = LookupListService.get(_session.lookupListId);
+    _refreshList();
     final prefs = context.read<ScanningPreferences>();
     _vibrate = prefs.vibrateEnabled;
     _beep = prefs.soundEnabled;
@@ -153,11 +162,30 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     return true;
   }
 
-  /// Haptics and the beep for one outcome; [notice] for no new row.
-  void _feedback({bool notice = false}) {
-    if (_beep) notice ? ScanSound.notice() : ScanSound.ok();
+  /// A Google Sheets list is read again each time scanning starts; offline,
+  /// the copy on the phone is used.
+  Future<void> _refreshList() async {
+    final list = _list;
+    if (list == null || !list.source.isSheets) return;
+    final updated = await LookupListService.refresh(
+      list,
+      pro: UsageService.instance.isPro,
+    );
+    if (updated != null && mounted) setState(() => _list = updated);
+  }
+
+  /// Haptics and the beep for one outcome; [notice] for no new row, [warn]
+  /// for a code that isn't on the list.
+  void _feedback({bool notice = false, bool warn = false}) {
+    if (_beep) notice || warn ? ScanSound.notice() : ScanSound.ok();
     if (!_vibrate) return;
-    if (notice) {
+    if (warn) {
+      HapticFeedback.heavyImpact();
+      Future.delayed(
+        const Duration(milliseconds: 140),
+        HapticFeedback.heavyImpact,
+      );
+    } else if (notice) {
       HapticFeedback.lightImpact();
       Future.delayed(
         const Duration(milliseconds: 120),
@@ -218,14 +246,65 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     if (scans.isEmpty) return;
     setState(() => _processing = true);
 
+    // The list check comes before repeats, so a code that isn't on the list
+    // never bumps a Qty.
+    final list = _list;
+    final listRow = list != null && _activeScanColumnIndex == 0
+        ? list.lookup(value)
+        : null;
+    var notOnList = false;
+    if (list != null && _activeScanColumnIndex == 0 && listRow == null) {
+      switch (_session.unknownCodes) {
+        case UnknownCodes.skip:
+          _feedback(warn: true);
+          _flash('$value isn’t on the list', warn: true);
+          return;
+        case UnknownCodes.flag:
+          notOnList = true;
+        case UnknownCodes.ask:
+          _processing = false;
+          _sheetOpen = true;
+          _feedback(warn: true);
+          await _camera.stop();
+          if (!mounted) return;
+          final add = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              icon: const Icon(LucideIcons.circleAlert, color: _amber),
+              title: const Text('Not on the list'),
+              content: Text('$value isn’t on ${list.name}.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Skip'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Add anyway'),
+                ),
+              ],
+            ),
+          );
+          _sheetOpen = false;
+          if (add != true) {
+            _resume();
+            return;
+          }
+          _processing = true;
+          notOnList = true;
+      }
+    }
+
     // Repeats add to Qty has precedence over the warning dialog.
     final qtyIndex = _session.qtyColumnIndex;
     final firstScan = scans.first;
-    final existing = _rows
-        .where(
-          (r) => r.values.length > firstScan && r.values[firstScan] == value,
-        )
-        .firstOrNull;
+    // With a list, a repeat matches the way the list does (emp-1 = EMP-1).
+    bool same(SessionRow r, int i) =>
+        r.values.length > i &&
+        (list == null
+            ? r.values[i] == value
+            : LookupList.normalize(r.values[i]) == LookupList.normalize(value));
+    final existing = _rows.where((r) => same(r, firstScan)).firstOrNull;
     if (_session.mergeRepeats && qtyIndex >= 0 && existing != null) {
       await _mergeQty(existing, _session.columns[qtyIndex].stepSize);
       return;
@@ -237,17 +316,21 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     // With the confirm sheet, repeats are handled by its banner instead.
     if (!showSheet &&
         _session.warnDuplicates &&
-        ScanSessionService.isDuplicate(_session.id, colIndex, value)) {
+        _rows.any((r) => same(r, colIndex))) {
       _processing = false;
       _sheetOpen = true;
       _feedback(notice: true);
       await _camera.stop();
       if (!mounted) return;
+      final who = listRow == null ? value : list!.titleFor(listRow);
+      final at = existing == null
+          ? ''
+          : ' · ${TimeOfDay.fromDateTime(existing.scannedAt).format(context)}';
       final add = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Already scanned'),
-          content: Text('$value is already in this sheet.'),
+          content: Text('$who is already here$at.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -267,6 +350,12 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       }
     }
     final values = List<String>.from(_pendingRow!.values)..[colIndex] = value;
+    if (listRow != null) {
+      for (final (i, col) in _session.columns.indexed) {
+        if (col.type != SessionColumnType.fromList) continue;
+        values[i] = list!.field(listRow, col.listField ?? col.name);
+      }
+    }
     final productIndex = _session.productColumnIndex;
     if (productIndex >= 0 && colIndex == firstScan) {
       values[productIndex] =
@@ -276,6 +365,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     final updated = _pendingRow!.copyWith(
       values: values,
       barcodeFormat: format,
+      notOnList: notOnList ? true : null,
     );
     final last = _activeScanColumnIndex == scans.length - 1;
     if (!last) {
@@ -334,8 +424,24 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       _touchedRow = finalRow.rowIndex;
       _resetPending();
     });
+    final rowNo = finalRow.rowIndex + 1;
+    if (finalRow.notOnList) {
+      _feedback(notice: true);
+      _flash('Not on list · row $rowNo', warn: true);
+      return;
+    }
     _feedback();
-    _flash('Added · row ${finalRow.rowIndex + 1}');
+    final title = _titleFor(finalRow);
+    _flash(title == null ? 'Added · row $rowNo' : '$title · row $rowNo');
+  }
+
+  /// The list's name for a row's code ("Rahul Verma"), null if none.
+  String? _titleFor(SessionRow row) {
+    final list = _list;
+    final scan = _session.scanColumnIndices.firstOrNull;
+    if (list == null || scan == null || scan >= row.values.length) return null;
+    final match = list.lookup(row.values[scan]);
+    return match == null ? null : list.titleFor(match);
   }
 
   /// "Repeats add to Qty": bump the existing row instead of adding one.
@@ -450,12 +556,13 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     _resume();
   }
 
-  void _flash(String message, {bool neutral = false}) {
+  void _flash(String message, {bool neutral = false, bool warn = false}) {
     if (!mounted) return;
     setState(() {
       _toast = message;
       _toastNeutral = neutral;
-      _success = !neutral;
+      _toastWarn = warn;
+      _success = !neutral && !warn;
       _processing = false;
     });
     _toastTimer?.cancel();
@@ -586,9 +693,14 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cornerColor = _success
+    final warn = _toast != null && _toastWarn;
+    final cornerColor = warn
+        ? _amber
+        : _success
         ? SsColors.brandLime
         : Colors.white.withValues(alpha: .8);
+    final list = _list;
+    final check = list == null ? null : ListCheck(list, _session, _rows);
     // Value changes and "Scan a label" use a white toast; rows use lime.
     final capture = _captureLabelFor;
     final toastText =
@@ -602,7 +714,11 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             ? 'Reading…'
             : 'Press volume or tap to scan');
     final neutral = _toast == null || _toastNeutral;
-    final toastColor = neutral ? Colors.white : SsColors.brandLime;
+    final toastColor = warn
+        ? _amber
+        : neutral
+        ? Colors.white
+        : SsColors.brandLime;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
@@ -671,7 +787,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                                 ),
                                 alignment: Alignment.center,
                                 child: Text(
-                                  '${_session.name}  ·  ${_rows.length}',
+                                  check == null
+                                      ? '${_session.name}  ·  ${_rows.length}'
+                                      : '${_session.name}  ·  '
+                                            '${check.found}/${check.total}',
                                   style: SsText.sans(
                                     size: 14,
                                     weight: FontWeight.w600,
@@ -748,10 +867,14 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                                         shape: BoxShape.circle,
                                       ),
                                       child: Icon(
-                                        neutral
+                                        warn
+                                            ? LucideIcons.circleAlert
+                                            : neutral
                                             ? LucideIcons.tag
                                             : LucideIcons.check,
-                                        color: neutral
+                                        color: warn
+                                            ? _amber
+                                            : neutral
                                             ? Colors.white
                                             : SsColors.brandLime,
                                         size: 14,
@@ -864,7 +987,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 ),
               ),
               if (_cameraError) _cameraBlocked(),
-              _bottomPanel(),
+              _bottomPanel(check),
               if (_multiPaused && _captureSize == null) _multiList(),
             ],
           ),
@@ -1042,7 +1165,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       ),
     ),
   );
-  Widget _bottomPanel() {
+  Widget _bottomPanel(ListCheck? check) {
     // The panel is drawn light in every theme (Scanner.dc.html).
     const c = SsColors.light;
     final last =
@@ -1072,6 +1195,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              if (check != null) ...[
+                _listProgress(check),
+                const SizedBox(height: 12),
+              ],
               if (_session.columns.any(
                 (c) => c.type == SessionColumnType.fixed,
               )) ...[
@@ -1178,10 +1305,59 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     );
   }
 
+  /// "12 not here yet" and a bar: how much of the list is scanned.
+  Widget _listProgress(ListCheck check) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              check.notYet == 0
+                  ? 'Everyone on the list is in'
+                  : '${check.notYet} ${check.hasExpected ? 'not counted' : 'not here'} yet',
+              style: SsText.sans(
+                size: 13,
+                weight: FontWeight.w600,
+                color: const Color(0xFF4A5550),
+              ),
+            ),
+          ),
+          if (check.notOnList.isNotEmpty) ...[
+            Text(
+              '${check.notOnList.length} not on list',
+              style: SsText.sans(
+                size: 12,
+                weight: FontWeight.w600,
+                color: const Color(0xFFB4690E),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
+          Text(
+            '${check.found}/${check.total}',
+            style: SsText.mono(size: 12, color: SsColors.brandInk),
+          ),
+        ],
+      ),
+      const SizedBox(height: 6),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: LinearProgressIndicator(
+          value: check.progress,
+          minHeight: 6,
+          color: SsColors.brandInk,
+          backgroundColor: const Color(0xFFE3E6E0),
+        ),
+      ),
+    ],
+  );
+
   Widget _lastRow(SessionRow? row) {
     final value = row == null || row.values.isEmpty
         ? 'Scan a code to begin'
         : row.values[_session.scanColumnIndices.firstOrNull ?? 0];
+    final title = row == null ? null : _titleFor(row);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1209,6 +1385,17 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (title != null)
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: SsText.sans(
+                      size: 15,
+                      weight: FontWeight.w600,
+                      color: SsColors.brandInk,
+                    ),
+                  ),
                 Text(
                   value,
                   maxLines: 1,
@@ -1216,8 +1403,16 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                   style: SsText.mono(size: 12, color: SsColors.brandInk),
                 ),
                 Text(
-                  row == null ? 'Ready to scan' : 'row ${row.rowIndex + 1}',
-                  style: SsText.caption(color: const Color(0xFF5F6964)),
+                  row == null
+                      ? 'Ready to scan'
+                      : row.notOnList
+                      ? 'Not on list · row ${row.rowIndex + 1}'
+                      : 'row ${row.rowIndex + 1}',
+                  style: SsText.caption(
+                    color: row?.notOnList ?? false
+                        ? const Color(0xFFB4690E)
+                        : const Color(0xFF5F6964),
+                  ),
                 ),
               ],
             ),

@@ -4,7 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/widgets/ss.dart';
 import 'scan_session.dart';
 
-/// The ten column kinds offered when building a sheet
+/// The eleven column kinds offered when building a sheet
 /// (docs/design/mocks/AddColumn.dc.html). "Number" and "Text" are both
 /// stored as [SessionColumnType.manual], told apart by `isNumeric`.
 enum ColumnKind {
@@ -23,6 +23,14 @@ enum ColumnKind {
     LucideIcons.package,
     'Product name',
     'Looks the barcode up in open product databases and fills in name, brand and size. Works for most packaged goods; blank if not found.',
+  ),
+  fromList(
+    'From list',
+    'FROM LIST',
+    SsTagKind.fromList,
+    LucideIcons.listChecks,
+    'Name',
+    'Fills in one field of the scanned code’s row in the sheet’s list, like a name or department.',
   ),
   pickList(
     'Pick-list',
@@ -115,6 +123,7 @@ enum ColumnKind {
     SessionColumnType.location => location,
     SessionColumnType.fixed => fixed,
     SessionColumnType.increment => auto,
+    SessionColumnType.fromList => fromList,
   };
 
   SessionColumnType get type => switch (this) {
@@ -127,6 +136,7 @@ enum ColumnKind {
     location => SessionColumnType.location,
     fixed => SessionColumnType.fixed,
     auto => SessionColumnType.increment,
+    fromList => SessionColumnType.fromList,
   };
 
   /// One-line description shown under a column in New sheet.
@@ -157,5 +167,6 @@ enum ColumnKind {
       if (c.askAtStart) 'asked at start',
     ].join(' · '),
     auto => '1, 2, 3… in scan order',
+    fromList => 'From the list · ${c.listField ?? c.name}',
   };
 }

@@ -256,7 +256,8 @@ class _SheetGoneState extends State<_SheetGone> {
   ScanSession get _s => widget.session;
 
   List<(int, List<String>)> get _rows => [
-    for (final r in ScanSessionService.getRows(_s.id)) (r.rowIndex, r.values),
+    for (final r in ScanSessionService.getRows(_s.id))
+      (r.rowIndex, _s.cellsFor(r)),
   ];
 
   Future<void> _run(Future<void> Function() action) async {

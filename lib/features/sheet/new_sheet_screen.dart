@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/services/google_sheets_service.dart';
+import '../../core/services/lookup_list_service.dart';
 import '../../core/services/scan_session_service.dart';
 import '../../core/services/template_service.dart';
 import '../../core/services/usage_service.dart';
@@ -9,6 +10,7 @@ import '../../core/widgets/ss.dart';
 import '../scan/models/column_kind.dart';
 import '../scan/models/scan_session.dart';
 import '../scan/screens/scan_session_screen.dart';
+import '../lists/list_import_screen.dart';
 import '../settings/screens/connect_sheets_screen.dart';
 import '../sync/plan_limits.dart';
 import 'add_column_sheet.dart';
@@ -31,6 +33,8 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
   bool _warnDuplicates = false;
   bool _showConfirmation = false;
   bool _loading = false;
+  LookupList? _list;
+  UnknownCodes _unknownCodes = UnknownCodes.ask;
 
   @override
   void initState() {
@@ -58,6 +62,103 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
     if (picked != null && mounted) setState(() => _existing = picked);
   }
 
+  /// List columns a From list column can show (the code column is the scan).
+  List<String> get _listHeaders => [
+    for (final (i, h) in (_list?.headers ?? const <String>[]).indexed)
+      if (i != _list!.codeColumn && h.isNotEmpty) h,
+  ];
+
+  Future<void> _pickList() async {
+    final lists = LookupListService.all();
+    final picked = lists.isEmpty
+        ? 'import'
+        : await showSsSheet<String>(
+            context,
+            builder: (ctx) => Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Check against',
+                    style: SsText.section(color: ctx.ss.ink),
+                  ),
+                  const SizedBox(height: 12),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: SsListGroup(
+                        children: [
+                          for (final list in lists)
+                            SsListRow(
+                              title: list.name,
+                              subtitle:
+                                  '${list.length} entries · ${list.source.label}',
+                              trailing: SsRadio(selected: list.id == _list?.id),
+                              onTap: () => Navigator.pop(ctx, list.id),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SsButton.secondary(
+                    'Import a new list',
+                    icon: LucideIcons.plus,
+                    onPressed: () => Navigator.pop(ctx, 'import'),
+                  ),
+                ],
+              ),
+            ),
+          );
+    if (!mounted || picked == null) return;
+    final list = picked == 'import'
+        ? await Navigator.of(
+            context,
+          ).push<LookupList>(FadeSlideRoute(page: const ListImportScreen()))
+        : LookupListService.get(picked);
+    if (list != null && mounted) _attach(list);
+  }
+
+  /// Attaching a list keeps From list columns it can fill, adds one per
+  /// "Fill in when scanned" column after the first scan column, and turns
+  /// on Warn on repeats (attendance and audits want each code once).
+  void _attach(LookupList list) {
+    setState(() {
+      _list = list;
+      _warnDuplicates = true;
+      String? header(String? field) => list.headers
+          .where((h) => h.toLowerCase() == field?.toLowerCase())
+          .firstOrNull;
+      _columns = [
+        for (final col in _columns)
+          if (col.type != SessionColumnType.fromList)
+            col
+          else if (header(col.listField) case final h?)
+            col.copyWith(listField: h),
+      ];
+      final have = _columns.map((c) => c.listField).toSet();
+      final add = [
+        for (final i in list.fillColumns)
+          if (i < list.headers.length && !have.contains(list.headers[i]))
+            SessionColumn(
+              name: list.headers[i],
+              type: SessionColumnType.fromList,
+              listField: list.headers[i],
+            ),
+      ];
+      final at =
+          _columns.indexWhere((c) => c.type == SessionColumnType.scan) + 1;
+      final room = ScanSession.maxColumns - _columns.length;
+      _columns.insertAll(at, add.take(room.clamp(0, add.length)));
+    });
+  }
+
+  void _detach() => setState(() {
+    _list = null;
+    _columns.removeWhere((c) => c.type == SessionColumnType.fromList);
+  });
+
   bool get _hasNumber =>
       _columns.any((c) => c.type == SessionColumnType.manual && c.isNumeric);
 
@@ -67,10 +168,15 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
       _columns = List.of(template.columns);
       _templateIcon = template.icon;
     });
+    if (_list case final list?) _attach(list);
   }
 
   Future<void> _editColumn(int index) async {
-    final result = await showAddColumnSheet(context, editing: _columns[index]);
+    final result = await showAddColumnSheet(
+      context,
+      editing: _columns[index],
+      listHeaders: _listHeaders,
+    );
     if (result != null && mounted) setState(() => _columns[index] = result);
   }
 
@@ -82,7 +188,7 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
       );
       return;
     }
-    final result = await showAddColumnSheet(context);
+    final result = await showAddColumnSheet(context, listHeaders: _listHeaders);
     if (result != null && mounted) setState(() => _columns.add(result));
   }
 
@@ -101,6 +207,12 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
         context,
         'Maximum ${ScanSession.maxColumns} columns allowed.',
       );
+      return;
+    }
+    if (_list == null &&
+        _columns.any((c) => c.type == SessionColumnType.fromList)) {
+      showSsToast(context, 'Pick a list for the From list columns.');
+      _pickList();
       return;
     }
     setState(() => _loading = true);
@@ -149,6 +261,8 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
         spreadsheetId: spreadsheetId,
         sheetName: spreadsheetId == null ? null : _existing?.sheetName,
         iconName: _templateIcon ?? 'inventory',
+        lookupListId: _list?.id,
+        unknownCodes: _unknownCodes,
       );
       await ScanSessionService.saveSession(session);
       if (!mounted) return;
@@ -267,6 +381,14 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
                         ),
                       ),
                     ),
+                  const SizedBox(height: 20),
+                  _ListCard(
+                    list: _list,
+                    unknownCodes: _unknownCodes,
+                    onPick: _pickList,
+                    onRemove: _detach,
+                    onUnknownCodes: (v) => setState(() => _unknownCodes = v),
+                  ),
                   const SizedBox(height: 20),
                   Row(
                     children: [
@@ -510,6 +632,119 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// "Check against a list": pick a list and what to do with codes not on it.
+class _ListCard extends StatelessWidget {
+  final LookupList? list;
+  final UnknownCodes unknownCodes;
+  final VoidCallback onPick;
+  final VoidCallback onRemove;
+  final ValueChanged<UnknownCodes> onUnknownCodes;
+  const _ListCard({
+    required this.list,
+    required this.unknownCodes,
+    required this.onPick,
+    required this.onRemove,
+    required this.onUnknownCodes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ss;
+    final list = this.list;
+    return SsCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              SsIconTile(
+                LucideIcons.listChecks,
+                background: c.emeraldTint,
+                color: c.emerald,
+                size: 40,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      list?.name ?? 'Check against a list',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: SsText.sans(
+                        size: 15,
+                        weight: FontWeight.w600,
+                        color: c.ink,
+                      ),
+                    ),
+                    Text(
+                      list == null
+                          ? 'Staff roster, stock list or asset register'
+                          : '${list.length} entries · ${list.source.label}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: SsText.sans(size: 12, color: c.muted),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: onPick,
+                child: Text(
+                  list == null ? 'Pick' : 'Change',
+                  style: SsText.sans(
+                    size: 14,
+                    weight: FontWeight.w600,
+                    color: c.emerald,
+                  ),
+                ),
+              ),
+              if (list != null)
+                SsIconButton(
+                  LucideIcons.x,
+                  size: 36,
+                  color: c.muted,
+                  tooltip: 'Remove list',
+                  onPressed: onRemove,
+                ),
+            ],
+          ),
+          if (list != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Codes not on the list',
+              style: SsText.sans(
+                size: 13,
+                weight: FontWeight.w500,
+                color: c.ink2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SsSegmented<UnknownCodes>(
+              options: const [
+                (UnknownCodes.ask, 'Ask'),
+                (UnknownCodes.flag, 'Add and flag'),
+                (UnknownCodes.skip, 'Skip'),
+              ],
+              value: unknownCodes,
+              onChanged: onUnknownCodes,
+            ),
+            const SizedBox(height: 6),
+            Text(switch (unknownCodes) {
+              UnknownCodes.ask => 'You choose each time: skip it or add it',
+              UnknownCodes.flag =>
+                'Added with On list = No so you can check later',
+              UnknownCodes.skip => 'Not added. The scanner beeps twice',
+            }, style: SsText.sans(size: 12, color: c.muted)),
+          ],
+        ],
       ),
     );
   }

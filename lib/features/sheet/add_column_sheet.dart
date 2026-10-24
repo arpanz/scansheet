@@ -5,17 +5,21 @@ import '../../core/widgets/ss.dart';
 import '../scan/models/column_kind.dart';
 import '../scan/models/scan_session.dart';
 
+/// [listHeaders] are the attached list's columns (code column left out);
+/// the From list kind is offered only when there are some.
 Future<SessionColumn?> showAddColumnSheet(
   BuildContext context, {
   SessionColumn? editing,
+  List<String> listHeaders = const [],
 }) => showSsSheet<SessionColumn>(
   context,
-  builder: (_) => _AddColumnForm(editing: editing),
+  builder: (_) => _AddColumnForm(editing: editing, listHeaders: listHeaders),
 );
 
 class _AddColumnForm extends StatefulWidget {
   final SessionColumn? editing;
-  const _AddColumnForm({this.editing});
+  final List<String> listHeaders;
+  const _AddColumnForm({this.editing, this.listHeaders = const []});
 
   @override
   State<_AddColumnForm> createState() => _AddColumnFormState();
@@ -32,6 +36,12 @@ class _AddColumnFormState extends State<_AddColumnForm> {
   late String? _defaultChoice;
   late bool _labelOn;
   late bool _askAtStart;
+  late String? _listField;
+
+  List<ColumnKind> get _kinds => [
+    for (final kind in ColumnKind.values)
+      if (kind != ColumnKind.fromList || widget.listHeaders.isNotEmpty) kind,
+  ];
 
   @override
   void initState() {
@@ -49,6 +59,7 @@ class _AddColumnFormState extends State<_AddColumnForm> {
     _prefix = TextEditingController(text: col?.labelPrefix ?? '');
     _labelOn = (col?.labelPrefix ?? '').isNotEmpty;
     _askAtStart = col?.askAtStart ?? false;
+    _listField = col?.listField ?? widget.listHeaders.firstOrNull;
     _choices = List.of(col?.choices ?? const ['Good', 'Damaged', 'Missing']);
     _defaultChoice =
         col?.defaultValue ?? (_choices.isEmpty ? null : _choices.first);
@@ -80,6 +91,9 @@ class _AddColumnFormState extends State<_AddColumnForm> {
         _defaultChoice = _choices.first;
       }
       if (kind == ColumnKind.number && _value.text.isEmpty) _value.text = '1';
+      if (kind == ColumnKind.fromList && _listField != null) {
+        _name.text = _listField!;
+      }
     });
   }
 
@@ -114,6 +128,7 @@ class _AddColumnFormState extends State<_AddColumnForm> {
         recentValues: fixed
             ? widget.editing?.recentValues ?? const []
             : const [],
+        listField: _kind == ColumnKind.fromList ? _listField : null,
       ),
     );
   }
@@ -152,15 +167,15 @@ class _AddColumnFormState extends State<_AddColumnForm> {
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: ColumnKind.values.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 5,
+              itemCount: _kinds.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: _kinds.length > 10 ? 6 : 5,
                 mainAxisExtent: 66,
                 crossAxisSpacing: 6,
                 mainAxisSpacing: 6,
               ),
               itemBuilder: (context, i) {
-                final kind = ColumnKind.values[i];
+                final kind = _kinds[i];
                 final selected = kind == _kind;
                 // Selected: lime icon on ink in light, ink on lime in dark.
                 final (Color bg, Color icon, Color text) = !selected
@@ -388,6 +403,39 @@ class _AddColumnFormState extends State<_AddColumnForm> {
                           ),
                         ],
                       ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (_kind == ColumnKind.fromList) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Field from the list',
+                style: SsText.sans(
+                  size: 13,
+                  weight: FontWeight.w500,
+                  color: c.ink2,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Expanded(
+                child: ListView(
+                  children: [
+                    SsListGroup(
+                      children: [
+                        for (final header in widget.listHeaders)
+                          SsListRow(
+                            title: header,
+                            trailing: SsRadio(selected: header == _listField),
+                            onTap: () => setState(() {
+                              if (_name.text == (_listField ?? '') ||
+                                  _name.text == _kind.defaultName) {
+                                _name.text = header;
+                              }
+                              _listField = header;
+                            }),
+                          ),
+                      ],
                     ),
                   ],
                 ),

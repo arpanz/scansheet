@@ -213,6 +213,63 @@ class GoogleSheetsService {
     }
   }
 
+  /// Every filled row of a tab, header first, as text (used to import lists).
+  Future<List<List<String>>> readTab(String spreadsheetId, String tab) async {
+    try {
+      final api = await _sheetsApi();
+      final result = await api.spreadsheets.values.get(
+        spreadsheetId,
+        "'$tab'",
+        valueRenderOption: 'FORMATTED_VALUE',
+      );
+      return [
+        for (final row in result.values ?? const <List<Object?>>[])
+          [for (final cell in row) '${cell ?? ''}'.trim()],
+      ].where((r) => r.any((c) => c.isNotEmpty)).toList();
+    } catch (e) {
+      throw GSheetsException('Failed to read $tab: $e');
+    }
+  }
+
+  /// Replaces a tab's contents with [rows], creating the tab if needed.
+  /// Used for the "Not scanned" / "Count vs expected" check tab.
+  Future<void> writeTab(
+    String spreadsheetId,
+    String tab,
+    List<List<String>> rows,
+  ) async {
+    try {
+      final api = await _sheetsApi();
+      if (!(await getWorksheets(spreadsheetId)).contains(tab)) {
+        await api.spreadsheets.batchUpdate(
+          sheets.BatchUpdateSpreadsheetRequest(
+            requests: [
+              sheets.Request(
+                addSheet: sheets.AddSheetRequest(
+                  properties: sheets.SheetProperties(title: tab),
+                ),
+              ),
+            ],
+          ),
+          spreadsheetId,
+        );
+      }
+      await api.spreadsheets.values.clear(
+        sheets.ClearValuesRequest(),
+        spreadsheetId,
+        "'$tab'",
+      );
+      await api.spreadsheets.values.update(
+        sheets.ValueRange(values: rows),
+        spreadsheetId,
+        "'$tab'!A1",
+        valueInputOption: 'RAW',
+      );
+    } catch (e) {
+      throw GSheetsException('Failed to write $tab: $e');
+    }
+  }
+
   /// Append rows to a worksheet. [rows] is a list of string lists.
   /// Returns the 1-based sheet row number of the first appended row, when
   /// the API reports it.

@@ -318,7 +318,7 @@ class SheetsSyncService {
       return null;
     }
     final session = ScanSessionService.getSession(sessionId);
-    return session?.columns.map((c) => c.name).toList();
+    return session?.headerNames;
   }
 
   void _scheduleRetry() {

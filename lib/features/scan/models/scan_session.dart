@@ -11,9 +11,17 @@ enum SessionColumnType {
   pickList, // One tap from [SessionColumn.choices]; default pre-picked
   productInfo, // Filled from the scanned barcode via product lookup
   readText, // Printed text read on-device (OCR)
+  fromList, // One field of the matching row in the sheet's lookup list
 }
 
 enum SessionDestination { localCsv, localXlsx, googleSheets }
+
+/// What happens to a scanned code that isn't on the sheet's list.
+enum UnknownCodes {
+  ask, // Show Skip / Add anyway
+  flag, // Add it, marked On list = No
+  skip, // Don't add it
+}
 
 class SessionColumn {
   final String name;
@@ -26,6 +34,7 @@ class SessionColumn {
   final String? labelPrefix; // fixed: codes with this prefix set the value
   final bool askAtStart; // fixed: ask for the value when scanning starts
   final List<String> recentValues; // fixed: newest first, at most 6
+  final String? listField; // fromList: list header to fill in
 
   const SessionColumn({
     required this.name,
@@ -38,6 +47,7 @@ class SessionColumn {
     this.labelPrefix,
     this.askAtStart = false,
     this.recentValues = const [],
+    this.listField,
   });
 
   SessionColumn copyWith({
@@ -51,6 +61,7 @@ class SessionColumn {
     String? labelPrefix,
     bool? askAtStart,
     List<String>? recentValues,
+    String? listField,
   }) {
     return SessionColumn(
       name: name ?? this.name,
@@ -63,6 +74,7 @@ class SessionColumn {
       labelPrefix: labelPrefix ?? this.labelPrefix,
       askAtStart: askAtStart ?? this.askAtStart,
       recentValues: recentValues ?? this.recentValues,
+      listField: listField ?? this.listField,
     );
   }
 
@@ -88,6 +100,7 @@ class SessionColumn {
     'labelPrefix': labelPrefix,
     'askAtStart': askAtStart,
     'recentValues': recentValues,
+    'listField': listField,
   };
 
   factory SessionColumn.fromMap(Map map) => SessionColumn(
@@ -104,6 +117,7 @@ class SessionColumn {
     labelPrefix: map['labelPrefix'] as String?,
     askAtStart: map['askAtStart'] as bool? ?? false,
     recentValues: List<String>.from(map['recentValues'] as List? ?? const []),
+    listField: map['listField'] as String?,
   );
 }
 
@@ -113,11 +127,15 @@ class SessionRow {
   final DateTime scannedAt;
   final String? barcodeFormat; // e.g. 'qr', 'ean13', 'code128'
 
+  /// Added although the code isn't on the sheet's list ("Add and flag").
+  final bool notOnList;
+
   const SessionRow({
     required this.rowIndex,
     required this.values,
     required this.scannedAt,
     this.barcodeFormat,
+    this.notOnList = false,
   });
 
   SessionRow copyWith({
@@ -125,12 +143,14 @@ class SessionRow {
     List<String>? values,
     DateTime? scannedAt,
     String? barcodeFormat,
+    bool? notOnList,
   }) {
     return SessionRow(
       rowIndex: rowIndex ?? this.rowIndex,
       values: values ?? this.values,
       scannedAt: scannedAt ?? this.scannedAt,
       barcodeFormat: barcodeFormat ?? this.barcodeFormat,
+      notOnList: notOnList ?? this.notOnList,
     );
   }
 
@@ -139,6 +159,7 @@ class SessionRow {
     'values': values,
     'scannedAt': scannedAt.toIso8601String(),
     'barcodeFormat': barcodeFormat,
+    'notOnList': notOnList,
   };
 
   factory SessionRow.fromMap(Map map) => SessionRow(
@@ -146,6 +167,7 @@ class SessionRow {
     values: List<String>.from(map['values'] as List),
     scannedAt: DateTime.parse(map['scannedAt'] as String),
     barcodeFormat: map['barcodeFormat'] as String?,
+    notOnList: map['notOnList'] as bool? ?? false,
   );
 }
 
@@ -170,6 +192,10 @@ class ScanSession {
   /// User-picked or template-derived icon key. Null = use generic fallback.
   final String? iconName;
 
+  /// The list scans are checked against. Null = no list.
+  final String? lookupListId;
+  final UnknownCodes unknownCodes;
+
   const ScanSession({
     required this.id,
     required this.name,
@@ -185,6 +211,8 @@ class ScanSession {
     this.spreadsheetId,
     this.sheetName,
     this.iconName,
+    this.lookupListId,
+    this.unknownCodes = UnknownCodes.ask,
   });
 
   static const int maxColumns = 10;
@@ -273,6 +301,7 @@ class ScanSession {
         case SessionColumnType.scan:
         case SessionColumnType.productInfo:
         case SessionColumnType.readText:
+        case SessionColumnType.fromList:
           values.add('');
       }
     }
@@ -298,6 +327,8 @@ class ScanSession {
     String? spreadsheetId,
     String? sheetName,
     String? iconName,
+    String? lookupListId,
+    UnknownCodes? unknownCodes,
   }) {
     return ScanSession(
       id: id ?? this.id,
@@ -314,6 +345,8 @@ class ScanSession {
       spreadsheetId: spreadsheetId ?? this.spreadsheetId,
       sheetName: sheetName ?? this.sheetName,
       iconName: iconName ?? this.iconName,
+      lookupListId: lookupListId ?? this.lookupListId,
+      unknownCodes: unknownCodes ?? this.unknownCodes,
     );
   }
 
@@ -332,6 +365,8 @@ class ScanSession {
     'spreadsheetId': spreadsheetId,
     'sheetName': sheetName,
     'iconName': iconName,
+    'lookupListId': lookupListId,
+    'unknownCodes': unknownCodes.name,
   };
 
   factory ScanSession.fromMap(Map map) => ScanSession(
@@ -356,11 +391,32 @@ class ScanSession {
     spreadsheetId: map['spreadsheetId'] as String?,
     sheetName: map['sheetName'] as String?,
     iconName: map['iconName'] as String?,
+    lookupListId: map['lookupListId'] as String?,
+    unknownCodes: UnknownCodes.values.firstWhere(
+      (e) => e.name == map['unknownCodes'],
+      orElse: () => UnknownCodes.ask,
+    ),
   );
 
-  List<List<String>> toTableData(List<SessionRow> rows) {
-    final header = columns.map((c) => c.name).toList();
-    final data = rows.map((r) => r.values).toList();
-    return [header, ...data];
-  }
+  /// A sheet checked against a list that can still add codes not on it
+  /// gets a trailing On list column (Yes / No).
+  bool get hasOnListColumn =>
+      lookupListId != null && unknownCodes != UnknownCodes.skip;
+
+  List<String> get headerNames => [
+    for (final c in columns) c.name,
+    if (hasOnListColumn) 'On list',
+  ];
+
+  /// A row's cells as exported and synced, one per [headerNames].
+  List<String> cellsFor(SessionRow row) => [
+    for (var i = 0; i < columns.length; i++)
+      i < row.values.length ? row.values[i] : '',
+    if (hasOnListColumn) row.notOnList ? 'No' : 'Yes',
+  ];
+
+  List<List<String>> toTableData(List<SessionRow> rows) => [
+    headerNames,
+    for (final r in rows) cellsFor(r),
+  ];
 }

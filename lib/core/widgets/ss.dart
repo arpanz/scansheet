@@ -389,7 +389,7 @@ class SsSectionHeader extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────── Tags & status
 
-enum SsTagKind { scan, neutral, list, auto }
+enum SsTagKind { scan, neutral, list, auto, fromList }
 
 /// Mono column-type tag: SCAN, COUNT, TIME, GPS, LIST, AUTO…
 class SsTag extends StatelessWidget {
@@ -405,6 +405,7 @@ class SsTag extends StatelessWidget {
       SsTagKind.neutral => (c.chip, c.ink),
       SsTagKind.list => (c.limeRow, c.ink),
       SsTagKind.auto => (c.emeraldTint, c.emeraldDeep),
+      SsTagKind.fromList => (Colors.transparent, c.emeraldDeep),
     };
     return Container(
       height: 24,
@@ -412,6 +413,9 @@ class SsTag extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(SsRadius.xs),
+        border: kind == SsTagKind.fromList
+            ? Border.all(color: c.emerald)
+            : null,
       ),
       alignment: Alignment.center,
       child: Text(

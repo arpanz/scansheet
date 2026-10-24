@@ -9,6 +9,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/services/export_service.dart';
+import '../../../core/services/google_sheets_service.dart';
+import '../../../core/services/list_check.dart';
+import '../../../core/services/lookup_list_service.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/services/sync_queue_service.dart';
 import '../../../core/widgets/ss.dart';
@@ -38,6 +41,42 @@ class DoneForNowScreen extends StatefulWidget {
 class _DoneForNowScreenState extends State<DoneForNowScreen> {
   _ExportFormat _format = _ExportFormat.excel;
 
+  @override
+  void initState() {
+    super.initState();
+    _writeCheckTab();
+  }
+
+  /// How the rows compare with the sheet's list, or null without one.
+  ListCheck? get _check {
+    final session = widget.session;
+    final list = LookupListService.get(session.lookupListId);
+    if (list == null) return null;
+    return ListCheck(list, session, ScanSessionService.getRows(session.id));
+  }
+
+  /// Google Sheets: rewrites the "Not scanned" / "Count vs expected" tab.
+  /// Best effort; it's written again on the next Done for now.
+  Future<void> _writeCheckTab() async {
+    final id = widget.session.spreadsheetId;
+    final check = _check;
+    if (id == null ||
+        check == null ||
+        widget.session.destination != SessionDestination.googleSheets ||
+        !GoogleSheetsService.instance.isSignedIn) {
+      return;
+    }
+    try {
+      await GoogleSheetsService.instance.writeTab(
+        id,
+        check.tabName,
+        check.table,
+      );
+    } catch (e) {
+      debugPrint('Check tab not written: $e');
+    }
+  }
+
   int get _uniqueScans {
     final scanIndex = widget.session.scanColumnIndices.firstOrNull;
     if (scanIndex == null) return 0;
@@ -45,6 +84,12 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
         .where((row) => row.values.length > scanIndex)
         .map((row) => row.values[scanIndex].trim())
         .where((value) => value.isNotEmpty)
+        // With a list, codes compare the way the list does (emp-1 = EMP-1).
+        .map(
+          (value) => widget.session.lookupListId == null
+              ? value
+              : LookupList.normalize(value),
+        )
         .toSet()
         .length;
   }
@@ -63,15 +108,7 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
       showSsToast(context, 'No rows to export yet.');
       return null;
     }
-    final width = widget.session.columns.length;
-    final table = <List<String>>[
-      widget.session.columns.map((column) => column.name).toList(),
-      for (final row in rows)
-        [
-          for (var i = 0; i < width; i++)
-            i < row.values.length ? row.values[i] : '',
-        ],
-    ];
+    final table = widget.session.toTableData(rows);
 
     final Uint8List bytes;
     final String ext;
@@ -84,16 +121,21 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
     } else {
       ext = 'xlsx';
       final excel = Excel.createExcel();
-      final sheet = excel[excel.getDefaultSheet() ?? 'Sheet1'];
-      for (var r = 0; r < table.length; r++) {
-        for (var c = 0; c < table[r].length; c++) {
-          sheet
-              .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r))
-              .value = TextCellValue(
-            table[r][c],
-          );
+      void fill(Sheet sheet, List<List<String>> table) {
+        for (var r = 0; r < table.length; r++) {
+          for (var c = 0; c < table[r].length; c++) {
+            sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r))
+                .value = TextCellValue(
+              table[r][c],
+            );
+          }
         }
       }
+
+      fill(excel[excel.getDefaultSheet() ?? 'Sheet1'], table);
+      // A second sheet with who or what is still missing.
+      if (_check case final check?) fill(excel[check.tabName], check.table);
       bytes = Uint8List.fromList(excel.encode()!);
     }
     final safeName = widget.session.name

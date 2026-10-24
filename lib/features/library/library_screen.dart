@@ -8,6 +8,7 @@ import '../../core/services/sheet_summary.dart';
 import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
+import '../lists/lists_view.dart';
 import '../sheet/sheet_view_screen.dart';
 import '../scan/screens/read_code_screen.dart';
 import '../sheet/new_sheet_screen.dart';
@@ -112,6 +113,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             SsSegmented<String>(
               options: const [
                 ('sheets', 'Sheets'),
+                ('lists', 'Lists'),
                 ('history', 'Code history'),
               ],
               value: _tab,
@@ -123,9 +125,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
             const SizedBox(height: 16),
             _SearchField(
               controller: _search,
-              placeholder: _tab == 'sheets'
-                  ? 'Search sheets'
-                  : 'Search scanned codes',
+              placeholder: switch (_tab) {
+                'sheets' => 'Search sheets',
+                'lists' => 'Search lists',
+                _ => 'Search scanned codes',
+              },
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -133,6 +137,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 listenable: listens,
                 builder: (context, _) {
                   final query = _search.text.trim().toLowerCase();
+                  if (_tab == 'lists') return ListsView(query: query);
                   if (_tab == 'sheets') {
                     final all = SheetSummary.all()
                         .where((s) => !_hiddenSheets.contains(s.session.id))

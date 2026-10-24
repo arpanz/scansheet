@@ -127,7 +127,7 @@ class ScanSessionService {
         id: '${sessionId}_${row.rowIndex}',
         sessionId: sessionId,
         rowIndex: row.rowIndex,
-        rowData: row.values,
+        rowData: session.cellsFor(row),
         destination: SyncDestination.googleSheets,
         spreadsheetId: session.spreadsheetId,
         sheetName: session.sheetName,
@@ -140,7 +140,11 @@ class ScanSessionService {
   /// Replace an existing row. Used when correcting scanned values.
   static Future<void> updateRow(String sessionId, SessionRow row) async {
     await rowsBox.put(_rowKey(sessionId, row.rowIndex), row.toMap());
-    await SyncQueueService.rowUpdated(sessionId, row.rowIndex, row.values);
+    await SyncQueueService.rowUpdated(
+      sessionId,
+      row.rowIndex,
+      getSession(sessionId)?.cellsFor(row) ?? row.values,
+    );
   }
 
   /// Load all rows for a session, sorted by rowIndex ascending.
@@ -211,14 +215,5 @@ class ScanSessionService {
       } catch (_) {}
     }
     return previews;
-  }
-
-  /// Check if a value already exists in a specific column across all rows.
-  static bool isDuplicate(String sessionId, int columnIndex, String value) {
-    if (value.isEmpty) return false;
-    final rows = getRows(sessionId);
-    return rows.any(
-      (r) => r.values.length > columnIndex && r.values[columnIndex] == value,
-    );
   }
 }

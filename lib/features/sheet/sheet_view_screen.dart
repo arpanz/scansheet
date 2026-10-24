@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/services/list_check.dart';
+import '../../core/services/lookup_list_service.dart';
 import '../../core/services/scan_session_service.dart';
 import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
@@ -23,6 +25,9 @@ class SheetViewScreen extends StatefulWidget {
 class _SheetViewScreenState extends State<SheetViewScreen> {
   final _searchController = TextEditingController();
   String _query = '';
+
+  /// Which list count card is open (it filters the rows below), or null.
+  String? _check;
 
   @override
   void dispose() {
@@ -85,17 +90,39 @@ class _SheetViewScreenState extends State<SheetViewScreen> {
                       ScanSessionService.getSession(widget.session.id) ??
                       widget.session;
                   final rows = ScanSessionService.getRows(session.id);
+                  final list = LookupListService.get(session.lookupListId);
+                  final check = list == null
+                      ? null
+                      : ListCheck(list, session, rows);
+                  final scan = session.scanColumnIndices.firstOrNull ?? 0;
+                  bool inView(SessionRow row) {
+                    if (check == null || _check == null) return true;
+                    final code = scan < row.values.length
+                        ? row.values[scan]
+                        : '';
+                    final on = check.list.lookup(code) != null;
+                    return switch (_check) {
+                      'notonlist' => !on,
+                      'here' => on,
+                      'match' => check.matchesExpected(code),
+                      _ => true,
+                    };
+                  }
+
                   final filtered = rows
                       .where(
                         (row) =>
-                            _query.isEmpty ||
-                            row.values.any(
-                              (v) => v.toLowerCase().contains(
-                                _query.toLowerCase(),
-                              ),
-                            ),
+                            inView(row) &&
+                            (_query.isEmpty ||
+                                row.values.any(
+                                  (v) => v.toLowerCase().contains(
+                                    _query.toLowerCase(),
+                                  ),
+                                )),
                       )
                       .toList();
+                  final entriesView =
+                      check != null && (_check == 'notyet' || _check == 'off');
                   final pending = SyncQueueService.pendingForSession(
                     session.id,
                   );
@@ -127,30 +154,40 @@ class _SheetViewScreenState extends State<SheetViewScreen> {
                             _header(session),
                             const SizedBox(height: 16),
                             SyncBanner(session: session),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _Metric(
-                                    value: '${rows.length}',
-                                    label: 'Rows',
-                                  ),
+                            if (check != null) ...[
+                              _CheckCard(
+                                check: check,
+                                selected: _check,
+                                onSelect: (v) => setState(
+                                  () => _check = _check == v ? null : v,
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _Metric(
-                                    value: '$unique',
-                                    label: 'Unique items',
+                              ),
+                              const SizedBox(height: 14),
+                            ] else
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _Metric(
+                                      value: '${rows.length}',
+                                      label: 'Rows',
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _Metric(
-                                    value: '$totalQty',
-                                    label: 'Total qty',
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _Metric(
+                                      value: '$unique',
+                                      label: 'Unique items',
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _Metric(
+                                      value: '$totalQty',
+                                      label: 'Total qty',
+                                    ),
+                                  ),
+                                ],
+                              ),
                             if (session.destination ==
                                 SessionDestination.googleSheets) ...[
                               const SizedBox(height: 14),
@@ -166,7 +203,13 @@ class _SheetViewScreenState extends State<SheetViewScreen> {
                             const SizedBox(height: 14),
                             _searchField(c),
                             const SizedBox(height: 14),
-                            if (rows.isEmpty)
+                            if (entriesView)
+                              _ListEntries(
+                                check: check,
+                                offCount: _check == 'off',
+                                query: _query.toLowerCase(),
+                              )
+                            else if (rows.isEmpty)
                               _EmptyRows(
                                 onScan: () => Navigator.of(context).push(
                                   FadeSlideRoute(
@@ -315,10 +358,166 @@ class _SheetViewScreenState extends State<SheetViewScreen> {
 Color cBrandInk(BuildContext context) =>
     context.isDark ? SsColors.nightSurface : SsColors.brandInk;
 
+/// List progress and three count cards that double as filters.
+/// Attendance: Here · Not yet · Not on list. Stock: Match · Off count ·
+/// Not counted.
+class _CheckCard extends StatelessWidget {
+  final ListCheck check;
+  final String? selected;
+  final ValueChanged<String> onSelect;
+  const _CheckCard({
+    required this.check,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ss;
+    final stock = check.hasExpected;
+    final cards = stock
+        ? [
+            ('match', '${check.matching}', 'Match', c.ink),
+            ('off', '${check.offCount.length}', 'Off count', c.error),
+            ('notyet', '${check.notYet}', 'Not counted', c.ink),
+          ]
+        : [
+            ('here', '${check.found}', 'Here', c.ink),
+            ('notyet', '${check.notYet}', 'Not yet', c.ink),
+            ('notonlist', '${check.notOnList.length}', 'Not on list', c.amber),
+          ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Icon(LucideIcons.listChecks, size: 16, color: c.emerald),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                check.list.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: SsText.sans(
+                  size: 13,
+                  weight: FontWeight.w600,
+                  color: c.ink2,
+                ),
+              ),
+            ),
+            Text(
+              '${check.found} of ${check.total}',
+              style: SsText.mono(size: 12, color: c.muted),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: check.progress,
+            minHeight: 6,
+            color: c.emerald,
+            backgroundColor: c.track,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            for (final (i, (key, value, label, color)) in cards.indexed) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onSelect(key),
+                  child: _Metric(
+                    value: value,
+                    label: label,
+                    color: value == '0' ? null : color,
+                    selected: selected == key,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// List entries for the Not yet and Off count cards.
+class _ListEntries extends StatelessWidget {
+  final ListCheck check;
+  final bool offCount;
+  final String query;
+  const _ListEntries({
+    required this.check,
+    required this.offCount,
+    required this.query,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ss;
+    final list = check.list;
+    bool matches(List<String> row) =>
+        query.isEmpty || row.any((v) => v.toLowerCase().contains(query));
+    final items = offCount
+        ? [
+            for (final l in check.offCount)
+              if (matches(l.row)) (l.row, l),
+          ]
+        : [
+            for (final row in check.notScanned)
+              if (matches(row)) (row, null),
+          ];
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(28),
+        child: Center(
+          child: Text(
+            offCount ? 'Every count matches so far' : 'Nothing left to scan',
+            style: SsText.body(color: c.muted),
+          ),
+        ),
+      );
+    }
+    return SsListGroup(
+      children: [
+        for (final (row, line) in items)
+          SsListRow(
+            title: list.titleFor(row),
+            subtitle: line == null
+                ? row[list.codeColumn]
+                : '${row[list.codeColumn]} · ${line.counted} of ${line.expected}',
+            trailing: line == null
+                ? null
+                : Text(
+                    '${line.counted > line.expected ? '+' : '−'}'
+                    '${(line.counted - line.expected).abs()}',
+                    style: SsText.mono(
+                      size: 15,
+                      weight: FontWeight.w600,
+                      color: line.counted > line.expected ? c.emerald : c.error,
+                    ),
+                  ),
+          ),
+      ],
+    );
+  }
+}
+
 class _Metric extends StatelessWidget {
-  const _Metric({required this.value, required this.label});
+  const _Metric({
+    required this.value,
+    required this.label,
+    this.color,
+    this.selected = false,
+  });
   final String value;
   final String label;
+  final Color? color;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -328,7 +527,10 @@ class _Metric extends StatelessWidget {
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: c.line),
+        border: Border.all(
+          color: selected ? c.ink : c.line,
+          width: selected ? 1.5 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,7 +543,7 @@ class _Metric extends StatelessWidget {
               size: 22,
               weight: FontWeight.w500,
               spacing: -.5,
-              color: c.ink,
+              color: color ?? c.ink,
             ),
           ),
           Text(
