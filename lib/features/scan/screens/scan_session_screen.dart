@@ -2,6 +2,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -11,6 +12,7 @@ import 'package:provider/provider.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/product_lookup_service.dart';
 import '../../../core/services/scan_session_service.dart';
+import '../../../core/services/scan_sound.dart';
 import '../../../core/services/scanning_preferences.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ss.dart';
@@ -35,7 +37,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   late final MobileScannerController _camera;
   final _visitStarted = DateTime.now();
   late ScanSession _session;
-  late final bool _vibrate;
+  late final bool _vibrate, _beep, _trigger;
   List<SessionRow> _rows = [];
   int _activeScanColumnIndex = 0;
   int _visitRows = 0;
@@ -50,6 +52,11 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   ({int column, String previous})? _valueUndo;
   // The row the last scan added or bumped; the panel shows and edits it.
   int? _touchedRow;
+  // "Volume buttons scan": the camera reads one code until this time.
+  DateTime? _armedUntil;
+  // Handheld and Bluetooth scanners type the code, then Enter or Tab.
+  final _typed = StringBuffer();
+  DateTime? _typedAt;
   DateTime? _lastAt;
   Timer? _toastTimer;
   List<Barcode> _multi = [];
@@ -68,6 +75,11 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     _rows = ScanSessionService.getRows(_session.id);
     final prefs = context.read<ScanningPreferences>();
     _vibrate = prefs.vibrateEnabled;
+    _beep = prefs.soundEnabled;
+    _trigger =
+        prefs.volumeScan && defaultTargetPlatform == TargetPlatform.android;
+    if (_beep) ScanSound.warmUp();
+    HardwareKeyboard.instance.addHandler(_onKey);
     _torch = prefs.torchDefault;
     _camera = MobileScannerController(torchEnabled: _torch);
     _resetPending();
@@ -84,8 +96,76 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   @override
   void dispose() {
     _toastTimer?.cancel();
+    HardwareKeyboard.instance.removeHandler(_onKey);
     _camera.dispose();
     super.dispose();
+  }
+
+  bool get _armed =>
+      !_trigger ||
+      (_armedUntil != null && DateTime.now().isBefore(_armedUntil!));
+
+  /// Volume press or a tap on the camera: read the next code within 2 s.
+  void _arm() {
+    if (!_trigger || _sheetOpen) return;
+    HapticFeedback.selectionClick();
+    setState(
+      () => _armedUntil = DateTime.now().add(const Duration(seconds: 2)),
+    );
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && !_armed) setState(() => _armedUntil = null);
+    });
+  }
+
+  /// Keys while the scanner is on top: volume buttons as the trigger, and
+  /// codes typed by a handheld or Bluetooth scanner paired as a keyboard.
+  bool _onKey(KeyEvent event) {
+    if (event is KeyUpEvent) return false;
+    final key = event.logicalKey;
+    if (_trigger &&
+        (key == LogicalKeyboardKey.audioVolumeDown ||
+            key == LogicalKeyboardKey.audioVolumeUp)) {
+      if (event is KeyDownEvent) _arm();
+      return true; // don't change the volume
+    }
+    // Sheets and dialogs on top have their own text fields.
+    if (_sheetOpen || ModalRoute.of(context)?.isCurrent != true) return false;
+    final now = DateTime.now();
+    // Scanners type far faster than people; a pause starts a new code.
+    if (_typedAt != null &&
+        now.difference(_typedAt!) > const Duration(milliseconds: 500)) {
+      _typed.clear();
+    }
+    _typedAt = now;
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter ||
+        key == LogicalKeyboardKey.tab) {
+      final code = _typed.toString().trim();
+      _typed.clear();
+      if (code.isEmpty) return false;
+      _lastAt = null;
+      _handleValue(code, format: 'SCANNER');
+      return true;
+    }
+    final char = event.character;
+    if (char == null || char.isEmpty || char.codeUnitAt(0) < 32) return false;
+    _typed.write(char);
+    return true;
+  }
+
+  /// Haptics and the beep for one outcome; [notice] for no new row.
+  void _feedback({bool notice = false}) {
+    if (_beep) notice ? ScanSound.notice() : ScanSound.ok();
+    if (!_vibrate) return;
+    if (notice) {
+      HapticFeedback.lightImpact();
+      Future.delayed(
+        const Duration(milliseconds: 120),
+        HapticFeedback.lightImpact,
+      );
+    } else {
+      HapticFeedback.mediumImpact();
+    }
   }
 
   void _resetPending() {
@@ -94,7 +174,8 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   }
 
   void _detect(BarcodeCapture capture) {
-    if (_processing || _sheetOpen || _multiPaused) return;
+    if (_processing || _sheetOpen || _multiPaused || !_armed) return;
+    if (_trigger && capture.barcodes.isNotEmpty) _armedUntil = null;
     final distinct = <String, Barcode>{};
     for (final barcode in capture.barcodes) {
       final value = barcode.rawValue?.trim() ?? '';
@@ -159,6 +240,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         ScanSessionService.isDuplicate(_session.id, colIndex, value)) {
       _processing = false;
       _sheetOpen = true;
+      _feedback(notice: true);
       await _camera.stop();
       if (!mounted) return;
       final add = await showDialog<bool>(
@@ -252,7 +334,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       _touchedRow = finalRow.rowIndex;
       _resetPending();
     });
-    if (_vibrate) HapticFeedback.mediumImpact();
+    _feedback();
     _flash('Added · row ${finalRow.rowIndex + 1}');
   }
 
@@ -266,6 +348,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       _session.id,
       target.copyWith(values: values),
     );
+    if (_beep) ScanSound.ok();
     if (_vibrate) {
       HapticFeedback.selectionClick();
       Future.delayed(
@@ -319,13 +402,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       }
       _valueUndo = undo ? null : (column: index, previous: previous);
     });
-    if (_vibrate) {
-      HapticFeedback.lightImpact();
-      Future.delayed(
-        const Duration(milliseconds: 120),
-        HapticFeedback.lightImpact,
-      );
-    }
+    _feedback(notice: true);
     _flash(
       undo ? '${col.name} back to $value' : '${col.name} is now $value',
       neutral: true,
@@ -518,7 +595,12 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         _toast ??
         (capture == null
             ? null
-            : 'Scan a ${_session.columns[capture].name.toLowerCase()} label');
+            : 'Scan a ${_session.columns[capture].name.toLowerCase()} label') ??
+        (!_trigger
+            ? null
+            : _armed
+            ? 'Reading…'
+            : 'Press volume or tap to scan');
     final neutral = _toast == null || _toastNeutral;
     final toastColor = neutral ? Colors.white : SsColors.brandLime;
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -534,18 +616,22 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
           body: Stack(
             fit: StackFit.expand,
             children: [
-              MobileScanner(
-                controller: _camera,
-                onDetect: _detect,
-                errorBuilder: (ctx, error) {
-                  if (!_cameraError) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted && !_cameraError)
-                        setState(() => _cameraError = true);
-                    });
-                  }
-                  return const ColoredBox(color: SsColors.night);
-                },
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _arm,
+                child: MobileScanner(
+                  controller: _camera,
+                  onDetect: _detect,
+                  errorBuilder: (ctx, error) {
+                    if (!_cameraError) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted && !_cameraError)
+                          setState(() => _cameraError = true);
+                      });
+                    }
+                    return const ColoredBox(color: SsColors.night);
+                  },
+                ),
               ),
               if (_multiPaused && _captureSize != null)
                 LayoutBuilder(

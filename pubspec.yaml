@@ -53,6 +53,7 @@ dependencies:
   google_mlkit_text_recognition: ^0.17.1
   quick_actions: ^1.1.1
   home_widget: ^0.10.0
+  audioplayers: ^6.8.1
 
 dev_dependencies:
   flutter_test:
@@ -68,6 +69,7 @@ flutter:
   assets:
     - assets/icon.png
     - assets/sheets.svg
+    - assets/sounds/
 
 flutter_launcher_icons:
   android: "launcher_icon"

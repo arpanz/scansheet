@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -89,14 +90,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
               SsListGroup(
                 children: [
                   _PrefSwitch(
+                    'Beep on scan',
+                    prefs.soundEnabled,
+                    prefs.setSoundEnabled,
+                  ),
+                  _PrefSwitch(
                     'Vibrate on scan',
                     prefs.vibrateEnabled,
                     prefs.setVibrateEnabled,
                   ),
+                  if (defaultTargetPlatform == TargetPlatform.android)
+                    _PrefSwitch(
+                      'Volume buttons scan',
+                      prefs.volumeScan,
+                      prefs.setVolumeScan,
+                      subtitle:
+                          'Read a code only after a volume press or a tap. '
+                          'Good with gloves.',
+                    ),
                   _PrefSwitch(
                     'Torch on when scanner opens',
                     prefs.torchDefault,
                     prefs.setTorchDefault,
+                  ),
+                  const SsListRow(
+                    title: 'Handheld scanners',
+                    subtitle:
+                        'Pair a Bluetooth or USB scanner as a keyboard. With '
+                        'the scanner open, its codes go straight in.',
                   ),
                 ],
               ),
@@ -403,10 +424,12 @@ class _PrefSwitch extends StatelessWidget {
   final String title;
   final bool value;
   final Future<void> Function(bool) onChanged;
-  const _PrefSwitch(this.title, this.value, this.onChanged);
+  final String? subtitle;
+  const _PrefSwitch(this.title, this.value, this.onChanged, {this.subtitle});
   @override
   Widget build(BuildContext context) => SsListRow(
     title: title,
+    subtitle: subtitle,
     trailing: Switch(
       value: value,
       onChanged: (v) {
