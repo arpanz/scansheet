@@ -92,7 +92,8 @@ class _ScanChooser extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            'Tip: with a sheet in progress, the scan button opens it straight away.',
+            'Tip: the scan button reopens a sheet you used in the last '
+            '${SheetSummary.freshFor.inHours} hours. Hold it to choose.',
             textAlign: TextAlign.center,
             style: SsText.caption(color: c.muted),
           ),

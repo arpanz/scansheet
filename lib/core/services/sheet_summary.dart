@@ -26,6 +26,13 @@ class SheetSummary {
 
   bool get isSheets => session.destination == SessionDestination.googleSheets;
 
+  /// The Scan button reopens a sheet used within this long (about one
+  /// shift); an older one is offered in the chooser instead, so today's
+  /// rows don't land in yesterday's sheet by accident.
+  static const freshFor = Duration(hours: 4);
+
+  bool isFreshAt(DateTime now) => now.difference(lastActivity) < freshFor;
+
   String get destinationLabel => switch (session.destination) {
     SessionDestination.googleSheets => 'Google Sheets',
     SessionDestination.localXlsx => 'Excel',

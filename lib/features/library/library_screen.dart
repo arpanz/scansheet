@@ -614,7 +614,8 @@ class _OpenSheetsNote extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              '$count sheets are in progress. Scan continues the most recent.',
+              '$count sheets are in progress. Scan continues the most '
+              'recent one if you used it in the last few hours.',
               style: SsText.sans(size: 13, color: c.ink2),
             ),
           ),
