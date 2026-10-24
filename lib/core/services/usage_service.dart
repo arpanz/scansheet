@@ -224,13 +224,10 @@ class UsageService {
     final auth = FirebaseAuth.instance;
     final email = _sheets.currentUser?.email;
     if (auth.currentUser == null || auth.currentUser!.email != email) {
-      final google = await _sheets.currentUser?.authentication;
-      if (google == null || google.idToken == null) return null;
+      final idToken = _sheets.currentUser?.authentication.idToken;
+      if (idToken == null) return null;
       await auth.signInWithCredential(
-        GoogleAuthProvider.credential(
-          idToken: google.idToken,
-          accessToken: google.accessToken,
-        ),
+        GoogleAuthProvider.credential(idToken: idToken),
       );
     }
     final uid = auth.currentUser?.uid;

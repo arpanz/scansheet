@@ -17,7 +17,8 @@ class GoogleSheetsService {
     drive.DriveApi.driveFileScope,
   ];
 
-  final _googleSignIn = GoogleSignIn(scopes: _scopes);
+  final _googleSignIn = GoogleSignIn.instance;
+  Future<void>? _initialized;
 
   GoogleSignInAccount? _currentUser;
   http.Client? _authClient;
@@ -38,21 +39,47 @@ class GoogleSheetsService {
 
   /// Call once in main() to restore a previous sign-in silently.
   Future<void> init() async {
-    _googleSignIn.onCurrentUserChanged.listen(_onUserChanged);
-    await _googleSignIn.signInSilently();
+    await _ensureInitialized();
+    _googleSignIn.authenticationEvents.listen(
+      (event) => _onUserChanged(switch (event) {
+        GoogleSignInAuthenticationEventSignIn(:final user) => user,
+        GoogleSignInAuthenticationEventSignOut() => null,
+      }),
+      onError: (Object e) => debugPrint('Google sign-in event error: $e'),
+    );
+    try {
+      final account = await _googleSignIn.attemptLightweightAuthentication();
+      if (account != null) _onUserChanged(account);
+    } catch (e) {
+      debugPrint('Silent Google sign-in failed: $e');
+    }
   }
 
+  // GoogleSignIn.initialize must run exactly once, before any other call.
+  Future<void> _ensureInitialized() =>
+      _initialized ??= _googleSignIn.initialize();
+
   void _onUserChanged(GoogleSignInAccount? account) {
+    if (account == _currentUser) return;
     _currentUser = account;
     _authClient = null; // force refresh on next API call
     signedInNotifier.value = account != null;
   }
 
-  /// Opens the Google account picker.
+  /// Opens the Google account picker, then asks for Sheets and Drive access.
+  /// Returns null if the user backs out of either step.
   Future<GoogleSignInAccount?> signIn() async {
     try {
-      final account = await _googleSignIn.signIn();
+      await _ensureInitialized();
+      final account = await _googleSignIn.authenticate(scopeHint: _scopes);
+      // Sign-in and access are separate steps since google_sign_in 7.
+      await account.authorizationClient.authorizeScopes(_scopes);
+      _onUserChanged(account);
       return account;
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) return null;
+      debugPrint('Google sign-in failed: ${e.code} ${e.description}');
+      throw GSheetsException('Sign-in failed: ${e.description ?? e.code}');
     } catch (e) {
       debugPrint('┌── GOOGLE SIGN-IN ERROR ──────────────────────');
       debugPrint('│ $e');
@@ -64,7 +91,7 @@ class GoogleSheetsService {
 
   Future<void> signOut() async {
     await _googleSignIn.signOut();
-    _authClient = null;
+    _onUserChanged(null);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -77,7 +104,15 @@ class GoogleSheetsService {
         _authClientAt != null &&
         DateTime.now().difference(_authClientAt!) < _authClientTtl;
     if (_authClient != null && fresh) return _authClient!;
-    final auth = await _currentUser!.authHeaders;
+    // Never prompts: this runs from background sync. A null means access was
+    // revoked, and the "sign-in expired" state asks the user to sign in again.
+    final auth = await _currentUser!.authorizationClient.authorizationHeaders(
+      _scopes,
+    );
+    if (auth == null) {
+      // "Not signed in" is what SheetsSyncService reads as auth expired.
+      throw GSheetsException('Not signed in: Google access expired.');
+    }
     _authClient = GoogleAuthClient(auth);
     _authClientAt = DateTime.now();
     return _authClient!;
