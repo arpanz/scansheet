@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -21,6 +22,7 @@ import 'core/services/lookup_list_service.dart';
 import 'core/services/team_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_router.dart';
+import 'core/utils/demo_seed.dart';
 import 'core/utils/review_service.dart';
 import 'core/utils/update_service.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -47,6 +49,7 @@ void main() async {
   await TemplateService.init();
   await LookupListService.init();
   await ProductLookupService.instance.init();
+  if (kDebugMode && DemoSeed.enabled) await DemoSeed.run();
 
   final initialThemeMode = await _loadInitialThemeMode();
   final showOnboarding = await OnboardingScreen.shouldShow();
@@ -57,9 +60,12 @@ void main() async {
   await MobileAds.instance.initialize();
   await AdManager.instance.initialize();
   await UsageService.instance.init();
-  await SheetsSyncService.instance.start();
-  // Owners let in teammates who join; never blocks startup.
-  unawaited(TeamService.instance.start());
+  // Demo data points at spreadsheets that don't exist; never sync it.
+  if (!(kDebugMode && DemoSeed.enabled)) {
+    await SheetsSyncService.instance.start();
+    // Owners let in teammates who join; never blocks startup.
+    unawaited(TeamService.instance.start());
+  }
   await ReviewService.trackDailyLaunch();
 
   AdManager.onShowPaywall = (context) async {

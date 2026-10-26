@@ -1,0 +1,16 @@
+{
+  "name": "ScanSheet",
+  "template": "clean-center",
+  "sizes": ["play-phone"],
+  "subtitles": false,
+  "out": "out/clean-center",
+  "screens": [
+    { "image": "screens/01-scan.png", "title": "Scan straight into\n*Google Sheets*" },
+    { "image": "screens/02-stock-count.png", "title": "Count stock,\nspot the *gaps*" },
+    { "image": "screens/03-attendance.png", "title": "See who's\n*not here yet*" },
+    { "image": "screens/04-columns.png", "title": "Columns that\n*fill themselves*" },
+    { "image": "screens/05-export.png", "title": "Sheets, Excel\nor *CSV*" },
+    { "image": "screens/06-home.png", "title": "Pick up where\nyou *left off*" },
+    { "image": "screens/dark-07-library.png", "title": "Easy on the eyes,\n*day or night*" }
+  ]
+}

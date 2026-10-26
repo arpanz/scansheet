@@ -1,0 +1,15 @@
+{
+  "name": "ScanSheet dark",
+  "template": "mint-night",
+  "sizes": ["play-phone"],
+  "subtitles": false,
+  "brandColor": "#D4F56A",
+  "screens": [
+    { "image": "screens/01-scan.png", "title": "Scan straight into\n*Google Sheets*" },
+    { "image": "screens/dark-02-stock-count.png", "title": "Count stock,\nspot the *gaps*" },
+    { "image": "screens/dark-03-attendance.png", "title": "See who's\n*not here yet*" },
+    { "image": "screens/dark-06-home.png", "title": "Pick up where\nyou *left off*" },
+    { "image": "screens/dark-08-lists.png", "title": "Check scans\nagainst *your list*" },
+    { "image": "screens/dark-07-library.png", "title": "Every sheet,\n*one place*" }
+  ]
+}

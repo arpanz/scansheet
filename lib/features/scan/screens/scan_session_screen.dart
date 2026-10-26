@@ -21,6 +21,7 @@ import '../../../core/services/usage_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ss.dart';
 import '../../../core/utils/app_router.dart';
+import '../../../core/utils/demo_seed.dart';
 import '../models/scan_session.dart';
 import '../../sheet/sheet_view_screen.dart';
 import 'done_for_now_screen.dart';
@@ -830,19 +831,21 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: _arm,
-                child: MobileScanner(
-                  controller: _camera,
-                  onDetect: _detect,
-                  errorBuilder: (ctx, error) {
-                    if (!_cameraError) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted && !_cameraError)
-                          setState(() => _cameraError = true);
-                      });
-                    }
-                    return const ColoredBox(color: SsColors.night);
-                  },
-                ),
+                child: kDebugMode && DemoSeed.enabled
+                    ? DemoSeed.cameraFeed()
+                    : MobileScanner(
+                        controller: _camera,
+                        onDetect: _detect,
+                        errorBuilder: (ctx, error) {
+                          if (!_cameraError) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted && !_cameraError)
+                                setState(() => _cameraError = true);
+                            });
+                          }
+                          return const ColoredBox(color: SsColors.night);
+                        },
+                      ),
               ),
               if (_multiPaused && _captureSize != null)
                 LayoutBuilder(
