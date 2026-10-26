@@ -1,0 +1,28 @@
+{
+  "name": "ScanSheet",
+  "template": "flow",
+  "sizes": ["play-phone"],
+  "brandColor": "#0B7D45",
+  "out": "out/flow",
+  "flow": {
+    "theme": "light",
+    "motifs": ["grid", "corners"],
+    "colors": { "deep": "#086336", "band": "#D8F0E0", "accent": "#D4F56A" }
+  },
+  "screens": [
+    { "image": "screens/01-scan.png", "title": "Scan to\n*Google Sheets*", "logo": "../design/icon/full.svg",
+      "sticker": { "image": "mini-sheet.svg", "x": 0.8, "y": 0.81, "width": 0.43 } },
+    { "image": "screens/06-home.png", "title": "Track anything\nwith a *code*",
+      "tiles": [{ "icon": "package", "label": "Stock" }, { "icon": "users", "label": "Attendance" },
+                { "icon": "laptop", "label": "Assets" }, { "icon": "ticket", "label": "Tickets" }] },
+    { "image": "screens/02-stock-count.png", "title": "Count stock\nin *minutes*",
+      "callout": { "crop": [53, 413, 974, 192], "y": 0.47, "width": 1.06 } },
+    { "image": "screens/03-attendance.png", "title": "See who's\n*not here yet*",
+      "callout": { "crop": [53, 1010, 974, 355], "y": 0.62, "width": 1.02 } },
+    { "image": "screens/04-columns.png", "title": "Add the columns\n*you need*",
+      "callout": { "crop": [53, 427, 974, 360], "y": 0.46, "width": 1.08 } },
+    { "image": "screens/05-export.png", "title": "Save as *Excel*\nor CSV",
+      "callout": { "crop": [53, 1176, 974, 401], "y": 0.70, "width": 1.04 } },
+    { "image": "screens/dark-06-home.png", "title": "Works in\n*dark mode*", "icon": "moon" }
+  ]
+}
