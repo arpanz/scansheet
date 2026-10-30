@@ -41,3 +41,10 @@
 -dontwarn com.google.android.play.core.tasks.OnSuccessListener
 -dontwarn com.google.android.play.core.tasks.Task
 -dontwarn com.google.android.play.core.tasks.**
+
+# ML Kit text recognition: only Latin is bundled; the plugin references the
+# other scripts optionally.
+-dontwarn com.google.mlkit.vision.text.chinese.**
+-dontwarn com.google.mlkit.vision.text.devanagari.**
+-dontwarn com.google.mlkit.vision.text.japanese.**
+-dontwarn com.google.mlkit.vision.text.korean.**
