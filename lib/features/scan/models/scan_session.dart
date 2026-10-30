@@ -158,12 +158,17 @@ class SessionRow {
   /// Added although the code isn't on the sheet's list ("Add and flag").
   final bool notOnList;
 
+  /// Saved past the free plan's monthly rows: kept on the phone, left out
+  /// of Google Sheets and exports until the 1st or an upgrade.
+  final bool locked;
+
   const SessionRow({
     required this.rowIndex,
     required this.values,
     required this.scannedAt,
     this.barcodeFormat,
     this.notOnList = false,
+    this.locked = false,
   });
 
   SessionRow copyWith({
@@ -172,6 +177,7 @@ class SessionRow {
     DateTime? scannedAt,
     String? barcodeFormat,
     bool? notOnList,
+    bool? locked,
   }) {
     return SessionRow(
       rowIndex: rowIndex ?? this.rowIndex,
@@ -179,6 +185,7 @@ class SessionRow {
       scannedAt: scannedAt ?? this.scannedAt,
       barcodeFormat: barcodeFormat ?? this.barcodeFormat,
       notOnList: notOnList ?? this.notOnList,
+      locked: locked ?? this.locked,
     );
   }
 
@@ -188,6 +195,7 @@ class SessionRow {
     'scannedAt': scannedAt.toIso8601String(),
     'barcodeFormat': barcodeFormat,
     'notOnList': notOnList,
+    'locked': locked,
   };
 
   factory SessionRow.fromMap(Map map) => SessionRow(
@@ -196,6 +204,7 @@ class SessionRow {
     scannedAt: DateTime.parse(map['scannedAt'] as String),
     barcodeFormat: map['barcodeFormat'] as String?,
     notOnList: map['notOnList'] as bool? ?? false,
+    locked: map['locked'] as bool? ?? false,
   );
 }
 

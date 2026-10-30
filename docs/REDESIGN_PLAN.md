@@ -33,18 +33,15 @@ Types: Scan (multiple allowed), Product info (auto from barcode via open product
 "Scan together": QR + invite link per sheet, members list with live status, toggle for teammates editing columns. Needs a backend (Firebase, below).
 
 ## Free plan and Pro
-- Free: 3 open sheets, **200 synced rows per month**, first **7 days unlimited**. Scanning, Excel/CSV export and "Read a code" are never limited.
-- Count rows, not scans (Qty merges don't use allowance). Show "N of 200 rows this month" on Home and Settings; heads-up at 160.
-- At the limit: scanner never stops, current job finishes, new rows save on the phone, only Google Sheets sync pauses until the 1st or upgrade; upgrade prompt shown then.
-- Pro: unlimited sheets and rows, team sharing, product lookup, Read text, no ads, priority support. Ads never in the scanner.
+- Free: **200 new rows per month across every sheet** (Google Sheets, Excel and CSV), counted from day 1; 3 Google Sheets sheets open at once; lists keep their first **50** entries. No free trial.
+- Count rows, not scans (Qty merges and edits don't use allowance). Show "N of 200 rows this month" on Home and Settings; heads-up at 160.
+- At the limit: the scanner never stops and no scan is lost. New rows save on the phone **locked**: left out of Google Sheets sync and Excel/CSV export until the 1st (oldest unlock first, counting against the new month) or an upgrade.
+- Pro: unlimited rows and sheets, full-size lists, team sharing, no ads. Ads never in the scanner.
 - Start at 200; watch % hitting the limit and their upgrade rate before changing it.
 
-## Trial and usage tracking
-- Limits apply only to Google Sheets sync, which already requires Google sign-in, so tracking is per Google account.
-- Firebase Auth with the same Google credential + one Firestore doc per account: `trialStartedAt`, `month`, `rowsSynced`. Local cache so offline scanning never waits; update server on sync.
-- Trial starts at the first synced row, not at install.
-- Firebase project already exists (`scansheet-496017`, `android/app/google-services.json`); Firebase packages still need adding to `pubspec.yaml`.
-- The 7-day free week is separate from any Play Store subscription trial.
+## Usage tracking
+- Counted on the phone (works signed out and offline) and, when signed in, mirrored to one Firestore doc per Google account (`month`, `rowsAdded`) through Firebase Auth with the same Google credential. The larger count wins, so switching accounts or reinstalling with the same account doesn't reset it.
+- Firebase project: `scansheet-496017` (`android/app/google-services.json`).
 
 ## Build order
 1. Theme: tokens, Geist fonts, light + dark `ThemeData`, shared components (buttons, column tags, toggles, segmented control, list rows, bottom sheets).

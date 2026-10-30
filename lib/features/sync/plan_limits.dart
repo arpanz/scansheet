@@ -9,8 +9,7 @@ import '../settings/screens/paywall_screen.dart';
 void openPaywall(BuildContext context) =>
     Navigator.of(context).push(FadeSlideRoute(page: const PaywallScreen()));
 
-/// "37 of 200 rows this month" with a thin bar; the free week instead while
-/// it runs. Hidden for Pro and when signed out.
+/// "37 of 200 rows this month" with a thin bar. Hidden for Pro.
 class UsageMeter extends StatelessWidget {
   const UsageMeter({super.key});
 
@@ -23,13 +22,12 @@ class UsageMeter extends StatelessWidget {
         AdManager.instance.isProNotifier,
       ]),
       builder: (context, _) {
-        final u = usage.usage.value;
         final text = usage.summary;
-        if (u == null || text == null) return const SizedBox.shrink();
+        if (text == null) return const SizedBox.shrink();
         final c = context.ss;
-        final trial = u.inTrial;
-        final used = (u.rowsThisMonth / Usage.monthlyRows).clamp(0.0, 1.0);
-        final tone = usage.rowsAllowed == 0
+        final used = (usage.usage.value.rowsThisMonth / Usage.monthlyRows)
+            .clamp(0.0, 1.0);
+        final tone = usage.rowsLeft == 0
             ? c.error
             : usage.nearLimit
             ? c.amber
@@ -55,26 +53,21 @@ class UsageMeter extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Text(
-                      trial ? 'Unlimited rows' : 'Free plan',
-                      style: SsText.caption(color: c.muted),
-                    ),
+                    Text('Free plan', style: SsText.caption(color: c.muted)),
                     const SizedBox(width: 4),
                     Icon(LucideIcons.chevronRight, size: 14, color: c.muted),
                   ],
                 ),
-                if (!trial) ...[
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: used,
-                      minHeight: 4,
-                      color: tone,
-                      backgroundColor: c.chip,
-                    ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    value: used,
+                    minHeight: 4,
+                    color: tone,
+                    backgroundColor: c.chip,
                   ),
-                ],
+                ),
               ],
             ),
           ),
@@ -84,8 +77,8 @@ class UsageMeter extends StatelessWidget {
   }
 }
 
-/// Sync stopped at the monthly limit. Scanning carries on; rows wait on the
-/// phone until the 1st or an upgrade.
+/// The month's rows are used up. Scanning carries on; new rows wait on the
+/// phone, out of Google Sheets and exports, until the 1st or an upgrade.
 class LimitReachedCard extends StatelessWidget {
   final int waiting;
   const LimitReachedCard({super.key, required this.waiting});
@@ -119,7 +112,7 @@ class LimitReachedCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Keep scanning — $waiting new ${waiting == 1 ? 'row is' : 'rows are'} saved on this phone and will sync on ${first.day} ${months[first.month - 1]}, or right away with Pro.',
+                      'Keep scanning — $waiting new ${waiting == 1 ? 'row is' : 'rows are'} saved on this phone. They join your sheet and exports on ${first.day} ${months[first.month - 1]}, or right away with Pro.',
                       style: SsText.sans(size: 13, color: c.muted),
                     ),
                   ],
@@ -129,7 +122,7 @@ class LimitReachedCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           SsButton(
-            'Sync everything with Pro',
+            'Unlock every row with Pro',
             large: false,
             onPressed: () => openPaywall(context),
           ),

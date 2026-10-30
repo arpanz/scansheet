@@ -256,7 +256,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
 
   void _resetPending() {
     _activeScanColumnIndex = 0;
-    _pendingRow = _session.buildEmptyRow(_rows.length);
+    _pendingRow = _session.buildEmptyRow(
+      ScanSessionService.nextRowIndex(_session.id),
+    );
   }
 
   void _detect(BarcodeCapture capture) {
@@ -463,7 +465,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   }
 
   Future<void> _commit(SessionRow row) async {
-    final finalRow = row;
+    // Past the free plan's monthly rows the scan is still saved, locked.
+    final finalRow = row.copyWith(
+      locked: !await UsageService.instance.admitRow(),
+    );
     await ScanSessionService.addRow(_session.id, finalRow);
     if (_hasLocation) unawaited(_fillLocation(_session, finalRow.rowIndex));
     if (!mounted) return;
@@ -483,6 +488,11 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         scanning: true,
         rows: _rows.length,
       );
+    }
+    if (finalRow.locked) {
+      _feedback(notice: true);
+      _flash('Row $rowNo saved · monthly limit reached', warn: true);
+      return;
     }
     if (finalRow.notOnList) {
       _feedback(notice: true);

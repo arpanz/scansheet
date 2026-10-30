@@ -103,10 +103,27 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
 
   /// The sheet as a file in the selected format: (path, bytes, extension).
   Future<(String, Uint8List, String)?> _makeFile() async {
-    final rows = ScanSessionService.getRows(widget.session.id);
+    final all = ScanSessionService.getRows(widget.session.id);
+    // Rows past the free plan's monthly allowance wait for the 1st or Pro.
+    final rows = [
+      for (final r in all)
+        if (!r.locked) r,
+    ];
+    final held = all.length - rows.length;
     if (rows.isEmpty) {
-      showSsToast(context, 'No rows to export yet.');
+      showSsToast(
+        context,
+        held == 0
+            ? 'No rows to export yet.'
+            : 'These rows are over this month’s limit. Go Pro to export them.',
+      );
       return null;
+    }
+    if (held > 0) {
+      showSsToast(
+        context,
+        '$held ${held == 1 ? 'row' : 'rows'} over this month’s limit left out',
+      );
     }
     final table = widget.session.toTableData(rows);
 
@@ -194,7 +211,16 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
     final pending = isSheets
         ? SyncQueueService.pendingForSession(widget.session.id)
         : 0;
-    final synced = (widget.totalRows - pending).clamp(0, widget.totalRows);
+    // Rows past the free plan's monthly allowance aren't queued yet.
+    final locked = isSheets
+        ? ScanSessionService.lockedRows()
+              .where((r) => r.$1 == widget.session.id)
+              .length
+        : 0;
+    final synced = (widget.totalRows - pending - locked).clamp(
+      0,
+      widget.totalRows,
+    );
     final localFormat =
         widget.session.destination == SessionDestination.localXlsx
         ? 'Excel'
@@ -276,7 +302,9 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 isSheets
-                                    ? (pending == 0
+                                    ? (locked > 0
+                                          ? '$locked ${locked == 1 ? 'row waits' : 'rows wait'} for next month · My Drive'
+                                          : pending == 0
                                           ? (synced == 1
                                                 ? '1 row synced · My Drive'
                                                 : 'All $synced rows synced · My Drive')

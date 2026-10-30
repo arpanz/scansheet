@@ -35,10 +35,7 @@ class _TeamScreenState extends State<TeamScreen> {
     });
   }
 
-  bool get _canShare {
-    final usage = UsageService.instance;
-    return usage.isPro || (usage.usage.value?.inTrial ?? false);
-  }
+  bool get _canShare => UsageService.instance.isPro;
 
   Future<void> _run(Future<void> Function() action) async {
     setState(() => _busy = true);

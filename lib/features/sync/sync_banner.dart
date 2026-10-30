@@ -5,7 +5,6 @@ import '../../core/services/google_sheets_service.dart';
 import '../../core/services/scan_session_service.dart';
 import '../../core/services/sheets_sync_service.dart';
 import '../../core/services/sync_queue_service.dart';
-import '../../core/services/usage_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
 import '../scan/models/scan_session.dart';
@@ -30,7 +29,7 @@ class SyncBanner extends StatelessWidget {
         sync.authExpired,
         sync.missingSheets,
         GoogleSheetsService.instance.signedInNotifier,
-        UsageService.instance.syncPaused,
+        ScanSessionService.changes,
       ]),
       builder: (context, _) {
         final items = SyncQueueService.getAll().where(
@@ -39,7 +38,11 @@ class SyncBanner extends StatelessWidget {
               (session == null || i.sessionId == session!.id),
         );
         final waiting = items.length;
-        if (waiting == 0) return const SizedBox.shrink();
+        // Rows saved past the free plan's monthly allowance.
+        final locked = ScanSessionService.lockedRows()
+            .where((r) => session == null || r.$1 == session!.id)
+            .length;
+        if (waiting == 0 && locked == 0) return const SizedBox.shrink();
 
         final missing = sync.missingSheets.value;
         final lost = ScanSessionService.getAllSessions().where(
@@ -53,9 +56,8 @@ class SyncBanner extends StatelessWidget {
           child = _WaitingForAccess(session: lost.first);
         } else if (lost.isNotEmpty) {
           child = _SheetGone(session: lost.first);
-        } else if (UsageService.instance.syncPaused.value &&
-            GoogleSheetsService.instance.isSignedIn) {
-          child = LimitReachedCard(waiting: waiting);
+        } else if (locked > 0) {
+          child = LimitReachedCard(waiting: locked);
         } else if (sync.authExpired.value ||
             !GoogleSheetsService.instance.isSignedIn) {
           child = _Reconnect(waiting: waiting);

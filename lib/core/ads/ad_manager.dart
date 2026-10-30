@@ -6,8 +6,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../services/usage_service.dart';
-
 class AdManager {
   static final AdManager instance = AdManager._internal();
 
@@ -269,15 +267,13 @@ class AdManager {
     );
   }
 
-  /// No interstitial after someone's very first export, nor while their
-  /// free week of syncing runs: the first impression shouldn't be an ad.
+  /// No interstitial after someone's very first export: the first
+  /// impression shouldn't be an ad.
   Future<bool> _inAdGrace() async {
     final prefs = await SharedPreferences.getInstance();
     final exports = prefs.getInt('exports_done') ?? 0;
     await prefs.setInt('exports_done', exports + 1);
-    final usage = UsageService.instance.usage.value;
-    final trialRunning = usage?.trialStartedAt != null && usage!.inTrial;
-    return exports == 0 || trialRunning;
+    return exports == 0;
   }
 
   void _showLoadedInterstitial(

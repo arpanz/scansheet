@@ -260,7 +260,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Text(
-                                          "You're on Free: 3 open sheets and 200 synced rows a month. Excel and CSV export are always free.",
+                                          "You're on Free: 200 new rows a month across all sheets, and 3 Google Sheets open at once.",
                                           style: SsText.sans(
                                             size: 13,
                                             height: 1.4,

@@ -15,7 +15,7 @@ class LookupListService {
   static Box? _box;
 
   /// Free plan keeps this many entries per list; Pro keeps them all.
-  static const freeEntryLimit = 100;
+  static const freeEntryLimit = 50;
 
   static Box get _safeBox {
     assert(_box != null, 'Call LookupListService.init() before use.');

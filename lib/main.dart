@@ -143,6 +143,8 @@ class _MainHomeScreenState extends State<MainHomeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       AdManager.instance.revalidateEntitlement();
+      // A new month frees rows saved past last month's limit.
+      UsageService.instance.releaseLocked();
       SheetsSyncService.instance.syncSoon();
       UpdateService.handleAppResume(context);
     }

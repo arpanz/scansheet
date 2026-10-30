@@ -115,12 +115,14 @@ class ScanSessionService {
   static String _rowKey(String sessionId, int rowIndex) =>
       '${sessionId}_$rowIndex';
 
-  /// Append a new row to the session.
+  /// Append a new row to the session. A locked row stays off the sync
+  /// queue until [unlockRow].
   static Future<void> addRow(String sessionId, SessionRow row) async {
     await rowsBox.put(_rowKey(sessionId, row.rowIndex), row.toMap());
 
     final session = getSession(sessionId);
-    if (session != null &&
+    if (!row.locked &&
+        session != null &&
         session.destination == SessionDestination.googleSheets &&
         session.spreadsheetId != null) {
       final item = SyncQueueItem(
@@ -136,6 +138,42 @@ class ScanSessionService {
       await SyncQueueService.enqueue(item);
     }
   }
+
+  /// Index for the session's next row. Never reuses one: after a delete,
+  /// `rows.length` points at an existing row, and a deleted row's index
+  /// may still be waiting in the sync queue to blank its sheet row.
+  static int nextRowIndex(String sessionId) {
+    var next = 0;
+    for (final r in getRows(sessionId)) {
+      if (r.rowIndex >= next) next = r.rowIndex + 1;
+    }
+    for (final i in SyncQueueService.getAll()) {
+      if (i.sessionId == sessionId && i.rowIndex >= next) next = i.rowIndex + 1;
+    }
+    return next;
+  }
+
+  /// Every locked row, oldest scan first, with its session id.
+  static List<(String, SessionRow)> lockedRows() {
+    final found = <(String, SessionRow)>[];
+    for (final key in rowsBox.keys) {
+      final raw = rowsBox.get(key);
+      if (raw is! Map || raw['locked'] != true) continue;
+      final k = key.toString();
+      try {
+        found.add((
+          k.substring(0, k.lastIndexOf('_')),
+          SessionRow.fromMap(Map<String, dynamic>.from(raw)),
+        ));
+      } catch (_) {}
+    }
+    found.sort((a, b) => a.$2.scannedAt.compareTo(b.$2.scannedAt));
+    return found;
+  }
+
+  /// A locked row now fits the allowance: save it unlocked and send it.
+  static Future<void> unlockRow(String sessionId, SessionRow row) =>
+      addRow(sessionId, row.copyWith(locked: false));
 
   /// Replace an existing row. Used when correcting scanned values.
   static Future<void> updateRow(String sessionId, SessionRow row) async {
