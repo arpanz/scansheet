@@ -77,12 +77,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 UsageService.instance.usage,
                 AdManager.instance.isProNotifier,
               ]),
-              builder: (context, _) => _ProCard(
-                usage: UsageService.instance.summary,
-                onTap: () => Navigator.of(
-                  context,
-                ).push(FadeSlideRoute(page: const PaywallScreen())),
-              ),
+              builder: (context, _) => AdManager.instance.isPro
+                  ? _PlanCard(
+                      plan: AdManager.instance.proPlan,
+                      // Straight to the yearly plan when we know it's the
+                      // one owned; otherwise Play's subscriptions list.
+                      onManage: () => _open(
+                        AdManager.instance.proPlan == AdManager.yearlyProductId
+                            ? 'https://play.google.com/store/account/subscriptions'
+                                  '?sku=${AdManager.yearlyProductId}'
+                                  '&package=com.livinlabs.scansheet'
+                            : 'https://play.google.com/store/account/subscriptions',
+                      ),
+                    )
+                  : _ProCard(
+                      usage: UsageService.instance.summary,
+                      onTap: () => Navigator.of(
+                        context,
+                      ).push(FadeSlideRoute(page: const PaywallScreen())),
+                    ),
             ),
             const SizedBox(height: 18),
             _Section(
@@ -418,6 +431,38 @@ class _ProCard extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// What a Pro user owns, with the way to manage or cancel it. Lifetime has
+/// nothing to manage; an unknown plan (not yet confirmed by the store on
+/// this install) still gets the link, in case it's the yearly one.
+class _PlanCard extends StatelessWidget {
+  final String? plan;
+  final VoidCallback onManage;
+  const _PlanCard({required this.plan, required this.onManage});
+  @override
+  Widget build(BuildContext context) {
+    final lifetime = plan == AdManager.productId;
+    return SsListGroup(
+      children: [
+        SsListRow(
+          leading: Icon(LucideIcons.star, size: 18, color: context.ss.emerald),
+          title: 'ScanSheet Pro',
+          subtitle: switch (plan) {
+            AdManager.productId => 'Lifetime · paid once, nothing renews',
+            AdManager.yearlyProductId => 'Yearly plan · renews on Google Play',
+            _ => 'Active on this Google Play account',
+          },
+        ),
+        if (!lifetime)
+          SsListRow(
+            title: 'Manage or cancel subscription',
+            chevron: true,
+            onTap: onManage,
+          ),
+      ],
+    );
+  }
 }
 
 class _PrefSwitch extends StatelessWidget {

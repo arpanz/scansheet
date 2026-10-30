@@ -181,8 +181,9 @@ class ReviewService {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Theme.of(ctx).colorScheme.errorContainer
-                      .withValues(alpha: 0.7),
+                  color: Theme.of(
+                    ctx,
+                  ).colorScheme.errorContainer.withValues(alpha: 0.7),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -195,9 +196,9 @@ class ReviewService {
               Text(
                 'We are sorry to hear that',
                 textAlign: TextAlign.center,
-                style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
@@ -216,7 +217,7 @@ class ReviewService {
                     onPressed: () async {
                       Navigator.pop(ctx);
                       final emailUri = Uri.parse(
-                        'mailto:connect.livinlabs@gmail.com?subject=Batch%20QR%20Feedback&body=Hi%2C%20here%27s%20how%20Batch%20QR%20could%20improve%3A%0A%0A',
+                        'mailto:support@livinlabs.dev?subject=ScanSheet%20feedback&body=Hi%2C%20here%27s%20how%20ScanSheet%20could%20improve%3A%0A%0A',
                       );
                       try {
                         await launchUrl(emailUri);
@@ -230,7 +231,7 @@ class ReviewService {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               content: const Text(
-                                'Could not open email. Please reach us at connect.livinlabs@gmail.com',
+                                'Could not open email. Please reach us at support@livinlabs.dev',
                               ),
                             ),
                           );

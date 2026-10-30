@@ -6,6 +6,8 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/usage_service.dart';
+
 class AdManager {
   static final AdManager instance = AdManager._internal();
 
@@ -22,13 +24,17 @@ class AdManager {
   static const String productId = 'pro_lifetime';
   static const String yearlyProductId = 'pro_yearly';
   static const String appStoreUrl =
-      'https://play.google.com/store/apps/details?id=com.livinlabs.csvforge';
+      'https://play.google.com/store/apps/details?id=com.livinlabs.scansheet';
   List<ProductDetails> products = [];
+
+  /// The Pro product the store last confirmed: [productId] (lifetime) or
+  /// [yearlyProductId]. Null until a purchase is seen on this install.
+  String? get proPlan => _proPlan;
+  String? _proPlan;
 
   // Circular dependency resolution: HomeScreen will initialize this.
   static Future<void> Function(BuildContext context)? onShowPaywall;
   int _interstitialCount = 0;
-
 
   // Real IDs
   final String _realBannerId = 'ca-app-pub-4397005408366648/9753920564';
@@ -39,7 +45,6 @@ class AdManager {
   final String _testBannerId = 'ca-app-pub-3940256099942544/6300978111';
   final String _testInterstitialId = 'ca-app-pub-3940256099942544/1033173712';
   final String _testNativeAdId = 'ca-app-pub-3940256099942544/2247696110';
-
 
   String get _bannerId {
     if (kDebugMode) return _testBannerId;
@@ -62,6 +67,7 @@ class AdManager {
 
     // 1. Check local storage first for immediate UI rendering
     _isPro = prefs.getBool('is_premium_user') ?? false;
+    _proPlan = prefs.getString('pro_plan');
 
     // 2. Silently verify active subscriptions/purchases with Google Play
     if (await InAppPurchase.instance.isAvailable()) {
@@ -69,35 +75,36 @@ class AdManager {
 
       // Fixed: subscription was previously fire-and-forget (never stored,
       // never cancelled). Now stored in _initSubscription.
-      InAppPurchase.instance.purchaseStream.listen(
-        (purchaseDetailsList) async {
-          bool hasActivePremium = false;
+      InAppPurchase.instance.purchaseStream.listen((purchaseDetailsList) async {
+        bool hasActivePremium = false;
 
-          for (final purchase in purchaseDetailsList) {
-            if (purchase.status == PurchaseStatus.purchased ||
-                purchase.status == PurchaseStatus.restored) {
-              if (purchase.productID == productId ||
-                  purchase.productID == yearlyProductId) {
-                hasActivePremium = true;
-                if (purchase.pendingCompletePurchase) {
-                  await InAppPurchase.instance.completePurchase(purchase);
-                }
+        for (final purchase in purchaseDetailsList) {
+          if (purchase.status == PurchaseStatus.purchased ||
+              purchase.status == PurchaseStatus.restored) {
+            if (purchase.productID == productId ||
+                purchase.productID == yearlyProductId) {
+              hasActivePremium = true;
+              await _recordPlan(purchase.productID);
+              if (purchase.pendingCompletePurchase) {
+                await InAppPurchase.instance.completePurchase(purchase);
               }
             }
           }
+        }
 
-          if (hasActivePremium) {
-            _isPro = true;
-            isProNotifier.value = true;
-            await prefs.setBool('is_premium_user', true);
-          } else if (purchaseDetailsList.isNotEmpty) {
-            _isPro = false;
-            isProNotifier.value = false;
-            await prefs.setBool('is_premium_user', false);
-            _checkConsentAndInitAds();
-          }
-        },
-      );
+        if (hasActivePremium) {
+          _isPro = true;
+          isProNotifier.value = true;
+          await prefs.setBool('is_premium_user', true);
+        } else if (purchaseDetailsList.isNotEmpty) {
+          _isPro = false;
+          isProNotifier.value = false;
+          await prefs.setBool('is_premium_user', false);
+          _proPlan = null;
+          await prefs.remove('pro_plan');
+          _checkConsentAndInitAds();
+        }
+      });
     }
 
     // 3. Initialize Ads if not Pro
@@ -158,6 +165,7 @@ class AdManager {
             if (purchase.productID == productId ||
                 purchase.productID == yearlyProductId) {
               hasActive = true;
+              await _recordPlan(purchase.productID);
               if (purchase.pendingCompletePurchase) {
                 await InAppPurchase.instance.completePurchase(purchase);
               }
@@ -173,6 +181,8 @@ class AdManager {
           _isPro = false;
           isProNotifier.value = false;
           await prefs.setBool('is_premium_user', false);
+          _proPlan = null;
+          await prefs.remove('pro_plan');
           _checkConsentAndInitAds();
         }
 
@@ -191,6 +201,15 @@ class AdManager {
       const Duration(seconds: 8),
       onTimeout: () {},
     );
+  }
+
+  /// Lifetime wins when both are owned, so Settings never offers to cancel
+  /// a plan that doesn't renew.
+  Future<void> _recordPlan(String id) async {
+    if (_proPlan == productId) return;
+    _proPlan = id;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('pro_plan', id);
   }
 
   /// Call this when purchase is successful
@@ -239,7 +258,32 @@ class AdManager {
       onAdDismissed?.call();
       return;
     }
+    unawaited(
+      _inAdGrace().then((grace) {
+        if (grace || !context.mounted) {
+          onAdDismissed?.call();
+        } else {
+          _showLoadedInterstitial(context, onAdDismissed);
+        }
+      }),
+    );
+  }
 
+  /// No interstitial after someone's very first export, nor while their
+  /// free week of syncing runs: the first impression shouldn't be an ad.
+  Future<bool> _inAdGrace() async {
+    final prefs = await SharedPreferences.getInstance();
+    final exports = prefs.getInt('exports_done') ?? 0;
+    await prefs.setInt('exports_done', exports + 1);
+    final usage = UsageService.instance.usage.value;
+    final trialRunning = usage?.trialStartedAt != null && usage!.inTrial;
+    return exports == 0 || trialRunning;
+  }
+
+  void _showLoadedInterstitial(
+    BuildContext context,
+    VoidCallback? onAdDismissed,
+  ) {
     if (_interstitialAd != null) {
       _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {

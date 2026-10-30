@@ -121,21 +121,39 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
     } else {
       ext = 'xlsx';
       final excel = Excel.createExcel();
-      void fill(Sheet sheet, List<List<String>> table) {
+      // Count columns become number cells so Excel can sum them; the
+      // header row and anything that doesn't parse stay text.
+      void fill(Sheet sheet, List<List<String>> table, Set<int> numeric) {
         for (var r = 0; r < table.length; r++) {
           for (var c = 0; c < table[r].length; c++) {
+            final text = table[r][c];
+            final n = r > 0 && numeric.contains(c)
+                ? num.tryParse(text.trim())
+                : null;
             sheet
                 .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r))
-                .value = TextCellValue(
-              table[r][c],
-            );
+                .value = switch (n) {
+              final int i => IntCellValue(i),
+              final double d => DoubleCellValue(d),
+              _ => TextCellValue(text),
+            };
           }
         }
       }
 
-      fill(excel[excel.getDefaultSheet() ?? 'Sheet1'], table);
-      // A second sheet with who or what is still missing.
-      if (_check case final check?) fill(excel[check.tabName], check.table);
+      fill(
+        excel[excel.getDefaultSheet() ?? 'Sheet1'],
+        table,
+        widget.session.numericColumns,
+      );
+      // A second sheet with who or what is still missing. In stock mode its
+      // last three columns are Expected, Counted and Difference.
+      if (_check case final check?) {
+        final width = check.table.first.length;
+        fill(excel[check.tabName], check.table, {
+          if (check.hasExpected) ...{width - 3, width - 2, width - 1},
+        });
+      }
       bytes = Uint8List.fromList(excel.encode()!);
     }
     final safeName = widget.session.name

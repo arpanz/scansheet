@@ -453,6 +453,16 @@ class ScanSession {
     if (hasOnListColumn) row.notOnList ? 'No' : 'Yes',
   ];
 
+  /// Columns whose cells are counts, written as numbers in Excel. Scanned
+  /// codes stay text so leading zeros and long digit runs survive.
+  Set<int> get numericColumns => {
+    for (final (i, c) in columns.indexed)
+      if (c.type == SessionColumnType.increment ||
+          (c.type == SessionColumnType.manual && c.isNumeric) ||
+          i == qtyColumnIndex)
+        i,
+  };
+
   List<List<String>> toTableData(List<SessionRow> rows) => [
     headerNames,
     for (final r in rows) cellsFor(r),

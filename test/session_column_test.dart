@@ -45,4 +45,36 @@ void main() {
       'Starts as “B-12” · scan BIN- labels · asked at start',
     );
   });
+
+  test('Excel number columns are counts, never scanned codes', () {
+    final session = ScanSession(
+      id: 's',
+      name: 'Stock',
+      createdAt: DateTime(2026),
+      columns: const [
+        SessionColumn(name: 'Code', type: SessionColumnType.scan),
+        SessionColumn(name: 'No.', type: SessionColumnType.increment),
+        SessionColumn(name: 'Note', type: SessionColumnType.manual),
+        SessionColumn(
+          name: 'Qty',
+          type: SessionColumnType.manual,
+          isNumeric: true,
+        ),
+      ],
+    );
+    expect(session.numericColumns, {1, 3});
+  });
+
+  test('a free-text column named Qty also exports as a number', () {
+    final session = ScanSession(
+      id: 's',
+      name: 'Count',
+      createdAt: DateTime(2026),
+      columns: const [
+        SessionColumn(name: 'Code', type: SessionColumnType.scan),
+        SessionColumn(name: 'Quantity', type: SessionColumnType.manual),
+      ],
+    );
+    expect(session.numericColumns, {1});
+  });
 }
