@@ -6,49 +6,86 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Signed in with Google, not just the anonymous sign-in every phone gets
+    // for usage counting.
+    function hasAccount() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // The server's month as 202610 (UTC), what usage docs must be counting.
+    function thisMonth() {
+      return request.time.year() * 100 + request.time.month();
+    }
+
     // Free-plan usage: one doc per Google account (lib/core/services/usage_service.dart).
     match /users/{uid} {
       allow read, write: if signedIn() && request.auth.uid == uid;
     }
 
+    // Free-plan usage per phone, signed in or not (anonymous auth): the doc
+    // id is a hash of the phone's ANDROID_ID, so it survives reinstalls and
+    // cleared data. Only the server's month can be written, and a month's
+    // count never goes down.
+    match /devices/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(
+          ['month', 'monthKey', 'rowsAdded', 'updatedAt'])
+        && request.resource.data.monthKey == thisMonth()
+        && request.resource.data.rowsAdded is int
+        && (resource == null
+          || resource.data.get('monthKey', 0) != thisMonth()
+          || request.resource.data.rowsAdded >= resource.data.rowsAdded);
+    }
+
+    // The server's time, read back so a phone's date can't start a new month
+    // early (lib/core/services/device_service.dart).
+    match /clock/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['t'])
+        && request.resource.data.t == request.time;
+    }
+
     // Scan together (lib/core/services/team_service.dart). The invite code is
-    // the doc id: anyone signed in who has it can read the setup, but codes
-    // can't be listed.
+    // the doc id: anyone with a Google account who has it can read the setup,
+    // but codes can't be listed.
     match /teams/{code} {
       function team() {
         return get(/databases/$(database)/documents/teams/$(code)).data;
       }
       function isOwner() {
-        return signedIn() && team().ownerUid == request.auth.uid;
+        return hasAccount() && team().ownerUid == request.auth.uid;
       }
       function isMember() {
-        return signedIn() && exists(
+        return hasAccount() && exists(
           /databases/$(database)/documents/teams/$(code)/members/$(request.auth.uid));
       }
 
-      allow get: if signedIn();
-      allow create: if signedIn()
+      allow get: if hasAccount();
+      allow create: if hasAccount()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.active == true;
-      allow update: if signedIn()
+      allow update: if hasAccount()
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.ownerUid == resource.data.ownerUid;
-      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow delete: if hasAccount() && resource.data.ownerUid == request.auth.uid;
 
       match /members/{uid} {
         allow read: if isOwner() || isMember();
         // Joining: only yourself, only while shared, only asking for access.
-        allow create: if signedIn() && uid == request.auth.uid && (
+        allow create: if hasAccount() && uid == request.auth.uid && (
           isOwner()
           || (team().active == true
               && request.resource.data.role == 'member'
               && request.resource.data.access == 'requested'));
         // Teammates update their own live status; only the owner changes
         // access or role.
-        allow update: if isOwner() || (signedIn() && uid == request.auth.uid
+        allow update: if isOwner() || (hasAccount() && uid == request.auth.uid
           && request.resource.data.access == resource.data.access
           && request.resource.data.role == resource.data.role);
-        allow delete: if isOwner() || (signedIn() && uid == request.auth.uid);
+        allow delete: if isOwner() || (hasAccount() && uid == request.auth.uid);
       }
 
       match /data/{doc} {

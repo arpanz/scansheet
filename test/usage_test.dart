@@ -37,4 +37,21 @@ void main() {
     );
     expect(row.copyWith(locked: true).copyWith(values: ['B2']).locked, isTrue);
   });
+
+  test('months are UTC, the months the server checks', () {
+    expect(Usage.monthOf(DateTime.utc(2026, 10, 31, 23, 59)), '2026-10');
+    expect(Usage.monthOf(DateTime.utc(2026, 11, 1)), '2026-11');
+  });
+
+  test('turning the clock back to an earlier month keeps the count', () {
+    expect(const Usage(month: '2999-01', rows: 200).rowsThisMonth, 200);
+  });
+
+  test('the server doc carries a month key the rules can check', () {
+    final json = const Usage(month: '2026-10', rows: 12).toJson();
+    expect(json['monthKey'], 202610);
+    final back = Usage.fromJson({'monthKey': 202611, 'rowsAdded': 3});
+    expect(back.month, '2026-11');
+    expect(back.rows, 3);
+  });
 }

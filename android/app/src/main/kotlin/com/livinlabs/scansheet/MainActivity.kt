@@ -1,6 +1,9 @@
 package com.livinlabs.scansheet
 
 import android.content.Intent
+import android.os.SystemClock
+import android.provider.Settings
+import java.security.MessageDigest
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
@@ -8,6 +11,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "scansheet/launch"
+        private const val DEVICE_CHANNEL = "scansheet/device"
         private const val EXTRA_ACTION = "launch_action"
     }
 
@@ -32,6 +36,25 @@ class MainActivity : FlutterActivity() {
                 result.notImplemented()
             }
         }
+        // Free-plan usage (lib/core/services/device_service.dart): a stable
+        // id for this phone and app, and the clock since boot.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEVICE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "deviceId" -> result.success(deviceId())
+                    "elapsedRealtime" -> result.success(SystemClock.elapsedRealtime())
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /** ANDROID_ID survives reinstalls and cleared data; only a hash leaves the phone. */
+    private fun deviceId(): String? {
+        val raw = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+            ?: return null
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest("scansheet:$raw".toByteArray())
+        return digest.joinToString("") { "%02x".format(it) }
     }
 
     override fun onNewIntent(intent: Intent) {
