@@ -207,7 +207,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   selected: _plan == _Plan.lifetime,
                   onTap: () => _pick(_Plan.lifetime),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 _PlanTile(
                   skin: skin,
                   title: 'Monthly',
@@ -547,8 +547,8 @@ class _PlanTile extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 16,
+                  horizontal: 16,
+                  vertical: 10,
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
@@ -559,8 +559,8 @@ class _PlanTile extends StatelessWidget {
                     if (light) ...[
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 160),
-                        width: 22,
-                        height: 22,
+                        width: 20,
+                        height: 20,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -568,8 +568,8 @@ class _PlanTile extends StatelessWidget {
                         ),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 160),
-                          width: 10,
-                          height: 10,
+                          width: 9,
+                          height: 9,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: selected ? border : Colors.transparent,
@@ -598,10 +598,10 @@ class _PlanTile extends StatelessWidget {
                               ],
                             ],
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 1),
                           Text(
                             note,
-                            style: SsText.sans(size: 13, color: skin.muted),
+                            style: SsText.sans(size: 12, color: skin.muted),
                           ),
                         ],
                       ),

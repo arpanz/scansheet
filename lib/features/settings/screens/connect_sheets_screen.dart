@@ -35,6 +35,7 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
   bool _isSigningIn = false;
   bool _isLoadingSheets = false;
   bool _isCreating = false;
+  bool _isAddingTab = false;
 
   List<SpreadsheetInfo> _spreadsheets = [];
   SpreadsheetInfo? _selected;
@@ -158,6 +159,32 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
   }
 
   void _showError(String message) => showSsToast(context, message);
+
+  Future<void> _addTab() async {
+    final name = await showSsTextPrompt(
+      context,
+      title: 'New tab',
+      label: 'Tab name',
+      initial: '',
+    );
+    final title = name?.trim() ?? '';
+    if (title.isEmpty || _selected == null || !mounted) return;
+    setState(() => _isAddingTab = true);
+    try {
+      final selected = _selected!;
+      final actualName = await _gss.addTab(selected.id, title);
+      final worksheets = await _gss.getWorksheets(selected.id);
+      if (!mounted) return;
+      setState(() {
+        _worksheets = worksheets;
+        _selectedSheet = actualName;
+      });
+    } on GSheetsException catch (e) {
+      if (mounted) _showError(e.message);
+    } finally {
+      if (mounted) setState(() => _isAddingTab = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -293,6 +320,13 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
                                 setState(() => _selectedSheet = worksheet);
                               },
                             ),
+                          _WorksheetChip(
+                            label: _isAddingTab ? 'Creating…' : 'New tab',
+                            selected: false,
+                            onTap: _isAddingTab ? null : _addTab,
+                            emerald: true,
+                            leadingIcon: LucideIcons.plus,
+                          ),
                         ],
                       ),
                     ],
@@ -451,11 +485,15 @@ class _WorksheetChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.emerald = false,
+    this.leadingIcon,
   });
 
   final String label;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool emerald;
+  final IconData? leadingIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -474,13 +512,26 @@ class _WorksheetChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(17),
             border: selected ? null : Border.all(color: c.line),
           ),
-          child: Text(
-            label,
-            style: SsText.sans(
-              size: 13,
-              weight: FontWeight.w500,
-              color: selected ? c.onInk : c.ink,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (leadingIcon != null) ...[
+                Icon(leadingIcon, size: 14, color: c.emerald),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: SsText.sans(
+                  size: 13,
+                  weight: FontWeight.w500,
+                  color: emerald
+                      ? c.emerald
+                      : selected
+                      ? c.onInk
+                      : c.ink,
+                ),
+              ),
+            ],
           ),
         ),
       ),

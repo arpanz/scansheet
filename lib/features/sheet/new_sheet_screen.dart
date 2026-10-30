@@ -17,8 +17,9 @@ import '../sync/plan_limits.dart';
 import 'add_column_sheet.dart';
 
 class NewSheetScreen extends StatefulWidget {
-  const NewSheetScreen({super.key, this.template});
+  const NewSheetScreen({super.key, this.template, this.copyFrom});
   final SessionTemplate? template;
+  final ScanSession? copyFrom;
 
   @override
   State<NewSheetScreen> createState() => _NewSheetScreenState();
@@ -36,16 +37,38 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
   bool _loading = false;
   LookupList? _list;
   UnknownCodes _unknownCodes = UnknownCodes.ask;
+  bool _newTabInFile = false;
 
   @override
   void initState() {
     super.initState();
     final template = widget.template;
-    _name = TextEditingController(text: template?.name ?? '');
-    _columns = template == null
+    final copyFrom = widget.copyFrom;
+    _name = TextEditingController(
+      text: copyFrom != null ? '${copyFrom.name} 2' : template?.name ?? '',
+    );
+    _columns = copyFrom != null
+        ? List.of(copyFrom.columns)
+        : template == null
         ? [const SessionColumn(name: 'Item code', type: SessionColumnType.scan)]
         : List.of(template.columns);
-    _templateIcon = template?.icon;
+    _templateIcon = copyFrom?.iconName ?? template?.icon;
+    if (copyFrom != null) {
+      _destination = 'sheets';
+      _newTabInFile = true;
+      _existing = SheetDestination(
+        spreadsheetId: copyFrom.spreadsheetId!,
+        spreadsheetTitle: copyFrom.spreadsheetTitle ?? copyFrom.name,
+        sheetName: '',
+      );
+      _mergeRepeats = copyFrom.mergeRepeats;
+      _warnDuplicates = copyFrom.warnDuplicates;
+      _showConfirmation = copyFrom.showScanConfirmation;
+      _unknownCodes = copyFrom.unknownCodes;
+      if (copyFrom.lookupListId != null) {
+        _list = LookupListService.get(copyFrom.lookupListId!);
+      }
+    }
     if (template?.listPrompt != null) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _askForList(template!),
@@ -65,7 +88,12 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
     final picked = await Navigator.of(
       context,
     ).push<SheetDestination>(FadeSlideRoute(page: const ConnectSheetsScreen()));
-    if (picked != null && mounted) setState(() => _existing = picked);
+    if (picked != null && mounted) {
+      setState(() {
+        _existing = picked;
+        _newTabInFile = false;
+      });
+    }
   }
 
   /// List columns a From list column can show (the code column is the scan).
@@ -285,6 +313,9 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
     setState(() => _loading = true);
     try {
       String? spreadsheetId;
+      String? sheetName;
+      String? spreadsheetTitle;
+      var createdFile = false;
       var destination = switch (_destination) {
         'sheets' => SessionDestination.googleSheets,
         'xlsx' => SessionDestination.localXlsx,
@@ -311,8 +342,23 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
           }
         }
         if (destination == SessionDestination.googleSheets) {
-          spreadsheetId =
-              _existing?.spreadsheetId ?? await service.createSpreadsheet(name);
+          if (_newTabInFile && _existing != null) {
+            spreadsheetId = _existing!.spreadsheetId;
+            spreadsheetTitle = _existing!.spreadsheetTitle;
+            sheetName = await service.addTab(spreadsheetId, name);
+          } else if (_existing != null) {
+            spreadsheetId = _existing!.spreadsheetId;
+            spreadsheetTitle = _existing!.spreadsheetTitle;
+            sheetName = _existing!.sheetName;
+          } else {
+            spreadsheetId = await service.createSpreadsheet(
+              name,
+              firstTab: name,
+            );
+            sheetName = name;
+            spreadsheetTitle = name;
+            createdFile = true;
+          }
         }
       }
       final session = ScanSession(
@@ -326,7 +372,9 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
         mergeRepeats: _hasNumber && _mergeRepeats,
         destination: destination,
         spreadsheetId: spreadsheetId,
-        sheetName: spreadsheetId == null ? null : _existing?.sheetName,
+        sheetName: sheetName,
+        spreadsheetTitle: spreadsheetTitle,
+        createdFile: createdFile,
         iconName: _templateIcon ?? 'inventory',
         lookupListId: _list?.id,
         unknownCodes: _unknownCodes,
@@ -435,23 +483,52 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
                     onChanged: (v) => setState(() => _destination = v),
                   ),
                   const SizedBox(height: 7),
-                  Text(switch (_destination) {
-                    'sheets' when _existing != null =>
-                      'Rows go to “${_existing!.spreadsheetTitle}” › '
-                          '${_existing!.sheetName}. Teammates can pick the '
-                          'same spreadsheet on their phones.',
-                    'sheets' => 'Rows sync live to a new sheet in My Drive',
-                    'xlsx' =>
-                      'Saved on this phone, share the .xlsx when you finish',
-                    _ => 'Plain file that opens in any spreadsheet tool',
-                  }, style: SsText.sans(size: 12, color: c.muted)),
+                  if (_destination == 'sheets')
+                    ValueListenableBuilder<bool>(
+                      valueListenable:
+                          GoogleSheetsService.instance.signedInNotifier,
+                      builder: (context, signedIn, _) => AnimatedBuilder(
+                        animation: _name,
+                        builder: (context, _) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              signedIn
+                                  ? 'Connected as ${GoogleSheetsService.instance.currentUser?.email}'
+                                  : 'You’ll sign in to Google when you start',
+                              style: SsText.sans(size: 12, color: c.muted),
+                            ),
+                            Text(
+                              _newTabInFile && _existing != null
+                                  ? 'New tab “${_name.text.trim()}” in “${_existing!.spreadsheetTitle}”'
+                                  : _existing != null
+                                  ? 'Rows go to “${_existing!.spreadsheetTitle}” › ${_existing!.sheetName}'
+                                  : 'New file “${_name.text.trim().isEmpty ? 'your sheet' : _name.text.trim()}” in My Drive',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: SsText.sans(size: 12, color: c.muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    Text(
+                      _destination == 'xlsx'
+                          ? 'Saved on this phone, share the .xlsx when you finish'
+                          : 'Plain file that opens in any spreadsheet tool',
+                      style: SsText.sans(size: 12, color: c.muted),
+                    ),
                   if (_destination == 'sheets')
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton(
                         onPressed: _existing == null
                             ? _pickExisting
-                            : () => setState(() => _existing = null),
+                            : () => setState(() {
+                                _existing = null;
+                                _newTabInFile = false;
+                              }),
                         style: TextButton.styleFrom(
                           padding: EdgeInsets.zero,
                           foregroundColor: c.emerald,
@@ -517,6 +594,17 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
                           itemBuilder: (context, index) {
                             final col = _columns[index];
                             final kind = ColumnKind.of(col);
+                            final scanNumber =
+                                _columns
+                                    .take(index)
+                                    .where(
+                                      (x) => x.type == SessionColumnType.scan,
+                                    )
+                                    .length +
+                                1;
+                            final scanCount = _columns
+                                .where((x) => x.type == SessionColumnType.scan)
+                                .length;
                             return Dismissible(
                               key: ValueKey(
                                 'col-${identityHashCode(col)}-$index',
@@ -574,18 +662,8 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
                                             Text(
                                               ColumnKind.detailOf(
                                                 col,
-                                                firstScan:
-                                                    _columns
-                                                        .take(index)
-                                                        .where(
-                                                          (x) =>
-                                                              x.type ==
-                                                              SessionColumnType
-                                                                  .scan,
-                                                        )
-                                                        .isEmpty &&
-                                                    col.type ==
-                                                        SessionColumnType.scan,
+                                                scanNumber: scanNumber,
+                                                scanCount: scanCount,
                                               ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,

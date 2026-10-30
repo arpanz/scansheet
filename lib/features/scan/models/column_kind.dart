@@ -142,9 +142,18 @@ enum ColumnKind {
   /// One-line description shown under a column in New sheet.
   static String detailOf(
     SessionColumn c, {
-    bool firstScan = false,
+    int scanNumber = 0,
+    int scanCount = 1,
   }) => switch (of(c)) {
-    scan => firstScan ? 'Camera · used to spot repeats' : 'Camera',
+    scan =>
+      scanCount <= 1
+          ? 'Camera · used to spot repeats'
+          : switch (scanNumber) {
+              1 => '1st scan of each row · spots repeats',
+              2 => '2nd scan of each row',
+              3 => '3rd scan of each row',
+              _ => '${scanNumber}th scan of each row',
+            },
     product => 'Name filled in from the barcode',
     pickList =>
       c.choices

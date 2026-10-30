@@ -216,17 +216,79 @@ class GoogleSheetsService {
 
   /// Create a new blank spreadsheet with the given title.
   /// Returns the new spreadsheet ID.
-  Future<String> createSpreadsheet(String title) async {
+  Future<String> createSpreadsheet(String title, {String? firstTab}) async {
     try {
       final api = await _sheetsApi();
       final result = await api.spreadsheets.create(
         sheets.Spreadsheet(
           properties: sheets.SpreadsheetProperties(title: title),
+          sheets: firstTab == null
+              ? null
+              : [
+                  sheets.Sheet(
+                    properties: sheets.SheetProperties(title: firstTab),
+                  ),
+                ],
         ),
       );
       return result.spreadsheetId ?? '';
     } catch (e) {
       throw GSheetsException('Failed to create spreadsheet: $e');
+    }
+  }
+
+  /// Add a tab, choosing the first available numbered name when needed.
+  Future<String> addTab(String spreadsheetId, String title) async {
+    try {
+      final worksheets = await getWorksheets(spreadsheetId);
+      var actualTitle = title;
+      var suffix = 2;
+      while (worksheets.contains(actualTitle)) {
+        actualTitle = '$title $suffix';
+        suffix++;
+      }
+      await _addSheet(spreadsheetId, actualTitle);
+      return actualTitle;
+    } catch (e) {
+      throw GSheetsException('Failed to add tab: $e');
+    }
+  }
+
+  Future<void> _addSheet(String spreadsheetId, String title) async {
+    final api = await _sheetsApi();
+    await api.spreadsheets.batchUpdate(
+      sheets.BatchUpdateSpreadsheetRequest(
+        requests: [
+          sheets.Request(
+            addSheet: sheets.AddSheetRequest(
+              properties: sheets.SheetProperties(title: title),
+            ),
+          ),
+        ],
+      ),
+      spreadsheetId,
+    );
+  }
+
+  /// Move a Google file to Drive trash.
+  Future<void> trashFile(String fileId) async {
+    try {
+      final api = await _driveApi();
+      await api.files.update(drive.File()..trashed = true, fileId);
+    } catch (e) {
+      throw GSheetsException('Failed to trash spreadsheet: $e');
+    }
+  }
+
+  /// Fetch the Drive title for a spreadsheet. Missing access is best effort.
+  Future<String?> spreadsheetTitle(String spreadsheetId) async {
+    try {
+      final api = await _driveApi();
+      final file = await api.files.get(spreadsheetId, $fields: 'name');
+      return (file as drive.File).name;
+    } catch (e) {
+      debugPrint('Failed to get spreadsheet title: $e');
+      return null;
     }
   }
 
@@ -326,21 +388,10 @@ class GoogleSheetsService {
     List<List<String>> rows,
   ) async {
     try {
-      final api = await _sheetsApi();
       if (!(await getWorksheets(spreadsheetId)).contains(tab)) {
-        await api.spreadsheets.batchUpdate(
-          sheets.BatchUpdateSpreadsheetRequest(
-            requests: [
-              sheets.Request(
-                addSheet: sheets.AddSheetRequest(
-                  properties: sheets.SheetProperties(title: tab),
-                ),
-              ),
-            ],
-          ),
-          spreadsheetId,
-        );
+        await _addSheet(spreadsheetId, tab);
       }
+      final api = await _sheetsApi();
       await api.spreadsheets.values.clear(
         sheets.ClearValuesRequest(),
         spreadsheetId,

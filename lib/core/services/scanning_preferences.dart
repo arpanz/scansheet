@@ -14,12 +14,14 @@ class ScanningPreferences extends ChangeNotifier {
   static const _keyDefaultTemplate = 'scan_pref_default_template';
   static const _keyScannerLayout = 'scan_pref_scanner_layout';
   static const _keyVolumeScan = 'scan_pref_volume_scan';
+  static const _keyWholeView = 'scan_pref_whole_view';
 
   bool _soundEnabled = true;
   bool _vibrateEnabled = true;
   bool _torchDefault = false;
   bool _autoFocus = true;
   bool _volumeScan = false;
+  bool _wholeView = false;
   DuplicateHandling _duplicateHandling = DuplicateHandling.warn;
   String? _defaultTemplateName;
   ScannerLayoutMode _scannerLayout = ScannerLayoutMode.compact;
@@ -31,6 +33,9 @@ class ScanningPreferences extends ChangeNotifier {
 
   /// Scanner reads a code only after a volume press or a tap (Android).
   bool get volumeScan => _volumeScan;
+
+  /// Read codes anywhere in the camera view, not only inside the frame.
+  bool get wholeView => _wholeView;
   DuplicateHandling get duplicateHandling => _duplicateHandling;
   String? get defaultTemplateName => _defaultTemplateName;
   ScannerLayoutMode get scannerLayout => _scannerLayout;
@@ -44,6 +49,7 @@ class ScanningPreferences extends ChangeNotifier {
     instance._torchDefault = prefs.getBool(_keyTorchDefault) ?? false;
     instance._autoFocus = prefs.getBool(_keyAutoFocus) ?? true;
     instance._volumeScan = prefs.getBool(_keyVolumeScan) ?? false;
+    instance._wholeView = prefs.getBool(_keyWholeView) ?? false;
     final dupRaw = prefs.getString(_keyDuplicateHandling);
     instance._duplicateHandling = DuplicateHandling.values.firstWhere(
       (e) => e.name == dupRaw,
@@ -91,6 +97,13 @@ class ScanningPreferences extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyVolumeScan, v);
+  }
+
+  Future<void> setWholeView(bool v) async {
+    _wholeView = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyWholeView, v);
   }
 
   Future<void> setDuplicateHandling(DuplicateHandling v) async {

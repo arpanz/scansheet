@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,9 +14,13 @@ import '../../../core/services/list_check.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/lookup_list_service.dart';
 import '../../../core/services/product_lookup_service.dart';
+import '../../../core/services/google_sheets_service.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/services/scan_sound.dart';
 import '../../../core/services/scanning_preferences.dart';
+import '../../../core/services/sheet_summary.dart';
+import '../../../core/services/sheets_sync_service.dart';
+import '../../../core/services/sync_queue_service.dart';
 import '../../../core/services/team_service.dart';
 import '../../../core/services/usage_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -23,6 +28,7 @@ import '../../../core/widgets/ss.dart';
 import '../../../core/utils/app_router.dart';
 import '../../../core/utils/demo_seed.dart';
 import '../models/scan_session.dart';
+import '../../sheet/new_sheet_screen.dart';
 import '../../sheet/sheet_view_screen.dart';
 import 'done_for_now_screen.dart';
 import 'scan_help_screen.dart';
@@ -45,7 +51,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   late final MobileScannerController _camera;
   final _visitStarted = DateTime.now();
   late ScanSession _session;
-  late final bool _vibrate, _beep, _trigger;
+  late final bool _vibrate, _beep, _trigger, _wholeView;
   List<SessionRow> _rows = [];
   int _activeScanColumnIndex = 0;
   int _visitRows = 0;
@@ -70,7 +76,15 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   DateTime? _lastAt;
   Timer? _toastTimer;
   List<Barcode> _multi = [];
-  Size? _captureSize;
+  BarcodeCapture? _multiCapture;
+  // The codes the picker last offered stay quiet while they're in view.
+  Set<String> _multiSeen = {};
+  DateTime? _multiSeenAt;
+  // Paused for a full-screen page or the picker; sheets leave it running.
+  bool _paused = false;
+  final _stackKey = GlobalKey();
+  final _frameKey = GlobalKey();
+  Rect? _scanWindow;
   SessionRow? _pendingRow;
 
   @override
@@ -91,6 +105,10 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     _beep = prefs.soundEnabled;
     _trigger =
         prefs.volumeScan && defaultTargetPlatform == TargetPlatform.android;
+    _wholeView = prefs.wholeView;
+    if (!_wholeView) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _measureFrame());
+    }
     if (_beep) ScanSound.warmUp();
     HardwareKeyboard.instance.addHandler(_onKey);
     _torch = prefs.torchDefault;
@@ -261,29 +279,53 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     );
   }
 
+  /// The frame in the camera view's coordinates: only codes inside it are
+  /// read, unless "Read whole view" is on.
+  void _measureFrame() {
+    if (!mounted) return;
+    final stack = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    final frame = _frameKey.currentContext?.findRenderObject() as RenderBox?;
+    if (stack == null || frame == null || !frame.hasSize) return;
+    final topLeft = frame.localToGlobal(Offset.zero, ancestor: stack);
+    // A little slack, so a code touching the corners still reads.
+    final window = (topLeft & frame.size).inflate(16);
+    if (window != _scanWindow) setState(() => _scanWindow = window);
+  }
+
   void _detect(BarcodeCapture capture) {
     if (_processing || _sheetOpen || _multiPaused || !_armed) return;
-    if (_trigger && capture.barcodes.isNotEmpty) _armedUntil = null;
     final distinct = <String, Barcode>{};
     for (final barcode in capture.barcodes) {
       final value = barcode.rawValue?.trim() ?? '';
       if (value.isNotEmpty) distinct.putIfAbsent(value, () => barcode);
     }
+    if (distinct.isEmpty) return;
+    final now = DateTime.now();
+    if (_multiSeen.isNotEmpty) {
+      final recent =
+          now.difference(_multiSeenAt!) < const Duration(milliseconds: 1500);
+      if (recent && _multiSeen.containsAll(distinct.keys)) {
+        _multiSeenAt = now;
+        return;
+      }
+      _multiSeen = {};
+    }
+    if (_trigger) _armedUntil = null;
     if (distinct.length > 1) {
-      _camera.stop();
+      // Freeze the frame (not stop: that goes black) while one is picked.
+      _paused = true;
+      _camera.pause();
       setState(() {
         _multi = distinct.values.toList();
-        _captureSize = capture.size;
+        _multiCapture = capture;
         _multiPaused = true;
       });
       return;
     }
-    if (distinct.isNotEmpty) {
-      _handleValue(
-        distinct.keys.first,
-        format: distinct.values.first.format.name.toUpperCase(),
-      );
-    }
+    _handleValue(
+      distinct.keys.first,
+      format: distinct.values.first.format.name.toUpperCase(),
+    );
   }
 
   Future<void> _handleValue(
@@ -325,8 +367,6 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
           _processing = false;
           _sheetOpen = true;
           _feedback(warn: true);
-          await _camera.stop();
-          if (!mounted) return;
           final add = await showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(
@@ -380,8 +420,6 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       _processing = false;
       _sheetOpen = true;
       _feedback(notice: true);
-      await _camera.stop();
-      if (!mounted) return;
       final who = listRow == null ? value : list!.titleFor(listRow);
       final at = existing == null
           ? ''
@@ -429,39 +467,78 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     );
     final last = _activeScanColumnIndex == scans.length - 1;
     if (!last) {
+      final next = _session.columns[scans[_activeScanColumnIndex + 1]].name;
       setState(() {
         _pendingRow = updated;
         _activeScanColumnIndex++;
-        _processing = false;
       });
-      return;
-    }
-    if (showSheet) {
-      _pendingRow = updated;
-      _processing = false;
-      _sheetOpen = true;
-      await _camera.stop();
-      if (!mounted) return;
-      final outcome = await showScanConfirmSheet(
-        context,
-        session: _session,
-        row: updated,
-        rowNumber: _rows.length + 1,
-        duplicateOf: colIndex == firstScan ? existing : null,
+      _feedback(notice: true);
+      _flash(
+        '${_session.columns[colIndex].name} saved · now scan $next',
+        neutral: true,
       );
-      _sheetOpen = false;
-      switch (outcome) {
-        case ConfirmAdd(:final row):
-          await _commit(row);
-        case ConfirmMerge(:final target, :final qty):
-          await _mergeQty(target, qty);
-        case null:
-          if (mounted) setState(_resetPending);
-      }
-      if (mounted) _resume();
       return;
     }
-    await _commit(updated);
+    await _completeRow(
+      updated,
+      review: showSheet,
+      duplicateOf: colIndex == firstScan ? existing : null,
+    );
+  }
+
+  /// Saves a row whose scan columns are filled or skipped, through the
+  /// review sheet when the sheet asks for one.
+  Future<void> _completeRow(
+    SessionRow row, {
+    bool review = false,
+    SessionRow? duplicateOf,
+  }) async {
+    if (!review) return _commit(row);
+    _pendingRow = row;
+    _processing = false;
+    _sheetOpen = true;
+    final outcome = await showScanConfirmSheet(
+      context,
+      session: _session,
+      row: row,
+      rowNumber: _rows.length + 1,
+      duplicateOf: duplicateOf,
+    );
+    _sheetOpen = false;
+    switch (outcome) {
+      case ConfirmAdd(:final row):
+        await _commit(row);
+      case ConfirmMerge(:final target, :final qty):
+        await _mergeQty(target, qty);
+      case null:
+        if (mounted) setState(_resetPending);
+    }
+    if (mounted) _resume();
+  }
+
+  /// Several scan columns: leaves this one blank and moves to the next, or
+  /// saves the row when it's the last.
+  Future<void> _skipStep() async {
+    final pending = _pendingRow;
+    if (_processing || _sheetOpen || pending == null) return;
+    HapticFeedback.selectionClick();
+    final scans = _session.scanColumnIndices;
+    if (_activeScanColumnIndex < scans.length - 1) {
+      setState(() => _activeScanColumnIndex++);
+      return;
+    }
+    if (scans.every((i) => pending.values[i].isEmpty)) {
+      setState(_resetPending);
+      return _flash('Nothing scanned for this row', neutral: true);
+    }
+    setState(() => _processing = true);
+    await _completeRow(pending, review: _session.showScanConfirmation);
+  }
+
+  void _startOver() {
+    HapticFeedback.selectionClick();
+    setState(_resetPending);
+    _flash('Row started over', neutral: true);
   }
 
   Future<void> _commit(SessionRow row) async {
@@ -616,8 +693,6 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
 
   Future<void> _changeValue(int index) async {
     _sheetOpen = true;
-    await _camera.stop();
-    if (!mounted) return;
     final choice = await showValueSheet(
       context,
       column: _session.columns[index],
@@ -642,7 +717,6 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   /// Choosing "Scan a label" stops asking; the rest keep their values.
   Future<void> _askStartValues() async {
     _sheetOpen = true;
-    await _camera.stop();
     for (var i = 0; i < _session.columns.length; i++) {
       final col = _session.columns[i];
       if (col.type != SessionColumnType.fixed || !col.askAtStart) continue;
@@ -674,11 +748,31 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     });
   }
 
+  /// Back to scanning. Restarts the camera only if a full-screen page or the
+  /// code picker paused it; sheets and dialogs leave the preview running.
   Future<void> _resume() async {
-    if (mounted) {
-      setState(() => _processing = false);
+    if (!mounted) return;
+    setState(() => _processing = false);
+    if (!_paused) return;
+    _paused = false;
+    try {
       await _camera.start();
+    } on MobileScannerException catch (e) {
+      // No camera (blocked, or the demo feed): nothing to restart.
+      debugPrint('Camera restart failed: $e');
+      return;
     }
+    // Unbinding the camera can drop the torch.
+    if (_torch && _camera.value.torchState == TorchState.off) {
+      await _camera.toggleTorch();
+    }
+  }
+
+  /// Freezes the last frame for a full-screen page; [_resume] restarts it.
+  Future<void> _pause() async {
+    if (_paused) return;
+    _paused = true;
+    await _camera.pause();
   }
 
   Future<void> _undo() async {
@@ -700,8 +794,6 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
 
   Future<void> _typeCode() async {
     _sheetOpen = true;
-    await _camera.stop();
-    if (!mounted) return;
     final value = await showSsSheet<String>(
       context,
       builder: (_) => const _TypeCodeSheet(),
@@ -716,7 +808,8 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
 
   Future<void> _readText() async {
     _sheetOpen = true;
-    await _camera.stop();
+    // The phone's camera app takes over the camera.
+    await _pause();
     if (!mounted) return;
     final value = await captureText(context);
     _sheetOpen = false;
@@ -728,8 +821,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   }
 
   Future<void> _openSheet() async {
+    if (_sheetOpen || _multiPaused) return;
     _sheetOpen = true;
-    await _camera.stop();
+    await _pause();
     if (!mounted) return;
     await Navigator.of(
       context,
@@ -748,8 +842,8 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   }
 
   Future<void> _done() async {
-    if (_visitRows == 0 && _rows.isEmpty) return _showHelp();
-    await _camera.stop();
+    if (_rows.isEmpty) return _leaveEmpty();
+    await _pause();
     if (!mounted) return;
     await Navigator.of(context).push(
       FadeSlideRoute(
@@ -765,14 +859,84 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   }
 
   Future<void> _close() async {
-    if (_rows.isEmpty) return _showHelp();
+    if (_rows.isEmpty) return _leaveEmpty();
     if (mounted) Navigator.pop(context);
+  }
+
+  /// Leaving a sheet with no rows: keep it for later or delete it, so an
+  /// empty sheet doesn't linger as the one Scan resumes.
+  Future<void> _leaveEmpty() async {
+    if (_sheetOpen) return;
+    _sheetOpen = true;
+    final choice = await showSsSheet<String>(
+      context,
+      builder: (ctx) => _LeaveEmptySheet(session: _session),
+    );
+    _sheetOpen = false;
+    if (!mounted) return;
+    switch (choice) {
+      case 'keep':
+        Navigator.pop(context);
+      case 'delete':
+        final session = _session;
+        await SyncQueueService.clearForSession(session.id);
+        await ScanSessionService.deleteSession(session.id);
+        // An empty file ScanSheet made for this sheet goes to Drive's trash.
+        final file = session.spreadsheetId;
+        if (session.createdFile && file != null) {
+          unawaited(
+            GoogleSheetsService.instance
+                .trashFile(file)
+                .catchError((Object e) => debugPrint('Trash failed: $e')),
+          );
+        }
+        if (!mounted) return;
+        Navigator.pop(context);
+        showSsToast(context, '“${session.name}” deleted');
+      case 'help':
+        await _showHelp();
+    }
+  }
+
+  /// Where rows go, at a glance: other sheets, a new tab in this file, or a
+  /// new sheet, without going back to Home.
+  Future<void> _switchSheet() async {
+    if (_sheetOpen) return;
+    _sheetOpen = true;
+    final choice = await showSsSheet<Object>(
+      context,
+      builder: (ctx) => _SwitchSheet(
+        session: _session,
+        rows: _rows.length,
+        others: SheetSummary.all()
+            .where((s) => s.session.id != _session.id)
+            .take(4)
+            .toList(),
+      ),
+    );
+    _sheetOpen = false;
+    if (!mounted) return;
+    final navigator = Navigator.of(context);
+    switch (choice) {
+      case ScanSession other:
+        navigator.pushReplacement(
+          FadeSlideRoute(page: ScanSessionScreen(session: other)),
+        );
+      case 'rows':
+        await _openSheet();
+      case 'tab':
+        navigator.pushReplacement(
+          FadeSlideRoute(page: NewSheetScreen(copyFrom: _session)),
+        );
+      case 'new':
+        navigator.pushReplacement(FadeSlideRoute(page: const NewSheetScreen()));
+    }
   }
 
   /// "No scan this time" — act on what the user picked.
   Future<void> _showHelp() async {
     _sheetOpen = true;
-    await _camera.stop();
+    await _pause();
     if (!mounted) return;
     final choice = await Navigator.of(
       context,
@@ -825,279 +989,251 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         : neutral
         ? Colors.white
         : SsColors.brandLime;
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: Colors.transparent,
-      ),
-      child: Theme(
-        data: AppTheme.darkTheme.copyWith(
-          scaffoldBackgroundColor: SsColors.night,
+    final multiScan = _session.scanColumnIndices.length > 1;
+    return PopScope(
+      // Back cancels the code picker, and asks about a sheet with no rows.
+      canPop: _rows.isNotEmpty && !_multiPaused,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _multiPaused ? _cancelMulti() : _close();
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light.copyWith(
+          statusBarColor: Colors.transparent,
         ),
-        child: Scaffold(
-          backgroundColor: SsColors.night,
-          body: Stack(
-            fit: StackFit.expand,
-            children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _arm,
-                child: kDebugMode && DemoSeed.enabled
-                    ? DemoSeed.cameraFeed()
-                    : MobileScanner(
-                        controller: _camera,
-                        onDetect: _detect,
-                        errorBuilder: (ctx, error) {
-                          if (!_cameraError) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (mounted && !_cameraError)
-                                setState(() => _cameraError = true);
-                            });
-                          }
-                          return const ColoredBox(color: SsColors.night);
-                        },
-                      ),
-              ),
-              if (_multiPaused && _captureSize != null)
-                LayoutBuilder(
-                  builder: (ctx, box) {
-                    final image = _captureSize!;
-                    final scale = (box.maxWidth / image.width).clamp(
-                      box.maxHeight / image.height,
-                      double.infinity,
-                    );
-                    final dx = (box.maxWidth - image.width * scale) / 2;
-                    final dy = (box.maxHeight - image.height * scale) / 2;
-                    return Stack(
-                      children: [
-                        for (var i = 0; i < _multi.length; i++)
-                          _barcodeBox(_multi[i], i, scale, dx, dy),
-                      ],
-                    );
-                  },
+        child: Theme(
+          data: AppTheme.darkTheme.copyWith(
+            scaffoldBackgroundColor: SsColors.night,
+          ),
+          child: Scaffold(
+            backgroundColor: SsColors.night,
+            body: Stack(
+              key: _stackKey,
+              fit: StackFit.expand,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _arm,
+                  child: kDebugMode && DemoSeed.enabled
+                      ? DemoSeed.cameraFeed()
+                      : MobileScanner(
+                          controller: _camera,
+                          scanWindow: _wholeView ? null : _scanWindow,
+                          onDetect: _detect,
+                          errorBuilder: (ctx, error) {
+                            if (!_cameraError) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted && !_cameraError)
+                                  setState(() => _cameraError = true);
+                              });
+                            }
+                            return const ColoredBox(color: SsColors.night);
+                          },
+                        ),
                 ),
-              SafeArea(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                      child: Row(
-                        children: [
-                          _roundButton(LucideIcons.x, onTap: _close),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: _openSheet,
-                              child: Container(
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: .14),
-                                  borderRadius: BorderRadius.circular(22),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  check == null
-                                      ? '${_session.name}  ·  ${_rows.length}'
-                                      : '${_session.name}  ·  '
-                                            '${check.found}/${check.total}',
-                                  style: SsText.sans(
-                                    size: 14,
-                                    weight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
+                if (_multiPaused) _multiBoxes(),
+                SafeArea(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: Row(
+                          children: [
+                            _roundButton(
+                              LucideIcons.x,
+                              label: 'Close',
+                              onTap: _close,
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          _roundButton(
-                            LucideIcons.flashlight,
-                            active: _torch,
-                            onTap: () async {
-                              await _camera.toggleTorch();
-                              setState(() => _torch = !_torch);
-                            },
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Expanded(child: _destinationChip()),
+                            const SizedBox(width: 8),
+                            _roundButton(
+                              LucideIcons.scanText,
+                              label: 'Read text',
+                              onTap: _readText,
+                            ),
+                            const SizedBox(width: 8),
+                            _roundButton(
+                              LucideIcons.flashlight,
+                              label: 'Torch',
+                              active: _torch,
+                              onTap: () async {
+                                await _camera.toggleTorch();
+                                setState(() => _torch = !_torch);
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: .5),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _mode('Barcode', true),
-                          GestureDetector(
-                            onTap: _readText,
-                            child: _mode('Read text', false),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      height: 36,
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: toastText == null
-                            ? const SizedBox.shrink()
-                            : Container(
-                                key: ValueKey(toastText),
-                                height: 36,
-                                padding: const EdgeInsets.only(
-                                  left: 6,
-                                  right: 14,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: toastColor,
-                                  borderRadius: BorderRadius.circular(18),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: toastColor.withValues(alpha: .25),
-                                      blurRadius: 22,
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 24,
-                                      height: 24,
-                                      decoration: const BoxDecoration(
-                                        color: SsColors.brandInk,
-                                        shape: BoxShape.circle,
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        height: 36,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: toastText == null
+                              ? const SizedBox.shrink()
+                              : Container(
+                                  key: ValueKey(toastText),
+                                  height: 36,
+                                  padding: const EdgeInsets.only(
+                                    left: 6,
+                                    right: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: toastColor,
+                                    borderRadius: BorderRadius.circular(18),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: toastColor.withValues(
+                                          alpha: .25,
+                                        ),
+                                        blurRadius: 22,
                                       ),
-                                      child: Icon(
-                                        warn
-                                            ? LucideIcons.circleAlert
-                                            : neutral
-                                            ? LucideIcons.tag
-                                            : LucideIcons.check,
-                                        color: warn
-                                            ? _amber
-                                            : neutral
-                                            ? Colors.white
-                                            : SsColors.brandLime,
-                                        size: 14,
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: const BoxDecoration(
+                                          color: SsColors.brandInk,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          warn
+                                              ? LucideIcons.circleAlert
+                                              : neutral
+                                              ? LucideIcons.tag
+                                              : LucideIcons.check,
+                                          color: warn
+                                              ? _amber
+                                              : neutral
+                                              ? Colors.white
+                                              : SsColors.brandLime,
+                                          size: 14,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      toastText,
-                                      style: SsText.sans(
-                                        size: 14,
-                                        weight: FontWeight.w600,
-                                        color: SsColors.brandInk,
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          toastText,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: SsText.sans(
+                                            size: 14,
+                                            weight: FontWeight.w600,
+                                            color: SsColors.brandInk,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      width: 270,
-                      height: 150,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: cornerColor.withValues(alpha: .22),
-                            blurRadius: 40,
-                            spreadRadius: 6,
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        children: [
-                          SsScanCorner(
-                            color: cornerColor,
-                            left: true,
-                            top: true,
-                            size: 34,
-                          ),
-                          Align(
-                            alignment: Alignment.topRight,
-                            child: SsScanCorner(
+                      const SizedBox(height: 12),
+                      Container(
+                        key: _frameKey,
+                        width: 270,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(22),
+                          boxShadow: [
+                            BoxShadow(
+                              color: cornerColor.withValues(alpha: .22),
+                              blurRadius: 40,
+                              spreadRadius: 6,
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            SsScanCorner(
                               color: cornerColor,
-                              left: false,
+                              left: true,
                               top: true,
                               size: 34,
                             ),
-                          ),
-                          Align(
-                            alignment: Alignment.bottomLeft,
-                            child: SsScanCorner(
-                              color: cornerColor,
-                              left: true,
-                              top: false,
-                              size: 34,
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.bottomRight,
-                            child: SsScanCorner(
-                              color: cornerColor,
-                              left: false,
-                              top: false,
-                              size: 34,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 82),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (var i = 0; i < 3; i++) ...[
-                          if (i > 0) const SizedBox(width: 4),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() => _zoom = i);
-                              _camera.setZoomScale([0.0, .35, .8][i]);
-                            },
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: _zoom == i
-                                    ? Colors.white
-                                    : Colors.black.withValues(alpha: .45),
-                                shape: BoxShape.circle,
+                            Align(
+                              alignment: Alignment.topRight,
+                              child: SsScanCorner(
+                                color: cornerColor,
+                                left: false,
+                                top: true,
+                                size: 34,
                               ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                ['1×', '2×', '5×'][i],
-                                style: SsText.mono(
-                                  size: 13,
-                                  weight: FontWeight.w600,
+                            ),
+                            Align(
+                              alignment: Alignment.bottomLeft,
+                              child: SsScanCorner(
+                                color: cornerColor,
+                                left: true,
+                                top: false,
+                                size: 34,
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.bottomRight,
+                              child: SsScanCorner(
+                                color: cornerColor,
+                                left: false,
+                                top: false,
+                                size: 34,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (multiScan) ...[
+                        const SizedBox(height: 14),
+                        _stepStrip(),
+                        const SizedBox(height: 12),
+                      ] else
+                        const SizedBox(height: 24),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (var i = 0; i < 3; i++) ...[
+                            if (i > 0) const SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() => _zoom = i);
+                                _camera.setZoomScale([0.0, .35, .8][i]);
+                              },
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
                                   color: _zoom == i
-                                      ? SsColors.brandInk
-                                      : Colors.white,
+                                      ? Colors.white
+                                      : Colors.black.withValues(alpha: .45),
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  ['1×', '2×', '5×'][i],
+                                  style: SsText.mono(
+                                    size: 13,
+                                    weight: FontWeight.w600,
+                                    color: _zoom == i
+                                        ? SsColors.brandInk
+                                        : Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              if (_cameraError) _cameraBlocked(),
-              _bottomPanel(check),
-              if (_multiPaused && _captureSize == null) _multiList(),
-            ],
+                if (_cameraError) _cameraBlocked(),
+                _bottomPanel(check),
+              ],
+            ),
           ),
         ),
       ),
@@ -1106,58 +1242,336 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
 
   Widget _roundButton(
     IconData icon, {
+    required String label,
     required VoidCallback onTap,
     bool active = false,
-  }) => GestureDetector(
+  }) => Semantics(
+    button: true,
+    label: label,
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: active
+              ? SsColors.brandLime
+              : Colors.white.withValues(alpha: .14),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          color: active ? SsColors.brandInk : Colors.white,
+          size: 20,
+        ),
+      ),
+    ),
+  );
+
+  /// The sheet's name over where its rows go and how syncing is going
+  /// ("Stock count › Sheet1 · Synced"). Tap for rows and other sheets.
+  Widget _destinationChip() => Semantics(
+    button: true,
+    label: 'Scanning into ${_session.name}, change',
+    child: GestureDetector(
+      onTap: _switchSheet,
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.only(left: 14, right: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: .14),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _session.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: SsText.sans(
+                      size: 14,
+                      weight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  ListenableBuilder(
+                    listenable: Listenable.merge([
+                      SyncQueueService.stats,
+                      SheetsSyncService.instance.online,
+                      GoogleSheetsService.instance.signedInNotifier,
+                    ]),
+                    builder: (context, _) {
+                      final (where, status, color) = _destinationLine();
+                      final style = SsText.sans(
+                        size: 11.5,
+                        weight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: .72),
+                      );
+                      return Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              where,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: style,
+                            ),
+                          ),
+                          if (status != null)
+                            Text(
+                              ' · $status',
+                              maxLines: 1,
+                              style: style.copyWith(color: color),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              LucideIcons.chevronDown,
+              size: 16,
+              color: Colors.white.withValues(alpha: .72),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  /// Where rows go, the sync state, and its dot color.
+  (String, String?, Color) _destinationLine() {
+    final s = _session;
+    final file = s.spreadsheetId;
+    if (s.destination != SessionDestination.googleSheets || file == null) {
+      return (
+        s.destination == SessionDestination.localCsv
+            ? 'CSV on this phone'
+            : 'Excel on this phone',
+        null,
+        Colors.white.withValues(alpha: .6),
+      );
+    }
+    // The name is on the line above; repeat the file only when it differs.
+    final title = s.spreadsheetTitle;
+    final tab = s.sheetName ?? 'first tab';
+    final where = title == null || title == s.name
+        ? 'Sheets › $tab'
+        : '$title › $tab';
+    final pending = SyncQueueService.pendingForSession(s.id);
+    if (!GoogleSheetsService.instance.isSignedIn) {
+      return (where, 'Sign in to sync', _amber);
+    }
+    if (SyncQueueService.hasFailuresForSession(s.id)) {
+      return (where, 'Sync issue', _amber);
+    }
+    if (!SheetsSyncService.instance.online.value) {
+      return (
+        where,
+        pending > 0 ? 'Offline · $pending waiting' : 'Offline',
+        _amber,
+      );
+    }
+    if (pending > 0) return (where, '$pending waiting', Colors.white);
+    return (where, 'Synced', SsColors.brandLime);
+  }
+
+  /// "① Item code ✓ › ② Serial no." for sheets with several scan columns:
+  /// which code the next scan fills, with Skip and Start over.
+  Widget _stepStrip() {
+    final scans = _session.scanColumnIndices;
+    final pending = _pendingRow;
+    final active = _activeScanColumnIndex.clamp(0, scans.length - 1);
+    final started =
+        pending != null && scans.any((i) => pending.values[i].isNotEmpty);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: .55),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var k = 0; k < scans.length; k++) ...[
+                    if (k > 0)
+                      Icon(
+                        LucideIcons.chevronRight,
+                        size: 14,
+                        color: Colors.white.withValues(alpha: .5),
+                      ),
+                    _step(
+                      k,
+                      _session.columns[scans[k]].name,
+                      pending?.values[scans[k]] ?? '',
+                      active: k == active,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _stripAction('Skip', _skipStep),
+            if (started) ...[
+              const SizedBox(width: 6),
+              _stripAction('Start over', _startOver),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _step(int k, String name, String value, {required bool active}) {
+    final done = value.isNotEmpty;
+    final fg = active
+        ? SsColors.brandInk
+        : done
+        ? Colors.white
+        : Colors.white.withValues(alpha: .55);
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.only(left: 4, right: 10),
+      decoration: BoxDecoration(
+        color: active ? SsColors.brandLime : Colors.transparent,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: active
+                  ? SsColors.brandInk
+                  : Colors.white.withValues(alpha: .16),
+              shape: BoxShape.circle,
+            ),
+            child: done && !active
+                ? const Icon(
+                    LucideIcons.check,
+                    size: 12,
+                    color: SsColors.brandLime,
+                  )
+                : Text(
+                    '${k + 1}',
+                    style: SsText.mono(
+                      size: 11,
+                      weight: FontWeight.w600,
+                      color: active ? SsColors.brandLime : Colors.white,
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 110),
+            child: Text(
+              done && !active ? value : name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  (done && !active
+                          ? SsText.mono(size: 12, weight: FontWeight.w600)
+                          : SsText.sans(size: 13, weight: FontWeight.w600))
+                      .copyWith(color: fg),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stripAction(String label, VoidCallback onTap) => GestureDetector(
     onTap: onTap,
     child: Container(
-      width: 44,
-      height: 44,
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: active
-            ? SsColors.brandLime
-            : Colors.white.withValues(alpha: .14),
-        shape: BoxShape.circle,
+        color: Colors.black.withValues(alpha: .45),
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Icon(
-        icon,
-        color: active ? SsColors.brandInk : Colors.white,
-        size: 20,
-      ),
-    ),
-  );
-  Widget _mode(String text, bool selected) => Container(
-    height: 34,
-    padding: const EdgeInsets.symmetric(horizontal: 14),
-    decoration: BoxDecoration(
-      color: selected ? Colors.white : Colors.transparent,
-      borderRadius: BorderRadius.circular(999),
-    ),
-    alignment: Alignment.center,
-    child: Text(
-      text,
-      style: SsText.sans(
-        size: 13,
-        weight: FontWeight.w600,
-        color: selected ? SsColors.brandInk : Colors.white,
+      child: Text(
+        label,
+        style: SsText.sans(
+          size: 12,
+          weight: FontWeight.w600,
+          color: Colors.white,
+        ),
       ),
     ),
   );
-  Widget _barcodeBox(
-    Barcode barcode,
-    int index,
-    double scale,
-    double dx,
-    double dy,
-  ) {
-    final points = barcode.corners
-        .map((p) => Offset(p.dx * scale + dx, p.dy * scale + dy))
-        .toList();
-    if (points.isEmpty) return const SizedBox.shrink();
-    final left = points.map((p) => p.dx).reduce((a, b) => a < b ? a : b),
-        right = points.map((p) => p.dx).reduce((a, b) => a > b ? a : b);
-    final top = points.map((p) => p.dy).reduce((a, b) => a < b ? a : b),
-        bottom = points.map((p) => p.dy).reduce((a, b) => a > b ? a : b);
+
+  /// Numbered outlines on the frozen frame, placed the way mobile_scanner's
+  /// BarcodePainter places them (cover fit, turned for landscape).
+  Widget _multiBoxes() => LayoutBuilder(
+    builder: (context, box) {
+      final capture = _multiCapture;
+      if (capture == null || capture.size.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      final orientation = _camera.value.deviceOrientation;
+      final landscape =
+          orientation == DeviceOrientation.landscapeLeft ||
+          orientation == DeviceOrientation.landscapeRight;
+      final preview = landscape ? capture.size.flipped : capture.size;
+      final view = box.biggest;
+      final ratio = ScanWindowUtils.calculateBoxFitRatio(
+        boxFit: BoxFit.cover,
+        cameraPreviewSize: preview,
+        size: view,
+      );
+      final dx = (preview.width * ratio.widthRatio - view.width) / 2;
+      final dy = (preview.height * ratio.heightRatio - view.height) / 2;
+      return Stack(
+        children: [
+          for (final (i, barcode) in _multi.indexed)
+            if (barcode.corners.length >= 4)
+              _barcodeBox(barcode, i, [
+                for (final p in barcode.corners)
+                  Offset(
+                    p.dx * ratio.widthRatio - dx,
+                    p.dy * ratio.heightRatio - dy,
+                  ),
+              ]),
+        ],
+      );
+    },
+  );
+
+  Widget _barcodeBox(Barcode barcode, int index, List<Offset> points) {
+    final xs = points.map((p) => p.dx), ys = points.map((p) => p.dy);
+    final left = xs.reduce(math.min), right = xs.reduce(math.max);
+    final top = ys.reduce(math.min), bottom = ys.reduce(math.max);
     return Positioned(
       left: left,
       top: top,
@@ -1167,16 +1581,19 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         onTap: () => _chooseBarcode(barcode),
         child: Container(
           decoration: BoxDecoration(
-            border: Border.all(color: SsColors.brandLime, width: 2),
+            border: Border.all(color: SsColors.brandLime, width: 2.5),
             borderRadius: BorderRadius.circular(8),
           ),
           alignment: Alignment.topLeft,
-          child: CircleAvatar(
-            radius: 13,
-            backgroundColor: SsColors.brandLime,
-            child: Text(
-              '${index + 1}',
-              style: SsText.mono(size: 13, color: SsColors.brandInk),
+          child: Transform.translate(
+            offset: const Offset(-12, -12),
+            child: CircleAvatar(
+              radius: 13,
+              backgroundColor: SsColors.brandLime,
+              child: Text(
+                '${index + 1}',
+                style: SsText.mono(size: 13, color: SsColors.brandInk),
+              ),
             ),
           ),
         ),
@@ -1184,59 +1601,53 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     );
   }
 
-  Future<void> _chooseBarcode(Barcode b) async {
-    final v = b.rawValue?.trim();
+  /// Leaves the picker: the frame unfreezes, and the codes it offered are
+  /// ignored while they stay in view, so it doesn't pop straight back up.
+  Future<void> _endMulti([Future<void> Function()? then]) async {
+    _multiSeen = {
+      for (final b in _multi)
+        if ((b.rawValue?.trim() ?? '').isNotEmpty) b.rawValue!.trim(),
+    };
+    _multiSeenAt = DateTime.now();
     setState(() {
-      _multi.clear();
+      _multi = [];
+      _multiCapture = null;
       _multiPaused = false;
     });
-    if (v?.isNotEmpty == true)
-      await _handleValue(v!);
-    else
-      _resume();
+    try {
+      if (then != null) await then();
+    } finally {
+      await _resume();
+    }
   }
 
-  Widget _multiList() => Positioned(
-    left: 16,
-    right: 16,
-    bottom: 310,
-    child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: SsColors.nightSurface,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < _multi.length; i++)
-            ListTile(
-              leading: CircleAvatar(child: Text('${i + 1}')),
-              title: Text(_multi[i].rawValue ?? ''),
-              onTap: () => _chooseBarcode(_multi[i]),
-            ),
-          TextButton(
-            onPressed: () async {
-              final items = List<Barcode>.from(_multi);
-              setState(() {
-                _multi.clear();
-                _multiPaused = false;
-              });
-              for (final b in items) {
-                final v = b.rawValue?.trim();
-                if (v?.isNotEmpty == true) {
-                  _lastAt = null;
-                  await _handleValue(v!, skipConfirmation: true);
-                }
-              }
-              _resume();
-            },
-            child: Text('Add all ${_multi.length}'),
-          ),
-        ],
-      ),
-    ),
-  );
+  Future<void> _chooseBarcode(Barcode barcode) {
+    final value = barcode.rawValue?.trim() ?? '';
+    return _endMulti(() async {
+      if (value.isEmpty) return;
+      _lastAt = null;
+      await _handleValue(value, format: barcode.format.name.toUpperCase());
+    });
+  }
+
+  Future<void> _addAllMulti() {
+    final codes = List.of(_multi);
+    return _endMulti(() async {
+      for (final barcode in codes) {
+        final value = barcode.rawValue?.trim() ?? '';
+        if (value.isEmpty || !mounted) continue;
+        _lastAt = null;
+        await _handleValue(
+          value,
+          skipConfirmation: true,
+          format: barcode.format.name.toUpperCase(),
+        );
+      }
+    });
+  }
+
+  Future<void> _cancelMulti() => _endMulti();
+
   Widget _cameraBlocked() => Positioned.fill(
     child: ColoredBox(
       color: SsColors.night,
@@ -1283,133 +1694,281 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       left: 0,
       right: 0,
       bottom: 0,
-      child: Theme(
-        data: AppTheme.lightTheme,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-          decoration: const BoxDecoration(
-            color: Color(0xFFF5F6F2),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFC9CFC6),
-                  borderRadius: BorderRadius.circular(3),
+      child: GestureDetector(
+        // Swiping the panel up opens every row.
+        onVerticalDragEnd: (details) {
+          if ((details.primaryVelocity ?? 0) < -250) _openSheet();
+        },
+        child: Theme(
+          data: AppTheme.lightTheme,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF5F6F2),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFC9CFC6),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              if (check != null) ...[
-                _listProgress(check),
                 const SizedBox(height: 12),
-              ],
-              if (_session.columns.any(
-                (c) => c.type == SessionColumnType.fixed,
-              )) ...[
-                SizedBox(
-                  height: 40,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
+                if (check != null) ...[
+                  _listProgress(check),
+                  const SizedBox(height: 12),
+                ],
+                if (_session.columns.any(
+                  (c) => c.type == SessionColumnType.fixed,
+                )) ...[
+                  SizedBox(
+                    height: 40,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        for (var i = 0; i < _session.columns.length; i++)
+                          if (_session.columns[i].type ==
+                              SessionColumnType.fixed)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: _valueChip(i),
+                            ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Row(
+                  children: [
+                    Expanded(child: _rowsBar()),
+                    if (_session.qtyColumnIndex >= 0) ...[
+                      const SizedBox(width: 8),
+                      _mergeSwitch(),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (_multiPaused)
+                  _multiPicker()
+                else ...[
+                  _lastRow(last),
+                  if (last != null) ..._fields(last),
+                  const SizedBox(height: 10),
+                  Row(
                     children: [
-                      for (var i = 0; i < _session.columns.length; i++)
-                        if (_session.columns[i].type == SessionColumnType.fixed)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: _valueChip(i),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _typeCode,
+                          icon: const Icon(LucideIcons.keyboard, size: 18),
+                          label: const Text('Type code'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 52),
+                            foregroundColor: c.ink,
+                            side: BorderSide(color: c.strongBorder),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _done,
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 52),
+                            backgroundColor: SsColors.brandInk,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Text('Done for now'),
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Just scanned',
-                      style: SsText.sans(
-                        size: 13,
-                        weight: FontWeight.w600,
-                        color: const Color(0xFF4A5550),
-                      ),
-                    ),
-                  ),
-                  if (_session.qtyColumnIndex >= 0) _mergeSwitch(),
                 ],
-              ),
-              const SizedBox(height: 10),
-              if (_multiPaused) ...[
-                Text(
-                  '${_multi.length} codes in view',
-                  style: SsText.label(color: c.ink),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () async {
-                    final items = List<Barcode>.from(_multi);
-                    setState(() {
-                      _multi.clear();
-                      _multiPaused = false;
-                    });
-                    for (final b in items) {
-                      final v = b.rawValue?.trim();
-                      if (v?.isNotEmpty == true) {
-                        _lastAt = null;
-                        await _handleValue(v!, skipConfirmation: true);
-                      }
-                    }
-                    _resume();
-                  },
-                  child: Text('Add all ${_multi.length}'),
-                ),
-              ] else ...[
-                _lastRow(last),
-                if (last != null && _session.manualColumnIndices.isNotEmpty)
-                  ..._fieldsRow(last),
               ],
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _typeCode,
-                      icon: const Icon(LucideIcons.keyboard, size: 18),
-                      label: const Text('Type code'),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 52),
-                        foregroundColor: c.ink,
-                        side: BorderSide(color: c.strongBorder),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _done,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 52),
-                        backgroundColor: SsColors.brandInk,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text('Done for now'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  /// The way to every row: the count and See all.
+  Widget _rowsBar() => Semantics(
+    button: true,
+    label: '${_rows.length} rows, see all',
+    child: GestureDetector(
+      onTap: _openSheet,
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.only(left: 14, right: 10),
+        decoration: BoxDecoration(
+          color: SsColors.brandInk,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            AnimatedScale(
+              scale: _success ? 1.2 : 1,
+              duration: const Duration(milliseconds: 220),
+              child: Text(
+                '${_rows.length}',
+                style: SsText.mono(
+                  size: 18,
+                  weight: FontWeight.w600,
+                  color: SsColors.brandLime,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _rows.length == 1 ? 'row' : 'rows',
+              style: SsText.sans(
+                size: 14,
+                weight: FontWeight.w500,
+                color: Colors.white,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'See all',
+              style: SsText.sans(
+                size: 13,
+                weight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            const Icon(LucideIcons.chevronRight, size: 16, color: Colors.white),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  /// Several codes in the frame: it stays frozen until one is picked.
+  Widget _multiPicker() {
+    final shown = _multi.take(4).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '${_multi.length} codes in view · tap the one you want',
+          style: SsText.sans(
+            size: 13,
+            weight: FontWeight.w600,
+            color: const Color(0xFF4A5550),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE3E6E0)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (final (i, barcode) in shown.indexed) ...[
+                if (i > 0) const Divider(height: 1, color: Color(0xFFE9ECE6)),
+                InkWell(
+                  onTap: () => _chooseBarcode(barcode),
+                  child: SizedBox(
+                    height: 48,
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 12),
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: SsColors.brandLime,
+                          child: Text(
+                            '${i + 1}',
+                            style: SsText.mono(
+                              size: 12,
+                              color: SsColors.brandInk,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            barcode.rawValue ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: SsText.mono(
+                              size: 14,
+                              color: SsColors.brandInk,
+                            ),
+                          ),
+                        ),
+                        const Icon(
+                          LucideIcons.plus,
+                          size: 18,
+                          color: Color(0xFF0B7D45),
+                        ),
+                        const SizedBox(width: 14),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (_multi.length > shown.length) ...[
+          const SizedBox(height: 4),
+          Text(
+            '+${_multi.length - shown.length} more in Add all',
+            style: SsText.caption(color: const Color(0xFF5F6964)),
+          ),
+        ],
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _cancelMulti,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 52),
+                  foregroundColor: SsColors.brandInk,
+                  side: const BorderSide(color: Color(0xFFC9CFC6)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                onPressed: _addAllMulti,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 52),
+                  backgroundColor: SsColors.brandInk,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Text('Add all ${_multi.length}'),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -1515,7 +2074,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                       ? 'Ready to scan'
                       : row.notOnList
                       ? 'Not on list · row ${row.rowIndex + 1}'
-                      : 'row ${row.rowIndex + 1}',
+                      : 'Just scanned · row ${row.rowIndex + 1}',
                   style: SsText.caption(
                     color: row?.notOnList ?? false
                         ? const Color(0xFFB4690E)
@@ -1525,61 +2084,75 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
               ],
             ),
           ),
-          AnimatedScale(
-            scale: _success ? 1.15 : 1,
-            duration: const Duration(milliseconds: 220),
-            child: Text(
-              '${_rows.length}',
-              style: SsText.mono(
-                size: 20,
-                weight: FontWeight.w600,
-                color: SsColors.brandInk,
+          if (row != null) ...[
+            const SizedBox(width: 8),
+            Semantics(
+              button: true,
+              label: 'Undo',
+              child: GestureDetector(
+                onTap: _undo,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F2EE),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    LucideIcons.undo2,
+                    size: 16,
+                    color: SsColors.brandInk,
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _undo,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F2EE),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                LucideIcons.undo2,
-                size: 16,
-                color: SsColors.brandInk,
-              ),
-            ),
-          ),
+          ],
         ],
       ),
     );
   }
 
-  /// Text and Number columns of the row just scanned, edited in place so the
-  /// camera never stops: a stepper per Number, a tap-to-type chip per Text.
-  List<Widget> _fieldsRow(SessionRow row) => [
-    const SizedBox(height: 8),
-    SizedBox(
-      height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          for (final i in _session.manualColumnIndices)
-            if (i < row.values.length)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _session.columns[i].isNumeric
-                    ? _numberField(row, i)
-                    : _textField(row, i),
-              ),
-        ],
-      ),
-    ),
-  ];
+  /// The just-scanned row's Number, Text and Pick-list cells, all in view
+  /// so the camera never stops: Number and Text two to a line, each
+  /// Pick-list on a line of its own.
+  List<Widget> _fields(SessionRow row) {
+    bool has(int i) => i < row.values.length;
+    final small = [
+      for (final i in _session.manualColumnIndices)
+        if (has(i)) i,
+    ];
+    final picks = [
+      for (final (i, col) in _session.columns.indexed)
+        if (col.type == SessionColumnType.pickList &&
+            col.choices.isNotEmpty &&
+            has(i))
+          i,
+    ];
+    return [
+      if (small.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, box) {
+            final half = (box.maxWidth - 8) / 2;
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final i in small)
+                  SizedBox(
+                    width: small.length == 1 ? box.maxWidth : half,
+                    child: _session.columns[i].isNumeric
+                        ? _numberField(row, i)
+                        : _textField(row, i),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+      for (final i in picks) ...[const SizedBox(height: 8), _pickField(row, i)],
+    ];
+  }
 
   Widget _fieldBox({required Widget child, VoidCallback? onTap}) =>
       GestureDetector(
@@ -1596,22 +2169,24 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
         ),
       );
 
+  Widget _fieldName(String name) => Text(
+    name,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: SsText.sans(
+      size: 13,
+      weight: FontWeight.w500,
+      color: const Color(0xFF4A5550),
+    ),
+  );
+
   Widget _numberField(SessionRow row, int index) {
     final col = _session.columns[index];
     final value = int.tryParse(row.values[index].trim()) ?? 0;
     return _fieldBox(
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            col.name,
-            style: SsText.sans(
-              size: 13,
-              weight: FontWeight.w500,
-              color: const Color(0xFF4A5550),
-            ),
-          ),
-          const SizedBox(width: 6),
+          Expanded(child: _fieldName(col.name)),
           _stepButton(
             LucideIcons.minus,
             '${col.name} down',
@@ -1620,14 +2195,16 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                 : () => _editField(row, index, '${value - col.stepSize}'),
           ),
           SizedBox(
-            width: 40,
-            child: Text(
-              '$value',
-              textAlign: TextAlign.center,
-              style: SsText.mono(
-                size: 16,
-                weight: FontWeight.w600,
-                color: SsColors.brandInk,
+            width: 34,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$value',
+                style: SsText.mono(
+                  size: 16,
+                  weight: FontWeight.w600,
+                  color: SsColors.brandInk,
+                ),
               ),
             ),
           ),
@@ -1653,8 +2230,8 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                   onTap();
                 },
           child: Container(
-            width: 36,
-            height: 36,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: const Color(0xFFF0F2EE),
               borderRadius: BorderRadius.circular(10),
@@ -1679,28 +2256,20 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
       child: _fieldBox(
         onTap: () => _typeField(row, index),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              col.name,
-              style: SsText.sans(
-                size: 13,
-                weight: FontWeight.w500,
-                color: const Color(0xFF4A5550),
-              ),
-            ),
+            Flexible(child: _fieldName(col.name)),
             const SizedBox(width: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 140),
+            Expanded(
               child: Text(
-                value.isEmpty ? 'Add' : value,
+                value.isEmpty ? 'Tap to type' : value,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
                 style: SsText.sans(
                   size: 14,
-                  weight: FontWeight.w600,
+                  weight: value.isEmpty ? FontWeight.w500 : FontWeight.w600,
                   color: value.isEmpty
-                      ? const Color(0xFF0B7D45)
+                      ? const Color(0xFF8A938E)
                       : SsColors.brandInk,
                 ),
               ),
@@ -1709,6 +2278,48 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// A Pick-list cell: every choice on one line, one tap to change.
+  Widget _pickField(SessionRow row, int index) {
+    final col = _session.columns[index];
+    final value = row.values[index];
+    Widget choice(String option) => ChoiceTile(
+      label: option,
+      selected: option == value,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _editField(row, index, option);
+      },
+    );
+    return Row(
+      children: [
+        SizedBox(width: 76, child: _fieldName(col.name)),
+        Expanded(
+          child: SizedBox(
+            height: 38,
+            child: col.choices.length <= 3
+                ? Row(
+                    children: [
+                      for (final (i, option) in col.choices.indexed) ...[
+                        if (i > 0) const SizedBox(width: 6),
+                        Expanded(child: choice(option)),
+                      ],
+                    ],
+                  )
+                : ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: col.choices.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 6),
+                    itemBuilder: (_, i) => ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 72),
+                      child: IntrinsicWidth(child: choice(col.choices[i])),
+                    ),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1891,6 +2502,153 @@ class _TypeCodeSheetState extends State<_TypeCodeSheet> {
           ),
           const SizedBox(height: 14),
           SsButton('Add row', onPressed: _submit),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Nothing scanned yet": keep the empty sheet for later or delete it.
+class _LeaveEmptySheet extends StatelessWidget {
+  final ScanSession session;
+  const _LeaveEmptySheet({required this.session});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ss;
+    final trashesFile = session.createdFile && session.spreadsheetId != null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Nothing scanned yet', style: SsText.section(color: c.ink)),
+          const SizedBox(height: 6),
+          Text(
+            trashesFile
+                ? '“${session.name}” has no rows. Keep it for later, or '
+                      'delete it and its empty Google file.'
+                : '“${session.name}” has no rows. Keep it for later, or '
+                      'delete it.',
+            style: SsText.body(color: c.ink2),
+          ),
+          const SizedBox(height: 18),
+          SsButton(
+            'Keep for later',
+            onPressed: () => Navigator.pop(context, 'keep'),
+          ),
+          const SizedBox(height: 8),
+          SsButton(
+            'Delete sheet',
+            kind: SsButtonKind.danger,
+            icon: LucideIcons.trash2,
+            onPressed: () => Navigator.pop(context, 'delete'),
+          ),
+          const SizedBox(height: 4),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'help'),
+            child: Text(
+              'Trouble scanning? See tips',
+              style: SsText.sans(
+                size: 13,
+                weight: FontWeight.w600,
+                color: c.emerald,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The scanner's destination chip: this sheet's file and rows, a new tab
+/// in the same file, other sheets, or a new one.
+class _SwitchSheet extends StatelessWidget {
+  final ScanSession session;
+  final int rows;
+  final List<SheetSummary> others;
+  const _SwitchSheet({
+    required this.session,
+    required this.rows,
+    required this.others,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ss;
+    void pick(Object value) => Navigator.pop(context, value);
+    final where =
+        session.fileAndTab ??
+        switch (session.destination) {
+          SessionDestination.googleSheets => 'Google Sheets',
+          SessionDestination.localXlsx => 'Excel on this phone',
+          SessionDestination.localCsv => 'CSV on this phone',
+        };
+    final canAddTab =
+        session.destination == SessionDestination.googleSheets &&
+        session.spreadsheetId != null &&
+        session.teamCode == null;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Scanning into', style: SsText.section(color: c.ink)),
+          const SizedBox(height: 12),
+          SsListGroup(
+            children: [
+              SsListRow(
+                leading: SsIconTile(sheetIcon(session.iconName), size: 40),
+                title: session.name,
+                subtitle: '$where · $rows ${rows == 1 ? 'row' : 'rows'}',
+                trailing: Text(
+                  'See rows',
+                  style: SsText.sans(
+                    size: 13,
+                    weight: FontWeight.w600,
+                    color: c.emerald,
+                  ),
+                ),
+                onTap: () => pick('rows'),
+              ),
+              if (canAddTab)
+                SsListRow(
+                  leading: SsIconTile(LucideIcons.layoutPanelTop, size: 40),
+                  title: 'New tab in this file',
+                  subtitle: 'Same columns, rows go to a new tab',
+                  onTap: () => pick('tab'),
+                ),
+            ],
+          ),
+          if (others.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            const SsSectionHeader('Switch to'),
+            const SizedBox(height: 8),
+            SsListGroup(
+              children: [
+                for (final other in others)
+                  SsListRow(
+                    leading: SsIconTile(
+                      sheetIcon(other.session.iconName),
+                      size: 40,
+                    ),
+                    title: other.session.name,
+                    subtitle:
+                        '${other.rowCount} ${other.rowCount == 1 ? 'row' : 'rows'}'
+                        ' · ${relativeTime(other.lastActivity)}',
+                    onTap: () => pick(other.session),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 14),
+          SsButton.secondary(
+            'New sheet',
+            icon: LucideIcons.plus,
+            onPressed: () => pick('new'),
+          ),
         ],
       ),
     );

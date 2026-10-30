@@ -109,6 +109,24 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
+      builder: (context, child) {
+        final isLight = Theme.of(context).brightness == Brightness.light;
+        final style = isLight
+            ? SystemUiOverlayStyle.dark.copyWith(
+                statusBarColor: Colors.transparent,
+                systemNavigationBarColor: Colors.transparent,
+                systemNavigationBarIconBrightness: Brightness.dark,
+              )
+            : SystemUiOverlayStyle.light.copyWith(
+                statusBarColor: Colors.transparent,
+                systemNavigationBarColor: Colors.transparent,
+                systemNavigationBarIconBrightness: Brightness.light,
+              );
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: style,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         physics: const BouncingScrollPhysics(),
       ),

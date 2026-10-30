@@ -122,6 +122,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           'Good with gloves.',
                     ),
                   _PrefSwitch(
+                    'Read whole view',
+                    prefs.wholeView,
+                    prefs.setWholeView,
+                    subtitle:
+                        'Read codes anywhere on screen, not only in the frame',
+                  ),
+                  _PrefSwitch(
                     'Torch on when scanner opens',
                     prefs.torchDefault,
                     prefs.setTorchDefault,

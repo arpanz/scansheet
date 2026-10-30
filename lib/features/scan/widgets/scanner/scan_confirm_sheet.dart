@@ -606,7 +606,7 @@ class _PickField extends StatelessWidget {
                     SizedBox(
                       width: w,
                       height: 44,
-                      child: _Choice(
+                      child: ChoiceTile(
                         label: choice,
                         selected: choice == value,
                         onTap: () {
@@ -625,11 +625,13 @@ class _PickField extends StatelessWidget {
   }
 }
 
-class _Choice extends StatelessWidget {
+/// One choice of a Pick-list column; the scanner panel uses it too.
+class ChoiceTile extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _Choice({
+  const ChoiceTile({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,

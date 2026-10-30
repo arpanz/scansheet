@@ -226,6 +226,12 @@ class ScanSession {
   final String? spreadsheetId;
   final String? sheetName;
 
+  /// Google Sheets file name, shown as "File › Tab".
+  final String? spreadsheetTitle;
+
+  /// True when ScanSheet created the Google file for this sheet.
+  final bool createdFile;
+
   /// User-picked or template-derived icon key. Null = use generic fallback.
   final String? iconName;
 
@@ -250,6 +256,8 @@ class ScanSession {
     this.templateId,
     this.spreadsheetId,
     this.sheetName,
+    this.spreadsheetTitle,
+    this.createdFile = false,
     this.iconName,
     this.lookupListId,
     this.unknownCodes = UnknownCodes.ask,
@@ -259,6 +267,12 @@ class ScanSession {
   static const int maxColumns = 10;
 
   int get columnCount => columns.length;
+
+  /// "Stock count › Sheet1" for Google sheets; null otherwise.
+  String? get fileAndTab =>
+      destination == SessionDestination.googleSheets && spreadsheetId != null
+      ? '${spreadsheetTitle ?? name} › ${sheetName ?? 'first tab'}'
+      : null;
 
   /// A code that starts with a Same value column's label prefix sets that
   /// column (prefix stripped, case-insensitive). Null for an ordinary code.
@@ -369,6 +383,8 @@ class ScanSession {
     String? templateId,
     String? spreadsheetId,
     String? sheetName,
+    String? spreadsheetTitle,
+    bool? createdFile,
     String? iconName,
     String? lookupListId,
     UnknownCodes? unknownCodes,
@@ -388,6 +404,8 @@ class ScanSession {
       templateId: templateId ?? this.templateId,
       spreadsheetId: spreadsheetId ?? this.spreadsheetId,
       sheetName: sheetName ?? this.sheetName,
+      spreadsheetTitle: spreadsheetTitle ?? this.spreadsheetTitle,
+      createdFile: createdFile ?? this.createdFile,
       iconName: iconName ?? this.iconName,
       lookupListId: lookupListId ?? this.lookupListId,
       unknownCodes: unknownCodes ?? this.unknownCodes,
@@ -409,6 +427,8 @@ class ScanSession {
     'templateId': templateId,
     'spreadsheetId': spreadsheetId,
     'sheetName': sheetName,
+    'spreadsheetTitle': spreadsheetTitle,
+    'createdFile': createdFile,
     'iconName': iconName,
     'lookupListId': lookupListId,
     'unknownCodes': unknownCodes.name,
@@ -436,6 +456,8 @@ class ScanSession {
     templateId: map['templateId'] as String?,
     spreadsheetId: map['spreadsheetId'] as String?,
     sheetName: map['sheetName'] as String?,
+    spreadsheetTitle: map['spreadsheetTitle'] as String?,
+    createdFile: map['createdFile'] as bool? ?? false,
     iconName: map['iconName'] as String?,
     lookupListId: map['lookupListId'] as String?,
     unknownCodes: UnknownCodes.values.firstWhere(

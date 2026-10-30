@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/services/scan_session_service.dart';
 import '../../core/services/sync_queue_service.dart';
+import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
 import '../scan/models/scan_session.dart';
 import '../team/team_screen.dart';
+import 'new_sheet_screen.dart';
 
 /// One place for a sheet's lifecycle: finish, reopen, rename, clear, delete.
 /// Used from Sheet view, Library, Home and Done for now.
@@ -35,7 +37,16 @@ Future<void> showSheetActions(
       await clearSheetRows(context, session);
     case _Action.delete:
       if (await deleteSheet(context, session)) onDeleted?.call();
+    case _Action.newTab:
+      await openNewTabInFile(context, session);
   }
+}
+
+/// Start a sheet with the same columns in another tab of its Google file.
+Future<void> openNewTabInFile(BuildContext context, ScanSession session) async {
+  await Navigator.of(
+    context,
+  ).push(FadeSlideRoute(page: NewSheetScreen(copyFrom: session)));
 }
 
 Future<void> finishSheet(BuildContext context, ScanSession session) async {
@@ -182,7 +193,7 @@ Future<bool> _confirm(
   return ok ?? false;
 }
 
-enum _Action { finish, reopen, team, rename, clear, delete }
+enum _Action { finish, reopen, team, newTab, rename, clear, delete }
 
 class _ActionsSheet extends StatelessWidget {
   final ScanSession session;
@@ -243,6 +254,15 @@ class _ActionsSheet extends StatelessWidget {
                       ? 'Teammates add rows from their phones'
                       : 'Who’s in, invite more, stop sharing',
                   onTap: () => pick(_Action.team),
+                ),
+              if (session.destination == SessionDestination.googleSheets &&
+                  session.spreadsheetId != null &&
+                  session.teamCode == null)
+                SsListRow(
+                  leading: SsIconTile(LucideIcons.layoutPanelTop, size: 36),
+                  title: 'Scan into another tab',
+                  subtitle: 'Same columns, new tab in this file',
+                  onTap: () => pick(_Action.newTab),
                 ),
               SsListRow(
                 leading: SsIconTile(LucideIcons.pencil, size: 36),

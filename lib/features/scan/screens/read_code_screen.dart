@@ -174,155 +174,165 @@ class _ReadCodeScreenState extends State<ReadCodeScreen> {
   Widget build(BuildContext context) {
     return Theme(
       data: AppTheme.darkTheme,
-      child: Scaffold(
-        backgroundColor: SsColors.night,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            MobileScanner(controller: _camera, onDetect: _detected),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0x660B0F0D),
-                    Colors.transparent,
-                    Color(0x990B0F0D),
-                  ],
-                  stops: [0, .45, 1],
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light.copyWith(
+          statusBarColor: Colors.transparent,
+        ),
+        child: Scaffold(
+          backgroundColor: SsColors.night,
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              MobileScanner(controller: _camera, onDetect: _detected),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x660B0F0D),
+                      Colors.transparent,
+                      Color(0x990B0F0D),
+                    ],
+                    stops: [0, .45, 1],
+                  ),
                 ),
               ),
-            ),
-            SafeArea(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: Row(
-                      children: [
-                        SsIconButton(
-                          LucideIcons.x,
-                          tooltip: 'Close',
-                          color: Colors.white,
-                          background: Colors.white.withValues(alpha: .14),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        const Spacer(),
-                        Container(
-                          height: 40,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: .14),
-                            borderRadius: BorderRadius.circular(22),
+              SafeArea(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Row(
+                        children: [
+                          SsIconButton(
+                            LucideIcons.x,
+                            tooltip: 'Close',
+                            color: Colors.white,
+                            background: Colors.white.withValues(alpha: .14),
+                            onPressed: () => Navigator.pop(context),
                           ),
-                          child: Text(
-                            'Read a code',
-                            style: SsText.sans(
-                              size: 14,
-                              weight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        SsIconButton(
-                          _torch
-                              ? LucideIcons.flashlight
-                              : LucideIcons.flashlight,
-                          tooltip: 'Torch',
-                          color: _torch ? SsColors.brandInk : Colors.white,
-                          background: _torch
-                              ? SsColors.brandLime
-                              : Colors.white.withValues(alpha: .14),
-                          onPressed: () async {
-                            setState(() => _torch = !_torch);
-                            await _camera.toggleTorch();
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(flex: 2),
-                  SizedBox(
-                    width: 270,
-                    height: 150,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: DecoratedBox(
+                          const Spacer(),
+                          Container(
+                            height: 40,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            alignment: Alignment.center,
                             decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: .14),
                               borderRadius: BorderRadius.circular(22),
-                              border: Border.all(
-                                color: SsColors.brandLime.withValues(alpha: .5),
-                                width: 1,
+                            ),
+                            child: Text(
+                              'Read a code',
+                              style: SsText.sans(
+                                size: 14,
+                                weight: FontWeight.w600,
+                                color: Colors.white,
                               ),
                             ),
                           ),
-                        ),
-                        for (final corner in const [
-                          (true, true),
-                          (true, false),
-                          (false, true),
-                          (false, false),
-                        ])
-                          Positioned(
-                            top: corner.$1 ? 0 : null,
-                            bottom: corner.$1 ? null : 0,
-                            left: corner.$2 ? 0 : null,
-                            right: corner.$2 ? null : 0,
-                            child: SsScanCorner(
-                              top: corner.$1,
-                              left: corner.$2,
-                            ),
+                          const Spacer(),
+                          SsIconButton(
+                            _torch
+                                ? LucideIcons.flashlight
+                                : LucideIcons.flashlight,
+                            tooltip: 'Torch',
+                            color: _torch ? SsColors.brandInk : Colors.white,
+                            background: _torch
+                                ? SsColors.brandLime
+                                : Colors.white.withValues(alpha: .14),
+                            onPressed: () async {
+                              setState(() => _torch = !_torch);
+                              await _camera.toggleTorch();
+                            },
                           ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 48),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [1.0, 2.0, 5.0].map((zoom) {
-                      final selected = _zoom == zoom;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: TextButton(
-                          onPressed: () async {
-                            setState(() => _zoom = zoom);
-                            await _camera.setZoomScale(zoom);
-                          },
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(44, 44),
-                            backgroundColor: selected
-                                ? Colors.white
-                                : Colors.black.withValues(alpha: .35),
-                            foregroundColor: selected
-                                ? SsColors.light.ink
-                                : Colors.white,
-                            shape: const CircleBorder(),
-                          ),
-                          child: Text(
-                            '${zoom.toInt()}x',
-                            style: SsText.mono(
-                              size: 13,
-                              weight: FontWeight.w600,
+                    const Spacer(flex: 2),
+                    SizedBox(
+                      width: 270,
+                      height: 150,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: SsColors.brandLime.withValues(
+                                    alpha: .5,
+                                  ),
+                                  width: 1,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const Spacer(flex: 2),
-                  Theme(data: AppTheme.lightTheme, child: const _BottomPanel()),
-                ],
+                          for (final corner in const [
+                            (true, true),
+                            (true, false),
+                            (false, true),
+                            (false, false),
+                          ])
+                            Positioned(
+                              top: corner.$1 ? 0 : null,
+                              bottom: corner.$1 ? null : 0,
+                              left: corner.$2 ? 0 : null,
+                              right: corner.$2 ? null : 0,
+                              child: SsScanCorner(
+                                top: corner.$1,
+                                left: corner.$2,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [1.0, 2.0, 5.0].map((zoom) {
+                        final selected = _zoom == zoom;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: TextButton(
+                            onPressed: () async {
+                              setState(() => _zoom = zoom);
+                              await _camera.setZoomScale(zoom);
+                            },
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(44, 44),
+                              backgroundColor: selected
+                                  ? Colors.white
+                                  : Colors.black.withValues(alpha: .35),
+                              foregroundColor: selected
+                                  ? SsColors.light.ink
+                                  : Colors.white,
+                              shape: const CircleBorder(),
+                            ),
+                            child: Text(
+                              '${zoom.toInt()}x',
+                              style: SsText.mono(
+                                size: 13,
+                                weight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const Spacer(flex: 2),
+                    Theme(
+                      data: AppTheme.lightTheme,
+                      child: const _BottomPanel(),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            if (_pickingImage)
-              const Center(
-                child: CircularProgressIndicator(color: SsColors.brandLime),
-              ),
-          ],
+              if (_pickingImage)
+                const Center(
+                  child: CircularProgressIndicator(color: SsColors.brandLime),
+                ),
+            ],
+          ),
         ),
       ),
     );
