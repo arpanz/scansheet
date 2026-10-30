@@ -20,13 +20,21 @@ class AdManager {
 
   // IAP
   static const String productId = 'pro_lifetime';
-  static const String yearlyProductId = 'pro_yearly';
+  static const String monthlyProductId = 'pro_monthly';
+
+  /// Sold before the monthly plan replaced it; still unlocks Pro.
+  static const String legacyYearlyProductId = 'pro_yearly';
+  static const Set<String> proProductIds = {
+    productId,
+    monthlyProductId,
+    legacyYearlyProductId,
+  };
   static const String appStoreUrl =
       'https://play.google.com/store/apps/details?id=com.livinlabs.scansheet';
   List<ProductDetails> products = [];
 
   /// The Pro product the store last confirmed: [productId] (lifetime) or
-  /// [yearlyProductId]. Null until a purchase is seen on this install.
+  /// a subscription. Null until a purchase is seen on this install.
   String? get proPlan => _proPlan;
   String? _proPlan;
 
@@ -79,8 +87,7 @@ class AdManager {
         for (final purchase in purchaseDetailsList) {
           if (purchase.status == PurchaseStatus.purchased ||
               purchase.status == PurchaseStatus.restored) {
-            if (purchase.productID == productId ||
-                purchase.productID == yearlyProductId) {
+            if (proProductIds.contains(purchase.productID)) {
               hasActivePremium = true;
               await _recordPlan(purchase.productID);
               if (purchase.pendingCompletePurchase) {
@@ -160,8 +167,7 @@ class AdManager {
         for (final purchase in purchaseDetailsList) {
           if (purchase.status == PurchaseStatus.purchased ||
               purchase.status == PurchaseStatus.restored) {
-            if (purchase.productID == productId ||
-                purchase.productID == yearlyProductId) {
+            if (proProductIds.contains(purchase.productID)) {
               hasActive = true;
               await _recordPlan(purchase.productID);
               if (purchase.pendingCompletePurchase) {

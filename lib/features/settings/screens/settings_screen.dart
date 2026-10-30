@@ -80,12 +80,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               builder: (context, _) => AdManager.instance.isPro
                   ? _PlanCard(
                       plan: AdManager.instance.proPlan,
-                      // Straight to the yearly plan when we know it's the
+                      // Straight to the monthly plan when we know it's the
                       // one owned; otherwise Play's subscriptions list.
                       onManage: () => _open(
-                        AdManager.instance.proPlan == AdManager.yearlyProductId
+                        AdManager.instance.proPlan == AdManager.monthlyProductId
                             ? 'https://play.google.com/store/account/subscriptions'
-                                  '?sku=${AdManager.yearlyProductId}'
+                                  '?sku=${AdManager.monthlyProductId}'
                                   '&package=com.livinlabs.scansheet'
                             : 'https://play.google.com/store/account/subscriptions',
                       ),
@@ -450,7 +450,10 @@ class _PlanCard extends StatelessWidget {
           title: 'ScanSheet Pro',
           subtitle: switch (plan) {
             AdManager.productId => 'Lifetime · paid once, nothing renews',
-            AdManager.yearlyProductId => 'Yearly plan · renews on Google Play',
+            AdManager.monthlyProductId =>
+              'Monthly plan · renews on Google Play',
+            AdManager.legacyYearlyProductId =>
+              'Yearly plan · renews on Google Play',
             _ => 'Active on this Google Play account',
           },
         ),

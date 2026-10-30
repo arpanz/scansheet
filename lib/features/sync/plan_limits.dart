@@ -6,8 +6,10 @@ import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
 import '../settings/screens/paywall_screen.dart';
 
-void openPaywall(BuildContext context) =>
-    Navigator.of(context).push(FadeSlideRoute(page: const PaywallScreen()));
+/// [waiting]: rows held back by the free limit; opens the limit version.
+void openPaywall(BuildContext context, {int? waiting}) => Navigator.of(
+  context,
+).push(FadeSlideRoute(page: PaywallScreen(waiting: waiting)));
 
 /// "37 of 200 rows this month" with a thin bar. Hidden for Pro.
 class UsageMeter extends StatelessWidget {
@@ -124,7 +126,7 @@ class LimitReachedCard extends StatelessWidget {
           SsButton(
             'Unlock every row with Pro',
             large: false,
-            onPressed: () => openPaywall(context),
+            onPressed: () => openPaywall(context, waiting: waiting),
           ),
         ],
       ),
