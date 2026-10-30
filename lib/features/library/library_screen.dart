@@ -8,6 +8,7 @@ import '../../core/services/sheet_summary.dart';
 import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
+import '../../core/widgets/file_marks.dart';
 import '../lists/lists_view.dart';
 import '../sheet/sheet_view_screen.dart';
 import '../scan/screens/read_code_screen.dart';
@@ -513,8 +514,8 @@ class _SheetCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                SsIconTile(
-                  sheetIcon(session.iconName),
+                SsSheetTile(
+                  session,
                   size: 40,
                   background: active ? c.ink : c.chip,
                   color: active ? c.lime : c.ink,

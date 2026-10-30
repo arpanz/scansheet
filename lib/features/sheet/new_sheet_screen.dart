@@ -7,6 +7,7 @@ import '../../core/services/template_service.dart';
 import '../../core/services/usage_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
+import '../../core/widgets/file_marks.dart';
 import '../scan/models/column_kind.dart';
 import '../scan/models/scan_session.dart';
 import '../scan/screens/scan_session_screen.dart';
@@ -480,6 +481,11 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
                       ('csv', 'CSV'),
                     ],
                     value: _destination,
+                    leading: (v) => SsFileMark(switch (v) {
+                      'sheets' => FileMark.sheets,
+                      'xlsx' => FileMark.excel,
+                      _ => FileMark.csv,
+                    }, size: 16),
                     onChanged: (v) => setState(() => _destination = v),
                   ),
                   const SizedBox(height: 7),

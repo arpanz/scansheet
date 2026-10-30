@@ -24,6 +24,7 @@ import '../../../core/services/sync_queue_service.dart';
 import '../../../core/services/team_service.dart';
 import '../../../core/services/usage_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/file_marks.dart';
 import '../../../core/widgets/ss.dart';
 import '../../../core/utils/app_router.dart';
 import '../../../core/utils/demo_seed.dart';
@@ -1314,13 +1315,9 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
                       );
                       return Row(
                         children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                            ),
+                          SsFileMark(
+                            FileMark.of(_session.destination),
+                            size: 13,
                           ),
                           const SizedBox(width: 5),
                           Flexible(
@@ -1355,7 +1352,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     ),
   );
 
-  /// Where rows go, the sync state, and its dot color.
+  /// Where rows go, the sync state, and the color it is shown in.
   (String, String?, Color) _destinationLine() {
     final s = _session;
     final file = s.spreadsheetId;
@@ -2600,7 +2597,7 @@ class _SwitchSheet extends StatelessWidget {
           SsListGroup(
             children: [
               SsListRow(
-                leading: SsIconTile(sheetIcon(session.iconName), size: 40),
+                leading: SsSheetTile(session, size: 40),
                 title: session.name,
                 subtitle: '$where · $rows ${rows == 1 ? 'row' : 'rows'}',
                 trailing: Text(
@@ -2630,10 +2627,7 @@ class _SwitchSheet extends StatelessWidget {
               children: [
                 for (final other in others)
                   SsListRow(
-                    leading: SsIconTile(
-                      sheetIcon(other.session.iconName),
-                      size: 40,
-                    ),
+                    leading: SsSheetTile(other.session, size: 40),
                     title: other.session.name,
                     subtitle:
                         '${other.rowCount} ${other.rowCount == 1 ? 'row' : 'rows'}'

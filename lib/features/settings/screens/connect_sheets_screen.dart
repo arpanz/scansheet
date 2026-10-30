@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../core/services/google_sheets_service.dart';
 import '../../../core/services/sheet_summary.dart';
 import '../../../core/widgets/ss.dart';
+import '../../../core/widgets/file_marks.dart';
 
 /// Result returned by [ConnectSheetsScreen] when the user picks a destination.
 class SheetDestination {
@@ -287,7 +288,7 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
                           for (final sheet in _spreadsheets)
                             SsListRow(
                               key: ValueKey(sheet.id),
-                              leading: const SsIconTile(LucideIcons.sheet),
+                              leading: const SsFileMarkTile(FileMark.sheets),
                               title: sheet.title,
                               subtitle: sheet.modifiedTime == null
                                   ? null
@@ -406,7 +407,10 @@ class _AccountCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                SsIconTile.accent(context, LucideIcons.sheet),
+                SsFileMarkTile(
+                  FileMark.sheets,
+                  background: context.ss.emeraldTint,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

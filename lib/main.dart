@@ -25,6 +25,7 @@ import 'core/utils/app_router.dart';
 import 'core/utils/demo_seed.dart';
 import 'core/utils/review_service.dart';
 import 'core/utils/update_service.dart';
+import 'core/widgets/file_marks.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/settings/screens/paywall_screen.dart';
 import 'features/shell/app_shell.dart';
@@ -41,6 +42,7 @@ void main() async {
     ),
   );
 
+  unawaited(FileMark.precache());
   await Hive.initFlutter();
   await HistoryService.init();
   await ScanHistoryService.init();

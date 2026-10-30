@@ -6,6 +6,7 @@ import '../../core/services/lookup_list_service.dart';
 import '../../core/services/usage_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
+import '../../core/widgets/file_marks.dart';
 import '../settings/screens/connect_sheets_screen.dart';
 
 /// "Add a list" (ListImport.dc.html): read a Google Sheets tab or an
@@ -195,10 +196,18 @@ class _ListImportScreenState extends State<ListImportScreen> {
                       ('file', 'File on phone'),
                     ],
                     value: _from,
+                    leading: (v) => SsFileMark(
+                      v == 'sheets' ? FileMark.sheets : FileMark.excel,
+                      size: 16,
+                    ),
                     onChanged: (v) => setState(() => _from = v),
                   ),
                   const SizedBox(height: 8),
                   _SourceCard(
+                    mark: _from == 'sheets'
+                        ? FileMark.sheets
+                        : FileMark.forFile(_source?.fileName ?? '') ??
+                              FileMark.excel,
                     title: table == null
                         ? (_from == 'file'
                               ? 'Pick an Excel or CSV file'
@@ -360,7 +369,11 @@ class _SourceCard extends StatelessWidget {
   final String action;
   final bool loading;
   final VoidCallback onTap;
+
+  /// Google Sheets, or the picked file's kind (Excel until one is picked).
+  final FileMark mark;
   const _SourceCard({
+    required this.mark,
     required this.title,
     required this.subtitle,
     required this.action,
@@ -375,12 +388,7 @@ class _SourceCard extends StatelessWidget {
       children: [
         SsListRow(
           onTap: loading ? null : onTap,
-          leading: SsIconTile(
-            LucideIcons.sheet,
-            background: c.emeraldTint,
-            color: c.emerald,
-            size: 40,
-          ),
+          leading: SsFileMarkTile(mark, background: c.emeraldTint, size: 40),
           title: title,
           subtitle: subtitle,
           trailing: loading

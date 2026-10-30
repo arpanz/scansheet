@@ -7,6 +7,7 @@ import '../../core/services/team_service.dart';
 import '../../core/services/usage_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
+import '../../core/widgets/file_marks.dart';
 import 'list_import_screen.dart';
 
 /// Library › Lists: the code lists sheets check against.
@@ -72,14 +73,21 @@ class ListsView extends StatelessWidget {
               children: [
                 for (final list in lists)
                   SsListRow(
-                    leading: SsIconTile(
-                      list.source.isSheets
-                          ? LucideIcons.sheet
-                          : LucideIcons.fileSpreadsheet,
-                      background: c.emeraldTint,
-                      color: c.emerald,
-                      size: 40,
-                    ),
+                    leading: switch (list.source.isSheets
+                        ? FileMark.sheets
+                        : FileMark.forFile(list.source.fileName ?? '')) {
+                      final mark? => SsFileMarkTile(
+                        mark,
+                        background: c.emeraldTint,
+                        size: 40,
+                      ),
+                      null => SsIconTile(
+                        LucideIcons.fileSpreadsheet,
+                        background: c.emeraldTint,
+                        color: c.emerald,
+                        size: 40,
+                      ),
+                    },
                     title: list.name,
                     subtitle:
                         '${list.length} entries · ${list.source.label} · '

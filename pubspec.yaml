@@ -68,7 +68,7 @@ flutter:
     enable-swift-package-manager: false
   uses-material-design: true
   assets:
-    - assets/sheets.svg
+    - assets/marks/
     - assets/sounds/
 
 # Sources and the generator live in docs/design/icon.

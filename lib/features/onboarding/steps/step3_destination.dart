@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/services/google_sheets_service.dart';
 import '../../../core/services/template_service.dart';
 import '../../../core/widgets/ss.dart';
+import '../../../core/widgets/file_marks.dart';
 import '../onboarding_flow.dart';
 
 class OnbDestinationStep extends StatefulWidget {
@@ -111,19 +112,19 @@ class _OnbDestinationStepState extends State<OnbDestinationStep> {
               'new',
               'Create a new Google Sheet',
               '${_templateName()} · in My Drive',
-              LucideIcons.plus,
+              Icon(LucideIcons.plus, size: 19, color: c.ink),
             ),
             (
               'existing',
               'Add to a spreadsheet I have',
               'Pick one from your Google Drive',
-              LucideIcons.table2,
+              const SsFileMark(FileMark.sheets, size: 22),
             ),
             (
               'local',
               'Keep it on this phone',
               'Save as Excel or CSV, share when done',
-              LucideIcons.smartphone,
+              const SsFileMark(FileMark.excel, size: 22),
             ),
           ].map(
             (o) => Padding(
@@ -153,7 +154,7 @@ class _OnbDestinationStepState extends State<OnbDestinationStep> {
                               : c.chip,
                           borderRadius: BorderRadius.circular(11),
                         ),
-                        child: Icon(o.$4, size: 19, color: c.ink),
+                        child: o.$4,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -213,7 +214,7 @@ class _OnbDestinationStepState extends State<OnbDestinationStep> {
                   .map(
                     (f) => ListTile(
                       dense: true,
-                      leading: Icon(LucideIcons.table2, color: c.emerald),
+                      leading: const SsFileMark(FileMark.sheets, size: 24),
                       title: Text(
                         f.title,
                         maxLines: 1,

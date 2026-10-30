@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/google_sheets_service.dart';
 import '../../../core/widgets/ss.dart';
+import '../../../core/widgets/file_marks.dart';
 import '../onboarding_flow.dart';
 
 class OnbSigninStep extends StatefulWidget {
@@ -68,7 +69,7 @@ class _OnbSigninStepState extends State<OnbSigninStep> {
                     borderRadius: BorderRadius.circular(22),
                     border: Border.all(color: c.line),
                   ),
-                  child: Icon(LucideIcons.table2, size: 36, color: c.emerald),
+                  child: const SsFileMark(FileMark.sheets, size: 40),
                 ),
               ],
             ),

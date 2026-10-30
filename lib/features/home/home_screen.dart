@@ -8,6 +8,7 @@ import '../../core/services/sheet_summary.dart';
 import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
+import '../../core/widgets/file_marks.dart';
 import '../scan/screens/read_code_screen.dart';
 import '../scan/screens/scan_session_screen.dart';
 import '../sheet/new_sheet_screen.dart';
@@ -212,6 +213,11 @@ class _InProgressCard extends StatelessWidget {
                   children: [
                     const SsPill.live('IN PROGRESS'),
                     const Spacer(),
+                    SsFileMark(
+                      FileMark.of(sheet.session.destination),
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
                     Text(syncLine, style: SsText.caption(color: c.heroMuted)),
                     const SizedBox(width: 2),
                     SizedBox.square(
@@ -396,7 +402,7 @@ class _SheetRow extends StatelessWidget {
         ? SsStatus('${sheet.pending} queued', kind: SsStatusKind.queued)
         : const SsStatus('Synced');
     return SsListRow(
-      leading: SsIconTile(sheetIcon(sheet.session.iconName), size: 38),
+      leading: SsSheetTile(sheet.session, size: 38),
       title: sheet.session.name,
       subtitle:
           '${sheet.rowCount} ${sheet.rowCount == 1 ? 'row' : 'rows'} · ${sheet.destinationLabel}',
@@ -548,9 +554,16 @@ class _ReadyCard extends StatelessWidget {
             children: [
               SsPill('READY', background: c.chip, foreground: c.ink2),
               const Spacer(),
-              Text(
-                sheet.destinationLabel,
-                style: SsText.caption(color: c.muted),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SsFileMark(FileMark.of(sheet.session.destination), size: 14),
+                  const SizedBox(width: 5),
+                  Text(
+                    sheet.destinationLabel,
+                    style: SsText.caption(color: c.muted),
+                  ),
+                ],
               ),
             ],
           ),

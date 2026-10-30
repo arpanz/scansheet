@@ -9,6 +9,7 @@ import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ss.dart';
+import '../../core/widgets/file_marks.dart';
 import 'sheet_actions.dart';
 import '../sync/sync_banner.dart';
 import '../scan/models/scan_session.dart';
@@ -621,7 +622,7 @@ class _DestinationStrip extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
               children: [
-                Icon(LucideIcons.refreshCw, size: 18, color: c.emeraldDeep),
+                const SsFileMark(FileMark.sheets, size: 22),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(

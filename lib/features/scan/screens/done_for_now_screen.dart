@@ -15,6 +15,7 @@ import '../../../core/services/lookup_list_service.dart';
 import '../../../core/services/scan_session_service.dart';
 import '../../../core/services/sync_queue_service.dart';
 import '../../../core/widgets/ss.dart';
+import '../../../core/widgets/file_marks.dart';
 import '../models/scan_session.dart';
 import '../../sheet/sheet_actions.dart';
 
@@ -282,10 +283,9 @@ class _DoneForNowScreenState extends State<DoneForNowScreen> {
                   children: [
                     Row(
                       children: [
-                        SsIconTile(
-                          isSheets ? LucideIcons.sheet : LucideIcons.smartphone,
+                        SsFileMarkTile(
+                          FileMark.of(widget.session.destination),
                           background: c.emeraldTint,
-                          color: c.emerald,
                           size: 40,
                         ),
                         const SizedBox(width: 12),
@@ -555,11 +555,7 @@ class _FormatCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(
-                      excel ? LucideIcons.table2 : LucideIcons.file,
-                      size: 22,
-                      color: c.ink,
-                    ),
+                    SsFileMark(excel ? FileMark.excel : FileMark.csv, size: 22),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

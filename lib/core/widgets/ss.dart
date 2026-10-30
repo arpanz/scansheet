@@ -526,12 +526,16 @@ class SsSegmented<T> extends StatelessWidget {
   final ValueChanged<T> onChanged;
   final bool dark;
 
+  /// An optional mark before an option's label, e.g. a [FileMark].
+  final Widget? Function(T value)? leading;
+
   const SsSegmented({
     super.key,
     required this.options,
     required this.value,
     required this.onChanged,
     this.dark = false,
+    this.leading,
   });
 
   @override
@@ -575,13 +579,28 @@ class SsSegmented<T> extends StatelessWidget {
                         : null,
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    label,
-                    style: SsText.sans(
-                      size: 13,
-                      weight: v == value ? FontWeight.w600 : FontWeight.w400,
-                      color: fg,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (leading?.call(v) case final mark?) ...[
+                        mark,
+                        const SizedBox(width: 6),
+                      ],
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: SsText.sans(
+                            size: 13,
+                            weight: v == value
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: fg,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/services/sheet_summary.dart';
 import '../../../core/utils/app_router.dart';
 import '../../../core/widgets/ss.dart';
+import '../../../core/widgets/file_marks.dart';
 import '../screens/read_code_screen.dart';
 import '../screens/scan_session_screen.dart';
 import '../../sheet/new_sheet_screen.dart';
@@ -126,7 +127,7 @@ class _RecentRow extends StatelessWidget {
               background: SsColors.brandInk,
               color: SsColors.brandLime,
             )
-          : SsIconTile(sheetIcon(sheet.session.iconName), size: 40),
+          : SsSheetTile(sheet.session, size: 40),
       title: sheet.session.name,
       subtitle:
           '${sheet.rowCount} ${sheet.rowCount == 1 ? 'row' : 'rows'} · ${first ? 'last scan ${last.toLowerCase()}' : last}',
