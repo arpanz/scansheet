@@ -407,7 +407,8 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
   }
 
   /// Where rows go, in words and as the preview's title: the destination
-  /// mark, what gets made, and the file › tab name the rows land in.
+  /// mark, what gets made, and the file (› tab, in an existing file) the
+  /// rows land in.
   ({FileMark mark, String title, String detail, String file}) _where(
     bool signedIn,
   ) {
@@ -443,7 +444,8 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
         mark: FileMark.sheets,
         title: 'New file in your Google Drive',
         detail: account,
-        file: '$name › $name',
+        // Its one tab shares the name, so saying it twice only confuses.
+        file: name,
       ),
     };
   }
