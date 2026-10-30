@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/services/google_sheets_service.dart';
 import '../../core/services/lookup_list_service.dart';
 import '../../core/services/scan_session_service.dart';
+import '../../core/services/sheet_summary.dart';
 import '../../core/services/template_service.dart';
 import '../../core/services/usage_service.dart';
 import '../../core/utils/app_router.dart';
@@ -40,6 +41,9 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
   UnknownCodes _unknownCodes = UnknownCodes.ask;
   bool _newTabInFile = false;
 
+  /// More options starts open when it already holds something to see.
+  bool _moreOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +73,7 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
       if (copyFrom.lookupListId != null) {
         _list = LookupListService.get(copyFrom.lookupListId!);
       }
+      _moreOpen = _list != null || _showConfirmation;
     }
     if (template?.listPrompt != null) {
       WidgetsBinding.instance.addPostFrameCallback(
@@ -216,6 +221,7 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
   void _attach(LookupList list) {
     setState(() {
       _list = list;
+      _moreOpen = true;
       _warnDuplicates = true;
       String? header(String? field) => list.headers
           .where((h) => h.toLowerCase() == field?.toLowerCase())
@@ -400,6 +406,48 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
     }
   }
 
+  /// Where rows go, in words and as the preview's title: the destination
+  /// mark, what gets made, and the file › tab name the rows land in.
+  ({FileMark mark, String title, String detail, String file}) _where(
+    bool signedIn,
+  ) {
+    final name = _name.text.trim().isEmpty ? 'Your sheet' : _name.text.trim();
+    final account = signedIn
+        ? 'Signed in as ${GoogleSheetsService.instance.currentUser?.email}'
+        : 'You’ll sign in to Google when you start';
+    final existing = _existing;
+    return switch (_destination) {
+      'xlsx' => (
+        mark: FileMark.excel,
+        title: 'Excel file on this phone',
+        detail: 'Share or save the .xlsx whenever you like',
+        file: '$name.xlsx',
+      ),
+      'csv' => (
+        mark: FileMark.csv,
+        title: 'CSV file on this phone',
+        detail: 'Opens in any spreadsheet app',
+        file: '$name.csv',
+      ),
+      _ when existing != null => (
+        mark: FileMark.sheets,
+        title: _newTabInFile
+            ? 'New tab in “${existing.spreadsheetTitle}”'
+            : '“${existing.spreadsheetTitle}” › ${existing.sheetName}',
+        detail: account,
+        file:
+            '${existing.spreadsheetTitle} › '
+            '${_newTabInFile ? name : existing.sheetName}',
+      ),
+      _ => (
+        mark: FileMark.sheets,
+        title: 'New file in your Google Drive',
+        detail: account,
+        file: '$name › $name',
+      ),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.ss;
@@ -409,342 +457,125 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      SsIconButton(
-                        LucideIcons.x,
-                        onPressed: () => Navigator.maybePop(context),
-                      ),
-                      const Spacer(),
-                      Text(
-                        'New sheet',
-                        style: SsText.sans(
-                          size: 17,
-                          weight: FontWeight.w600,
-                          color: c.ink,
-                        ),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () => _showTemplates(context, templates),
-                        child: Text(
-                          'Templates',
-                          style: SsText.sans(
-                            size: 14,
-                            weight: FontWeight.w500,
-                            color: c.emerald,
-                          ),
-                        ),
-                      ),
-                    ],
+                  SsIconButton(
+                    LucideIcons.x,
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.maybePop(context),
                   ),
-                  const SizedBox(height: 20),
-                  _LabeledField(label: 'Name', controller: _name),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pushReplacement(
-                        FadeSlideRoute(page: const JoinTeamScreen()),
-                      ),
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        foregroundColor: c.emerald,
-                      ),
-                      child: Text(
-                        'Joining a teammate’s sheet? Enter their code',
-                        style: SsText.sans(
-                          size: 13,
-                          weight: FontWeight.w600,
-                          color: c.emerald,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  const Spacer(),
                   Text(
-                    'Save to',
+                    'New sheet',
                     style: SsText.sans(
-                      size: 13,
-                      weight: FontWeight.w500,
-                      color: c.ink2,
+                      size: 17,
+                      weight: FontWeight.w600,
+                      color: c.ink,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  SsSegmented<String>(
-                    options: const [
-                      ('sheets', 'Google Sheets'),
-                      ('xlsx', 'Excel'),
-                      ('csv', 'CSV'),
-                    ],
-                    value: _destination,
-                    leading: (v) => SsFileMark(switch (v) {
-                      'sheets' => FileMark.sheets,
-                      'xlsx' => FileMark.excel,
-                      _ => FileMark.csv,
-                    }, size: 16),
-                    onChanged: (v) => setState(() => _destination = v),
-                  ),
-                  const SizedBox(height: 7),
-                  if (_destination == 'sheets')
-                    ValueListenableBuilder<bool>(
-                      valueListenable:
-                          GoogleSheetsService.instance.signedInNotifier,
-                      builder: (context, signedIn, _) => AnimatedBuilder(
-                        animation: _name,
-                        builder: (context, _) => Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              signedIn
-                                  ? 'Connected as ${GoogleSheetsService.instance.currentUser?.email}'
-                                  : 'You’ll sign in to Google when you start',
-                              style: SsText.sans(size: 12, color: c.muted),
-                            ),
-                            Text(
-                              _newTabInFile && _existing != null
-                                  ? 'New tab “${_name.text.trim()}” in “${_existing!.spreadsheetTitle}”'
-                                  : _existing != null
-                                  ? 'Rows go to “${_existing!.spreadsheetTitle}” › ${_existing!.sheetName}'
-                                  : 'New file “${_name.text.trim().isEmpty ? 'your sheet' : _name.text.trim()}” in My Drive',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: SsText.sans(size: 12, color: c.muted),
-                            ),
-                          ],
-                        ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => _showTemplates(context, templates),
+                    child: Text(
+                      'Templates',
+                      style: SsText.sans(
+                        size: 14,
+                        weight: FontWeight.w500,
+                        color: c.emerald,
                       ),
-                    )
-                  else
-                    Text(
-                      _destination == 'xlsx'
-                          ? 'Saved on this phone, share the .xlsx when you finish'
-                          : 'Plain file that opens in any spreadsheet tool',
-                      style: SsText.sans(size: 12, color: c.muted),
-                    ),
-                  if (_destination == 'sheets')
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: _existing == null
-                            ? _pickExisting
-                            : () => setState(() {
-                                _existing = null;
-                                _newTabInFile = false;
-                              }),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          foregroundColor: c.emerald,
-                        ),
-                        child: Text(
-                          _existing == null
-                              ? 'Use an existing spreadsheet'
-                              : 'Make a new one instead',
-                          style: SsText.sans(
-                            size: 13,
-                            weight: FontWeight.w600,
-                            color: c.emerald,
-                          ),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 20),
-                  _ListCard(
-                    list: _list,
-                    unknownCodes: _unknownCodes,
-                    onPick: _pickList,
-                    onRemove: _detach,
-                    onUnknownCodes: (v) => setState(() => _unknownCodes = v),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Text(
-                        'Columns',
-                        style: SsText.sans(
-                          size: 13,
-                          weight: FontWeight.w500,
-                          color: c.ink2,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        'Drag to reorder',
-                        style: SsText.sans(size: 12, color: c.muted),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Material(
-                    color: c.surface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      side: BorderSide(color: c.line),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ReorderableListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          buildDefaultDragHandles: false,
-                          itemCount: _columns.length,
-                          onReorderItem: (oldIndex, newIndex) => setState(() {
-                            final item = _columns.removeAt(oldIndex);
-                            _columns.insert(newIndex, item);
-                          }),
-                          itemBuilder: (context, index) {
-                            final col = _columns[index];
-                            final kind = ColumnKind.of(col);
-                            final scanNumber =
-                                _columns
-                                    .take(index)
-                                    .where(
-                                      (x) => x.type == SessionColumnType.scan,
-                                    )
-                                    .length +
-                                1;
-                            final scanCount = _columns
-                                .where((x) => x.type == SessionColumnType.scan)
-                                .length;
-                            return Dismissible(
-                              key: ValueKey(
-                                'col-${identityHashCode(col)}-$index',
-                              ),
-                              direction: DismissDirection.endToStart,
-                              onDismissed: (_) =>
-                                  setState(() => _columns.removeAt(index)),
-                              background: Container(
-                                color: c.error,
-                                alignment: Alignment.centerRight,
-                                padding: const EdgeInsets.only(right: 20),
-                                child: Icon(LucideIcons.trash2, color: c.onInk),
-                              ),
-                              child: InkWell(
-                                onTap: () => _editColumn(index),
-                                child: Container(
-                                  height: 56,
-                                  padding: const EdgeInsets.only(
-                                    left: 10,
-                                    right: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      bottom: BorderSide(color: c.lineSoft),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      ReorderableDragStartListener(
-                                        index: index,
-                                        child: Icon(
-                                          LucideIcons.gripVertical,
-                                          size: 16,
-                                          color: c.muted,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              col.name,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: SsText.sans(
-                                                size: 15,
-                                                weight: FontWeight.w600,
-                                                color: c.ink,
-                                              ),
-                                            ),
-                                            Text(
-                                              ColumnKind.detailOf(
-                                                col,
-                                                scanNumber: scanNumber,
-                                                scanCount: scanCount,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: SsText.sans(
-                                                size: 11,
-                                                color: c.muted,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      SsTag(kind.tag, kind: kind.tagKind),
-                                      const SizedBox(width: 4),
-                                      SsIconButton(
-                                        LucideIcons.moreVertical,
-                                        size: 40,
-                                        color: c.muted,
-                                        onPressed: () => _editColumn(index),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        TextButton.icon(
-                          onPressed: _addColumn,
-                          icon: Icon(
-                            LucideIcons.plus,
-                            size: 18,
-                            color: c.emerald,
-                          ),
-                          label: Text(
-                            'Add column',
-                            style: SsText.sans(
-                              size: 15,
-                              weight: FontWeight.w600,
-                              color: c.emerald,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SsCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Column(
-                      children: [
-                        if (_hasNumber)
-                          _ToggleRow(
-                            label: 'Repeats add to Qty',
-                            hint: 'Scan the same item again to count it',
-                            value: _mergeRepeats,
-                            onChanged: (v) => setState(() => _mergeRepeats = v),
-                          ),
-                        _ToggleRow(
-                          label: 'Warn on repeats',
-                          hint: 'Ask before adding the same code as a new row',
-                          value: _warnDuplicates,
-                          onChanged: (v) => setState(() => _warnDuplicates = v),
-                        ),
-                        _ToggleRow(
-                          label: 'Review each scan',
-                          hint: 'Edit the row before it’s saved',
-                          value: _showConfirmation,
-                          onChanged: (v) =>
-                              setState(() => _showConfirmation = v),
-                          last: true,
-                        ),
-                      ],
                     ),
                   ),
                 ],
+              ),
+            ),
+            Expanded(
+              child: ValueListenableBuilder<bool>(
+                valueListenable: GoogleSheetsService.instance.signedInNotifier,
+                builder: (context, signedIn, _) => AnimatedBuilder(
+                  animation: _name,
+                  builder: (context, _) {
+                    final where = _where(signedIn);
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
+                      children: [
+                        const _Step(1, 'Name it'),
+                        const SizedBox(height: 10),
+                        _NameField(controller: _name),
+                        const SizedBox(height: 26),
+                        const _Step(2, 'Where rows go'),
+                        const SizedBox(height: 10),
+                        SsSegmented<String>(
+                          options: const [
+                            ('sheets', 'Google Sheets'),
+                            ('xlsx', 'Excel'),
+                            ('csv', 'CSV'),
+                          ],
+                          value: _destination,
+                          leading: (v) => SsFileMark(switch (v) {
+                            'sheets' => FileMark.sheets,
+                            'xlsx' => FileMark.excel,
+                            _ => FileMark.csv,
+                          }, size: 16),
+                          onChanged: (v) => setState(() => _destination = v),
+                        ),
+                        const SizedBox(height: 10),
+                        _WhereCard(
+                          mark: where.mark,
+                          title: where.title,
+                          detail: where.detail,
+                          action: _destination != 'sheets'
+                              ? null
+                              : _existing == null
+                              ? 'Use existing'
+                              : 'New file',
+                          onAction: _existing == null
+                              ? _pickExisting
+                              : () => setState(() {
+                                  _existing = null;
+                                  _newTabInFile = false;
+                                }),
+                        ),
+                        const SizedBox(height: 26),
+                        _Step(
+                          3,
+                          'What each row holds',
+                          hint:
+                              'One row per scan. Tap a column to change it, '
+                              'hold the grip to move it.',
+                        ),
+                        const SizedBox(height: 10),
+                        _columnList(c),
+                        const SizedBox(height: 14),
+                        _RowPreview(
+                          file: where.file,
+                          mark: where.mark,
+                          columns: _columns,
+                        ),
+                        const SizedBox(height: 26),
+                        _moreOptions(c),
+                        const SizedBox(height: 16),
+                        Center(
+                          child: TextButton(
+                            onPressed: () =>
+                                Navigator.of(context).pushReplacement(
+                                  FadeSlideRoute(page: const JoinTeamScreen()),
+                                ),
+                            child: Text(
+                              'Joining a teammate’s sheet? Enter their code',
+                              style: SsText.sans(
+                                size: 13,
+                                weight: FontWeight.w600,
+                                color: c.emerald,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
             Container(
@@ -772,6 +603,239 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
     );
   }
 
+  /// The sheet's columns: tap to edit, drag the grip to move, swipe away
+  /// to remove, Add column at the end.
+  Widget _columnList(SsColors c) {
+    final scanCount = _columns
+        .where((x) => x.type == SessionColumnType.scan)
+        .length;
+    return Material(
+      color: c.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: c.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ReorderableListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            itemCount: _columns.length,
+            onReorderItem: (oldIndex, newIndex) => setState(() {
+              final item = _columns.removeAt(oldIndex);
+              _columns.insert(newIndex, item);
+            }),
+            itemBuilder: (context, index) {
+              final col = _columns[index];
+              final kind = ColumnKind.of(col);
+              final scanNumber =
+                  _columns
+                      .take(index)
+                      .where((x) => x.type == SessionColumnType.scan)
+                      .length +
+                  1;
+              return Dismissible(
+                key: ValueKey('col-${identityHashCode(col)}-$index'),
+                direction: DismissDirection.endToStart,
+                onDismissed: (_) => setState(() => _columns.removeAt(index)),
+                background: Container(
+                  color: c.error,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: Icon(LucideIcons.trash2, color: c.onInk),
+                ),
+                child: InkWell(
+                  onTap: () => _editColumn(index),
+                  child: Container(
+                    height: 56,
+                    padding: const EdgeInsets.only(left: 10, right: 8),
+                    decoration: BoxDecoration(
+                      border: Border(bottom: BorderSide(color: c.lineSoft)),
+                    ),
+                    child: Row(
+                      children: [
+                        ReorderableDragStartListener(
+                          index: index,
+                          child: Icon(
+                            LucideIcons.gripVertical,
+                            size: 16,
+                            color: c.muted,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                col.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: SsText.sans(
+                                  size: 15,
+                                  weight: FontWeight.w600,
+                                  color: c.ink,
+                                ),
+                              ),
+                              Text(
+                                ColumnKind.detailOf(
+                                  col,
+                                  scanNumber: scanNumber,
+                                  scanCount: scanCount,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: SsText.sans(size: 11, color: c.muted),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SsTag(kind.tag, kind: kind.tagKind),
+                        const SizedBox(width: 4),
+                        SsIconButton(
+                          LucideIcons.moreVertical,
+                          size: 40,
+                          color: c.muted,
+                          tooltip: 'Edit column',
+                          onPressed: () => _editColumn(index),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          TextButton.icon(
+            onPressed: _addColumn,
+            icon: Icon(LucideIcons.plus, size: 18, color: c.emerald),
+            label: Text(
+              'Add column',
+              style: SsText.sans(
+                size: 15,
+                weight: FontWeight.w600,
+                color: c.emerald,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Checking against a list and how repeats and reviews work: folded
+  /// away with a one-line summary, since the defaults suit most sheets.
+  Widget _moreOptions(SsColors c) {
+    final on = [
+      if (_list case final list?) 'Checks against ${list.name}',
+      if (_hasNumber && _mergeRepeats) 'Repeats add to Qty',
+      if (_warnDuplicates) 'Warns on repeats',
+      if (_showConfirmation) 'Review each scan',
+    ];
+    return SsCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(SsRadius.lg),
+            onTap: () => setState(() => _moreOpen = !_moreOpen),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+              child: Row(
+                children: [
+                  SsIconTile(LucideIcons.slidersHorizontal, size: 36),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'More options',
+                          style: SsText.sans(
+                            size: 15,
+                            weight: FontWeight.w600,
+                            color: c.ink,
+                          ),
+                        ),
+                        Text(
+                          on.isEmpty
+                              ? 'Check against a list, repeats, review'
+                              : on.join(' · '),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: SsText.sans(size: 12, color: c.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _moreOpen ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: Icon(
+                      LucideIcons.chevronDown,
+                      size: 20,
+                      color: c.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: !_moreOpen
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _ListCard(
+                          list: _list,
+                          unknownCodes: _unknownCodes,
+                          onPick: _pickList,
+                          onRemove: _detach,
+                          onUnknownCodes: (v) =>
+                              setState(() => _unknownCodes = v),
+                        ),
+                        const SizedBox(height: 4),
+                        if (_hasNumber)
+                          _ToggleRow(
+                            label: 'Repeats add to Qty',
+                            hint: 'Scan the same item again to count it',
+                            value: _mergeRepeats,
+                            onChanged: (v) => setState(() => _mergeRepeats = v),
+                          ),
+                        _ToggleRow(
+                          label: 'Warn on repeats',
+                          hint: 'Ask before adding the same code as a new row',
+                          value: _warnDuplicates,
+                          onChanged: (v) => setState(() => _warnDuplicates = v),
+                        ),
+                        _ToggleRow(
+                          label: 'Review each scan',
+                          hint: 'Edit the row before it’s saved',
+                          value: _showConfirmation,
+                          onChanged: (v) =>
+                              setState(() => _showConfirmation = v),
+                          last: true,
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showTemplates(
     BuildContext context,
     List<SessionTemplate> templates,
@@ -792,15 +856,24 @@ class _NewSheetScreenState extends State<NewSheetScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            for (final template in templates)
-              ListTile(
-                title: Text(template.name),
-                subtitle: Text(template.columnSummary),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickTemplate(template);
-                },
+            Flexible(
+              child: SingleChildScrollView(
+                child: SsListGroup(
+                  children: [
+                    for (final template in templates)
+                      SsListRow(
+                        leading: SsIconTile(sheetIcon(template.icon), size: 36),
+                        title: template.name,
+                        subtitle: template.columnSummary,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _pickTemplate(template);
+                        },
+                      ),
+                  ],
+                ),
               ),
+            ),
           ],
         ),
       ),
@@ -921,40 +994,372 @@ class _ListCard extends StatelessWidget {
   }
 }
 
-class _LabeledField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  const _LabeledField({required this.label, required this.controller});
+/// A numbered step heading, so the page reads top to bottom as 1, 2, 3.
+class _Step extends StatelessWidget {
+  final int number;
+  final String title;
+  final String? hint;
+  const _Step(this.number, this.title, {this.hint});
+
   @override
   Widget build(BuildContext context) {
     final c = context.ss;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: SsText.sans(size: 13, weight: FontWeight.w500, color: c.ink2),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 52,
-          child: TextField(
-            controller: controller,
-            style: SsText.sans(size: 16, weight: FontWeight.w500, color: c.ink),
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: c.surface,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: c.line, width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: c.ink, width: 1.5),
+        Row(
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: c.ink, shape: BoxShape.circle),
+              child: Text(
+                '$number',
+                style: SsText.sans(
+                  size: 12,
+                  weight: FontWeight.w700,
+                  color: c.onInk,
+                ),
               ),
             ),
+            const SizedBox(width: 10),
+            Text(
+              title,
+              style: SsText.sans(
+                size: 16,
+                weight: FontWeight.w600,
+                color: c.ink,
+              ),
+            ),
+          ],
+        ),
+        if (hint != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 32, top: 2),
+            child: Text(hint!, style: SsText.sans(size: 12, color: c.muted)),
           ),
+      ],
+    );
+  }
+}
+
+class _NameField extends StatelessWidget {
+  final TextEditingController controller;
+  const _NameField({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ss;
+    return SizedBox(
+      height: 52,
+      child: TextField(
+        controller: controller,
+        textCapitalization: TextCapitalization.sentences,
+        style: SsText.sans(size: 16, weight: FontWeight.w500, color: c.ink),
+        decoration: InputDecoration(
+          hintText: 'e.g. Stock count, Attendance',
+          hintStyle: SsText.sans(size: 16, color: c.muted),
+          filled: true,
+          fillColor: c.surface,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: c.line, width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: c.ink, width: 1.5),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// What gets made and where: "New file in your Google Drive", the Google
+/// account, and a switch between a new file and an existing one.
+class _WhereCard extends StatelessWidget {
+  final FileMark mark;
+  final String title, detail;
+  final String? action;
+  final VoidCallback onAction;
+  const _WhereCard({
+    required this.mark,
+    required this.title,
+    required this.detail,
+    required this.action,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ss;
+    return SsCard(
+      padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+      child: Row(
+        children: [
+          SsFileMarkTile(mark, size: 40),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: SsText.sans(
+                    size: 14,
+                    weight: FontWeight.w600,
+                    color: c.ink,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: SsText.sans(size: 12, color: c.muted),
+                ),
+              ],
+            ),
+          ),
+          if (action != null)
+            TextButton(
+              onPressed: onAction,
+              child: Text(
+                action!,
+                style: SsText.sans(
+                  size: 13,
+                  weight: FontWeight.w600,
+                  color: c.emerald,
+                ),
+              ),
+            )
+          else
+            const SizedBox(width: 8),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small picture of the finished sheet: its file › tab, the column
+/// headers, and one made-up row showing what each scan fills in.
+class _RowPreview extends StatelessWidget {
+  final String file;
+  final FileMark mark;
+  final List<SessionColumn> columns;
+  const _RowPreview({
+    required this.file,
+    required this.mark,
+    required this.columns,
+  });
+
+  /// A believable value for [col], and whether it's only a placeholder
+  /// (typed later, or found at scan time).
+  static (String, bool) _sample(SessionColumn col, int scanNumber) =>
+      switch (ColumnKind.of(col)) {
+        ColumnKind.scan => (
+          scanNumber == 1 ? '8901063012345' : 'SN-20417',
+          false,
+        ),
+        ColumnKind.product => ('Biscuits 250 g', false),
+        ColumnKind.fromList => ('from list', true),
+        ColumnKind.pickList => (
+          col.defaultValue ?? col.choices.firstOrNull ?? '',
+          false,
+        ),
+        ColumnKind.number => (col.defaultValue ?? '${col.stepSize}', false),
+        ColumnKind.text => ('typed', true),
+        ColumnKind.readText => ('03/2027', false),
+        ColumnKind.time => ('10:42', false),
+        ColumnKind.location => (col.locationFormat.example, false),
+        ColumnKind.fixed => (
+          (col.fixedValue ?? '').isEmpty ? 'set once' : col.fixedValue!,
+          (col.fixedValue ?? '').isEmpty,
+        ),
+        ColumnKind.auto => ('1', false),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ss;
+    var scans = 0;
+    final cells = [
+      for (final col in columns)
+        (
+          col,
+          _sample(col, col.type == SessionColumnType.scan ? ++scans : scans),
+        ),
+    ];
+    double width(SessionColumn col, String value) =>
+        ((value.length > col.name.length ? value.length : col.name.length) *
+                    7.4 +
+                24)
+            .clamp(64.0, 170.0);
+
+    Widget cell(String text, double w, TextStyle style, {IconData? icon}) =>
+        Container(
+          width: w,
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          alignment: Alignment.centerLeft,
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: c.lineSoft)),
+          ),
+          child: Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 12, color: c.emerald),
+                const SizedBox(width: 4),
+              ],
+              Flexible(
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: style,
+                ),
+              ),
+            ],
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Each scan adds a row like this',
+          style: SsText.sans(size: 13, weight: FontWeight.w600, color: c.ink2),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: c.line),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                color: c.chip,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    SsFileMark(mark, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        file,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: SsText.sans(
+                          size: 12,
+                          weight: FontWeight.w600,
+                          color: c.ink2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Few columns stretch to the card's width, like a real sheet;
+              // many scroll sideways.
+              LayoutBuilder(
+                builder: (context, box) {
+                  final natural = [
+                    for (final (col, (value, _)) in cells) width(col, value),
+                  ];
+                  final sum = natural.fold<double>(0, (a, b) => a + b);
+                  final scale = 30 + sum < box.maxWidth
+                      ? (box.maxWidth - 30) / sum
+                      : 1.0;
+                  final w = [for (final n in natural) n * scale];
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            border: Border(bottom: BorderSide(color: c.line)),
+                          ),
+                          child: Row(
+                            children: [
+                              cell('', 30, SsText.caption(color: c.muted)),
+                              for (final (k, (col, _)) in cells.indexed)
+                                cell(
+                                  col.name.toUpperCase(),
+                                  w[k],
+                                  SsText.sans(
+                                    size: 10,
+                                    weight: FontWeight.w600,
+                                    spacing: .5,
+                                    color: c.muted,
+                                  ),
+                                  icon: col.type == SessionColumnType.scan
+                                      ? LucideIcons.scanLine
+                                      : null,
+                                ),
+                            ],
+                          ),
+                        ),
+                        ColoredBox(
+                          color: c.limeRow,
+                          child: Row(
+                            children: [
+                              cell(
+                                '1',
+                                30,
+                                SsText.mono(size: 11, color: c.muted),
+                              ),
+                              for (final (k, (_, (value, placeholder)))
+                                  in cells.indexed)
+                                cell(
+                                  value,
+                                  w[k],
+                                  placeholder
+                                      ? SsText.sans(
+                                          size: 12,
+                                          color: c.muted,
+                                        ).copyWith(fontStyle: FontStyle.italic)
+                                      : SsText.mono(size: 12, color: c.ink),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: 'Columns marked '),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Icon(LucideIcons.scanLine, size: 12, color: c.emerald),
+              ),
+              const TextSpan(
+                text:
+                    ' come from the camera. The rest fill in by themselves '
+                    'or with a tap while you scan.',
+              ),
+            ],
+          ),
+          style: SsText.sans(size: 12, color: c.muted),
         ),
       ],
     );

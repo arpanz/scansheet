@@ -174,7 +174,27 @@ class _InProgressCard extends StatelessWidget {
         ? 'Syncing ${sheet.pending}…'
         : 'Synced ${relativeTime(sheet.lastActivity)}';
     void resume() => _open(context, ScanSessionScreen(session: sheet.session));
+    void rows() => _open(context, SheetViewScreen(session: sheet.session));
 
+    // The whole card opens the rows; the buttons scan or open them too.
+    return Semantics(
+      button: true,
+      label: 'View rows of ${sheet.session.name}',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: rows,
+        child: _card(context, c, syncLine, resume, rows),
+      ),
+    );
+  }
+
+  Widget _card(
+    BuildContext context,
+    SsColors c,
+    String syncLine,
+    VoidCallback resume,
+    VoidCallback rows,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: c.hero,
@@ -288,24 +308,18 @@ class _InProgressCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: SsButton.lime(
-                        'Resume scanning',
+                        'Resume',
                         icon: ssScanIcon,
                         large: false,
                         onPressed: resume,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    SsIconButton(
-                      LucideIcons.sheet,
-                      size: 48,
-                      tooltip: 'Open sheet',
-                      color: Colors.white,
-                      background: Colors.white.withValues(
-                        alpha: context.isDark ? 0.08 : 0.1,
-                      ),
-                      onPressed: () => _open(
-                        context,
-                        SheetViewScreen(session: sheet.session),
+                    Expanded(
+                      child: _HeroButton(
+                        'View rows',
+                        icon: LucideIcons.table,
+                        onPressed: rows,
                       ),
                     ),
                   ],
@@ -314,6 +328,49 @@ class _InProgressCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A see-through button on the dark in-progress card, the same size as
+/// the lime one beside it.
+class _HeroButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  const _HeroButton(this.label, {required this.icon, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = context.isDark ? context.ss.ink : Colors.white;
+    return Material(
+      color: Colors.white.withValues(alpha: context.isDark ? 0.08 : 0.12),
+      borderRadius: BorderRadius.circular(SsRadius.md),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onPressed,
+        child: SizedBox(
+          height: 48,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: fg),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: SsText.sans(
+                    size: 15,
+                    weight: FontWeight.w600,
+                    color: fg,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

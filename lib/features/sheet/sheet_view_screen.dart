@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/services/list_check.dart';
 import '../../core/services/google_sheets_service.dart';
 import '../../core/services/lookup_list_service.dart';
 import '../../core/services/scan_session_service.dart';
+import '../../core/services/scanning_preferences.dart';
 import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ss.dart';
 import '../../core/widgets/file_marks.dart';
+import 'rows_table.dart';
 import 'sheet_actions.dart';
 import '../sync/sync_banner.dart';
 import '../scan/models/scan_session.dart';
@@ -254,13 +257,23 @@ class _SheetViewScreenState extends State<SheetViewScreen> {
                                   ),
                                 ),
                               )
-                            else
-                              _RowsTable(
+                            else ...[
+                              _tableBar(
+                                session,
+                                shown: filtered.length,
+                                total: rows.length,
+                              ),
+                              const SizedBox(height: 10),
+                              RowsTable(
                                 session: session,
                                 rows: filtered,
                                 onTap: _editRow,
                                 onDelete: _deleteRow,
+                                pinned: context
+                                    .watch<ScanningPreferences>()
+                                    .pinCodeColumn,
                               ),
+                            ],
                           ]),
                         ),
                       ),
@@ -275,6 +288,60 @@ class _SheetViewScreenState extends State<SheetViewScreen> {
       ),
     );
   }
+
+  /// "24 rows", Pin code (wide sheets only) and full screen.
+  Widget _tableBar(
+    ScanSession session, {
+    required int shown,
+    required int total,
+  }) {
+    final c = context.ss;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            shown == total
+                ? '$total ${total == 1 ? 'row' : 'rows'}'
+                : '$shown of $total rows',
+            style: SsText.sans(
+              size: 13,
+              weight: FontWeight.w600,
+              color: c.ink2,
+            ),
+          ),
+        ),
+        if (session.columns.length > 2) ...[
+          const PinCodeToggle(),
+          const SizedBox(width: 6),
+        ],
+        Tooltip(
+          message: 'Full screen',
+          child: Material(
+            color: c.surface,
+            shape: CircleBorder(side: BorderSide(color: c.line)),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _fullScreen(session),
+              child: SizedBox.square(
+                dimension: 34,
+                child: Icon(LucideIcons.maximize2, size: 16, color: c.ink2),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _fullScreen(ScanSession session) => Navigator.of(context).push(
+    FadeSlideRoute(
+      page: RowsFullScreen(
+        session: session,
+        onEdit: _editRow,
+        onDelete: _deleteRow,
+      ),
+    ),
+  );
 
   Widget _header(ScanSession session) => SizedBox(
     height: 44,
@@ -672,207 +739,6 @@ class _DestinationStrip extends StatelessWidget {
       ),
     );
   }
-}
-
-class _RowsTable extends StatelessWidget {
-  const _RowsTable({
-    required this.session,
-    required this.rows,
-    required this.onTap,
-    required this.onDelete,
-  });
-  final ScanSession session;
-  final List<SessionRow> rows;
-  final ValueChanged<SessionRow> onTap;
-  final ValueChanged<SessionRow> onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.ss;
-    final columns = session.columns;
-    // Fit the longest value (mono ≈ 8.6 px/char at 14) or the header,
-    // so codes are never cut off; very long text still ellipsizes.
-    final widths = [
-      for (var i = 0; i < columns.length; i++)
-        (rows.fold<int>(
-                      columns[i].name.length,
-                      (n, r) => i < r.values.length && r.values[i].length > n
-                          ? r.values[i].length
-                          : n,
-                    ) *
-                    8.6 +
-                28)
-            .clamp(80.0, 260.0),
-    ];
-    final pinned = session.scanColumnIndices.firstOrNull ?? 0;
-    final total = 44.0 + widths.fold<double>(0, (a, b) => a + b);
-    // Newest first; the newest row is highlighted.
-    final order = [for (var r = rows.length - 1; r >= 0; r--) r];
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(SsRadius.lg),
-        border: Border.all(color: c.line),
-      ),
-      child: LayoutBuilder(
-        builder: (context, box) {
-          // A few columns stretch to fill the card. More keep # and the code
-          // pinned while the rest scroll sideways; rows have no swipe
-          // actions, so a sideways swipe only ever scrolls.
-          final fits = total <= box.maxWidth;
-          final scale = fits ? box.maxWidth / total : 1.0;
-          final numberWidth = 44 * scale;
-          final w = [for (final width in widths) width * scale];
-          final all = [for (var i = 0; i < columns.length; i++) i];
-          final rest = [
-            for (final i in all)
-              if (i != pinned) i,
-          ];
-
-          Widget line(int r, List<Widget> cells) => GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => onTap(rows[r]),
-            onLongPress: () => _showRowActions(context, rows[r]),
-            child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: r == rows.length - 1 ? c.limeRow : c.surface,
-                border: Border(bottom: BorderSide(color: c.lineSoft)),
-              ),
-              child: Row(children: cells),
-            ),
-          );
-
-          Widget cell(int r, int i) => SizedBox(
-            width: w[i],
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                i < rows[r].values.length ? rows[r].values[i] : '',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: SsText.mono(
-                  size: 13,
-                  weight: r == rows.length - 1
-                      ? FontWeight.w600
-                      : FontWeight.w400,
-                  color: c.ink,
-                ),
-              ),
-            ),
-          );
-
-          Widget number(int r) => SizedBox(
-            width: numberWidth,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 14),
-              child: Text(
-                '${rows[r].rowIndex + 1}',
-                style: SsText.mono(size: 12, color: c.muted),
-              ),
-            ),
-          );
-
-          Widget part(List<int> indices, {bool withNumber = false}) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 44,
-                color: c.paper,
-                child: Row(
-                  children: [
-                    if (withNumber)
-                      SizedBox(width: numberWidth, child: _head('#', c)),
-                    for (final i in indices)
-                      SizedBox(width: w[i], child: _head(columns[i].name, c)),
-                  ],
-                ),
-              ),
-              for (final r in order)
-                line(r, [
-                  if (withNumber) number(r),
-                  for (final i in indices) cell(r, i),
-                ]),
-            ],
-          );
-
-          if (fits) return part(all, withNumber: true);
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border(right: BorderSide(color: c.line)),
-                ),
-                child: SizedBox(
-                  width: numberWidth + w[pinned],
-                  child: part([pinned], withNumber: true),
-                ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                    width: rest.fold<double>(0, (sum, i) => sum + w[i]),
-                    child: part(rest),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _showRowActions(BuildContext context, SessionRow row) async {
-    final action = await showSsSheet<String>(
-      context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-        child: SsListGroup(
-          children: [
-            SsListRow(
-              title: 'Edit row',
-              leading: SsIconTile(LucideIcons.pencil, size: 36),
-              onTap: () => Navigator.pop(ctx, 'edit'),
-            ),
-            SsListRow(
-              title: 'Delete row',
-              titleColor: ctx.ss.error,
-              leading: SsIconTile(
-                LucideIcons.trash2,
-                size: 36,
-                color: ctx.ss.error,
-              ),
-              onTap: () => Navigator.pop(ctx, 'delete'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (action == 'edit') onTap(row);
-    if (action == 'delete') onDelete(row);
-  }
-
-  Widget _head(String label, SsColors c) => SizedBox(
-    height: 44,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      child: Text(
-        label.toUpperCase(),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: SsText.sans(
-          size: 10,
-          weight: FontWeight.w600,
-          spacing: .6,
-          color: c.muted,
-        ),
-      ),
-    ),
-  );
 }
 
 class _EmptyRows extends StatelessWidget {

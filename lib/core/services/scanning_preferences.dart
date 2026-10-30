@@ -15,6 +15,7 @@ class ScanningPreferences extends ChangeNotifier {
   static const _keyScannerLayout = 'scan_pref_scanner_layout';
   static const _keyVolumeScan = 'scan_pref_volume_scan';
   static const _keyWholeView = 'scan_pref_whole_view';
+  static const _keyPinCodeColumn = 'rows_pin_code';
 
   bool _soundEnabled = true;
   bool _vibrateEnabled = true;
@@ -22,6 +23,7 @@ class ScanningPreferences extends ChangeNotifier {
   bool _autoFocus = true;
   bool _volumeScan = false;
   bool _wholeView = false;
+  bool _pinCodeColumn = false;
   DuplicateHandling _duplicateHandling = DuplicateHandling.warn;
   String? _defaultTemplateName;
   ScannerLayoutMode _scannerLayout = ScannerLayoutMode.compact;
@@ -36,6 +38,9 @@ class ScanningPreferences extends ChangeNotifier {
 
   /// Read codes anywhere in the camera view, not only inside the frame.
   bool get wholeView => _wholeView;
+
+  /// Rows tables hold # and the code column still while the rest scroll.
+  bool get pinCodeColumn => _pinCodeColumn;
   DuplicateHandling get duplicateHandling => _duplicateHandling;
   String? get defaultTemplateName => _defaultTemplateName;
   ScannerLayoutMode get scannerLayout => _scannerLayout;
@@ -50,6 +55,7 @@ class ScanningPreferences extends ChangeNotifier {
     instance._autoFocus = prefs.getBool(_keyAutoFocus) ?? true;
     instance._volumeScan = prefs.getBool(_keyVolumeScan) ?? false;
     instance._wholeView = prefs.getBool(_keyWholeView) ?? false;
+    instance._pinCodeColumn = prefs.getBool(_keyPinCodeColumn) ?? false;
     final dupRaw = prefs.getString(_keyDuplicateHandling);
     instance._duplicateHandling = DuplicateHandling.values.firstWhere(
       (e) => e.name == dupRaw,
@@ -104,6 +110,13 @@ class ScanningPreferences extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyWholeView, v);
+  }
+
+  Future<void> setPinCodeColumn(bool v) async {
+    _pinCodeColumn = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyPinCodeColumn, v);
   }
 
   Future<void> setDuplicateHandling(DuplicateHandling v) async {

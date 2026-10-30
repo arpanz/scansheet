@@ -9,8 +9,8 @@ import '../screens/scan_session_screen.dart';
 import '../../sheet/new_sheet_screen.dart';
 import '../../team/join_team_screen.dart';
 
-/// "Scan into…" chooser (docs/design/mocks/ScanChooser.dc.html), shown by the
-/// Scan button when no sheet is in progress.
+/// "Scan into…" chooser (docs/design/mocks/ScanChooser.dc.html), shown by
+/// every tap on the Scan button; the latest sheet is first, to continue.
 Future<void> showScanChooser(BuildContext context) {
   final navigator = Navigator.of(context);
 
@@ -90,13 +90,6 @@ class _ScanChooser extends StatelessWidget {
             icon: LucideIcons.users,
             label: 'Join a team sheet',
             onTap: () => onOpen(const JoinTeamScreen()),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Tip: the scan button reopens a sheet you used in the last '
-            '${SheetSummary.freshFor.inHours} hours. Hold it to choose.',
-            textAlign: TextAlign.center,
-            style: SsText.caption(color: c.muted),
           ),
         ],
       ),

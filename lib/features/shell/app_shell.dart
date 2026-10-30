@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/services/scan_session_service.dart';
-import '../../core/services/sheet_summary.dart';
-import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
 import '../home/home_screen.dart';
 import '../library/library_screen.dart';
-import '../scan/screens/scan_session_screen.dart';
 import '../scan/widgets/scan_chooser_sheet.dart';
 
 /// Main scaffold: Home · Scan · Library (docs/design/mocks/Home.dc.html nav).
@@ -50,16 +47,12 @@ class _AppShellState extends State<AppShell> {
 
   /// Straight into the sheet in progress if it was used this shift;
   /// otherwise the chooser, which leads with that sheet.
+  /// Scan always asks where to: the sheet in progress is first in the
+  /// list, so going back to it is still one more tap, and nothing hides
+  /// behind a long press.
   void _onScan() {
     HapticFeedback.mediumImpact();
-    final current = SheetSummary.inProgress(SheetSummary.all());
-    if (current != null && current.isFreshAt(DateTime.now())) {
-      Navigator.of(
-        context,
-      ).push(FadeSlideRoute(page: ScanSessionScreen(session: current.session)));
-    } else {
-      showScanChooser(context);
-    }
+    showScanChooser(context);
   }
 
   @override
@@ -87,10 +80,6 @@ class _AppShellState extends State<AppShell> {
             tab: _tab,
             onSelect: _select,
             onScan: _onScan,
-            onScanLongPress: () {
-              HapticFeedback.heavyImpact();
-              showScanChooser(context);
-            },
             // First run: halo the Scan button until the first row exists.
             highlightScan: ScanSessionService.rowsBox.isEmpty,
           ),
@@ -104,14 +93,12 @@ class _NavBar extends StatelessWidget {
   final int tab;
   final ValueChanged<int> onSelect;
   final VoidCallback onScan;
-  final VoidCallback onScanLongPress;
   final bool highlightScan;
 
   const _NavBar({
     required this.tab,
     required this.onSelect,
     required this.onScan,
-    required this.onScanLongPress,
     required this.highlightScan,
   });
 
@@ -139,11 +126,7 @@ class _NavBar extends StatelessWidget {
                 onTap: () => onSelect(0),
               ),
               const Spacer(),
-              _ScanButton(
-                onTap: onScan,
-                onLongPress: onScanLongPress,
-                highlight: highlightScan,
-              ),
+              _ScanButton(onTap: onScan, highlight: highlightScan),
               const Spacer(),
               _NavItem(
                 icon: LucideIcons.layoutGrid,
@@ -211,13 +194,8 @@ class _NavItem extends StatelessWidget {
 
 class _ScanButton extends StatelessWidget {
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
   final bool highlight;
-  const _ScanButton({
-    required this.onTap,
-    required this.onLongPress,
-    required this.highlight,
-  });
+  const _ScanButton({required this.onTap, required this.highlight});
 
   @override
   Widget build(BuildContext context) {
@@ -225,12 +203,10 @@ class _ScanButton extends StatelessWidget {
     return Semantics(
       button: true,
       label: 'Scan',
-      onLongPressHint: 'Choose a sheet',
       child: Transform.translate(
         offset: const Offset(0, -18),
         child: GestureDetector(
           onTap: onTap,
-          onLongPress: onLongPress,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             width: 64,
