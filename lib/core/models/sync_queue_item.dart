@@ -21,6 +21,11 @@ class SyncQueueItem {
 
   /// 1-based row in the Google Sheet once appended.
   final int? sheetRow;
+
+  /// Cells as last written to the sheet: how the row is recognised there
+  /// if someone sorts or inserts rows. Null for rows synced before this
+  /// was kept; [rowData] stands in.
+  final List<String>? sentData;
   SyncStatus status;
   final DateTime createdAt;
   DateTime? lastAttemptAt;
@@ -37,6 +42,7 @@ class SyncQueueItem {
     this.sheetName,
     this.op = SyncOp.append,
     this.sheetRow,
+    this.sentData,
     this.status = SyncStatus.pending,
     required this.createdAt,
     this.lastAttemptAt,
@@ -54,6 +60,7 @@ class SyncQueueItem {
     'sheetName': sheetName,
     'op': op.name,
     'sheetRow': sheetRow,
+    'sentData': sentData,
     'status': status.name,
     'createdAt': createdAt.toIso8601String(),
     'lastAttemptAt': lastAttemptAt?.toIso8601String(),
@@ -77,6 +84,10 @@ class SyncQueueItem {
       orElse: () => SyncOp.append,
     ),
     sheetRow: map['sheetRow'] as int?,
+    sentData: switch (map['sentData']) {
+      final List data => List<String>.from(data),
+      _ => null,
+    },
     status: SyncStatus.values.firstWhere(
       (e) => e.name == map['status'],
       orElse: () => SyncStatus.pending,
@@ -93,6 +104,9 @@ class SyncQueueItem {
     List<String>? rowData,
     SyncOp? op,
     int? sheetRow,
+    // The row is no longer in the sheet: forget where it was.
+    bool dropSheetRow = false,
+    List<String>? sentData,
     String? sheetName,
     SyncStatus? status,
     DateTime? lastAttemptAt,
@@ -107,7 +121,8 @@ class SyncQueueItem {
     spreadsheetId: spreadsheetId,
     sheetName: sheetName ?? this.sheetName,
     op: op ?? this.op,
-    sheetRow: sheetRow ?? this.sheetRow,
+    sheetRow: dropSheetRow ? null : sheetRow ?? this.sheetRow,
+    sentData: dropSheetRow ? null : sentData ?? this.sentData,
     status: status ?? this.status,
     createdAt: createdAt,
     lastAttemptAt: lastAttemptAt ?? this.lastAttemptAt,

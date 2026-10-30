@@ -4,9 +4,11 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
 import '../ads/ad_manager.dart';
+import '../../features/scan/models/scan_session.dart';
 import '../models/sync_queue_item.dart';
 import 'google_sheets_service.dart';
 import 'scan_session_service.dart';
+import 'sheet_cells.dart';
 import 'sync_queue_service.dart';
 import 'usage_service.dart';
 
@@ -16,7 +18,9 @@ import 'usage_service.dart';
 /// - Bursts of scans are debounced into one append request per worksheet.
 /// - The header row is written the first time a session reaches an empty tab.
 /// - Each row remembers its sheet row number, so edits (Qty merge,
-///   corrections) overwrite it and undo blanks it.
+///   corrections) overwrite it and undo blanks it. The row is checked
+///   first, and found again if people sorted or inserted rows in the sheet.
+/// - Codes go in as text, so leading zeros and long numbers survive.
 /// - Offline or failed rows stay queued and retry with backoff, on
 ///   reconnect, on sign-in and on app resume.
 class SheetsSyncService {
@@ -139,17 +143,17 @@ class SheetsSyncService {
     }
 
     final appends = <String, List<SyncQueueItem>>{};
+    final inPlace = <String, List<SyncQueueItem>>{};
     for (final item in ready) {
-      if (item.op == SyncOp.append) {
-        appends
-            .putIfAbsent(
-              '${item.spreadsheetId}|${item.sheetName ?? ''}',
-              () => [],
-            )
-            .add(item);
-      } else {
-        await _syncInPlace(item);
-      }
+      (item.op == SyncOp.append ? appends : inPlace)
+          .putIfAbsent(
+            '${item.spreadsheetId}|${item.sheetName ?? ''}',
+            () => [],
+          )
+          .add(item);
+    }
+    for (final group in inPlace.values) {
+      await _syncInPlace(group);
     }
     // Free plan: new rows past the monthly allowance stay safe on the phone
     // and wait; edits to rows already in the sheet still go through.
@@ -180,7 +184,7 @@ class SheetsSyncService {
       final tab = await _tabFor(id, first.sheetName);
       await _markSyncing(items);
       final header = await _headerIfNeeded(id, tab, first.sessionId);
-      final rows = [?header, for (final item in items) item.rowData];
+      final rows = [?header, for (final item in items) _forSheet(item)];
       final start = await _sheets.appendRows(id, tab, rows);
       _headerReady.add('$id|$tab');
       final dataStart = start == null
@@ -202,24 +206,149 @@ class SheetsSyncService {
     }
   }
 
-  Future<void> _syncInPlace(SyncQueueItem item) async {
-    final id = item.spreadsheetId!;
-    final row = item.sheetRow;
+  /// Edits and deletions of rows already in one tab. Each row is checked
+  /// where we left it before anything is written; if people sorted,
+  /// inserted or deleted rows in the sheet since, it's found again by its
+  /// scan cells, so an edit never lands on someone else's row.
+  Future<void> _syncInPlace(List<SyncQueueItem> items) async {
+    final id = items.first.spreadsheetId!;
+    final String tab;
+    final Map<String, int?> rows;
     try {
-      final tab = await _tabFor(id, item.sheetName);
-      await _markSyncing([item]);
-      if (row != null) {
-        if (item.op == SyncOp.clear) {
-          await _sheets.clearRow(id, tab, row);
-        } else {
-          await _sheets.updateRow(id, tab, row, item.rowData);
-        }
-      }
-      await _finish(item, tab: tab, sheetRow: row);
-      lastError.value = null;
+      tab = await _tabFor(id, items.first.sheetName);
+      await _markSyncing(items);
+      rows = await _locate(id, tab, items);
     } catch (e) {
-      await _fail(item, e);
+      for (final item in items) {
+        await _fail(item, e);
+      }
+      return;
     }
+    for (final item in items) {
+      final row = rows[item.id];
+      try {
+        if (item.sheetRow != null && row == null) {
+          await _leftSheet(item, tab);
+          continue;
+        }
+        if (row != null) {
+          if (item.op == SyncOp.clear) {
+            await _sheets.clearRow(id, tab, row);
+          } else {
+            await _sheets.updateRow(id, tab, row, _forSheet(item));
+          }
+        }
+        await _finish(item, tab: tab, sheetRow: row);
+        lastError.value = null;
+      } catch (e) {
+        await _fail(item, e);
+      }
+    }
+  }
+
+  /// Where each row is in the tab now, by item id; null if it's gone.
+  /// One read checks every remembered row; the whole tab is read only when
+  /// one of them has moved.
+  Future<Map<String, int?>> _locate(
+    String spreadsheetId,
+    String tab,
+    List<SyncQueueItem> items,
+  ) async {
+    final found = <String, int?>{};
+    final placed = [
+      for (final i in items)
+        if (i.sheetRow != null) i,
+    ];
+    if (placed.isEmpty) return found;
+    final current = await _sheets.readRows(spreadsheetId, tab, [
+      for (final i in placed) i.sheetRow!,
+    ]);
+    final moved = <SyncQueueItem>[];
+    for (final (k, item) in placed.indexed) {
+      if (SheetCells.rowMatches(_sentOf(item), current[k], _identity(item))) {
+        found[item.id] = item.sheetRow;
+      } else {
+        moved.add(item);
+      }
+    }
+    if (moved.isEmpty) return found;
+    final table = await _sheets.readTabRaw(spreadsheetId, tab);
+    final taken = {...found.values.whereType<int>()};
+    for (final item in moved) {
+      final row = SheetCells.locate(
+        sent: _sentOf(item),
+        table: table,
+        identity: _identity(item),
+        near: item.sheetRow!,
+        taken: taken,
+      );
+      if (row != null) taken.add(row);
+      found[item.id] = row;
+    }
+    return found;
+  }
+
+  /// The row was deleted in the sheet. A deletion here has nothing left to
+  /// blank; an edit goes back in as a new row, so the sheet still matches
+  /// the phone.
+  Future<void> _leftSheet(SyncQueueItem item, String tab) async {
+    final current = SyncQueueService.get(item.id);
+    if (current == null) return;
+    if (current.op == SyncOp.clear) {
+      await SyncQueueService.put(
+        current.copyWith(
+          status: SyncStatus.synced,
+          dropSheetRow: true,
+          sheetName: tab,
+          lastAttemptAt: DateTime.now(),
+        ),
+      );
+      return;
+    }
+    await SyncQueueService.put(
+      current.copyWith(
+        op: SyncOp.append,
+        dropSheetRow: true,
+        status: SyncStatus.pending,
+      ),
+    );
+    _runAgain = true;
+  }
+
+  /// How the row looks in the sheet, as far as we know.
+  static List<String> _sentOf(SyncQueueItem item) =>
+      item.sentData ?? item.rowData;
+
+  /// Cells that tell one row from another: the scans, the time and the
+  /// row number. Edits rarely touch them. Without the session, every cell.
+  static List<int> _identity(SyncQueueItem item) {
+    final columns = ScanSessionService.getSession(item.sessionId)?.columns;
+    if (columns == null) {
+      return [for (var i = 0; i < item.rowData.length; i++) i];
+    }
+    return [
+      for (final (i, c) in columns.indexed)
+        if (const {
+          SessionColumnType.scan,
+          SessionColumnType.timestamp,
+          SessionColumnType.increment,
+        }.contains(c.type))
+          i,
+    ];
+  }
+
+  /// The row's cells as sent, with codes kept as text.
+  static List<String> _forSheet(SyncQueueItem item) {
+    final columns = ScanSessionService.getSession(item.sessionId)?.columns;
+    return SheetCells.forSheet(item.rowData, {
+      for (final (i, c) in columns?.indexed ?? const <(int, SessionColumn)>[])
+        if (const {
+          SessionColumnType.scan,
+          SessionColumnType.readText,
+          SessionColumnType.fromList,
+        }.contains(c.type))
+          i,
+    });
   }
 
   /// Records a successful send. If the row was edited, deleted or reused
@@ -237,6 +366,7 @@ class SheetsSyncService {
           sent.copyWith(
             op: SyncOp.clear,
             sheetRow: sheetRow,
+            sentData: sent.rowData,
             sheetName: tab,
             status: SyncStatus.pending,
           ),
@@ -249,6 +379,9 @@ class SheetsSyncService {
     await SyncQueueService.put(
       current.copyWith(
         sheetRow: sheetRow,
+        sentData: sent.op == SyncOp.clear || sheetRow == null
+            ? null
+            : sent.rowData,
         sheetName: tab,
         op: unchanged || current.op != SyncOp.append
             ? current.op

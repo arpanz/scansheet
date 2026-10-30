@@ -265,6 +265,59 @@ class GoogleSheetsService {
     }
   }
 
+  /// The given 1-based rows of a tab, raw (`UNFORMATTED_VALUE`): numbers
+  /// as numbers, dates as serials. A blank row comes back empty.
+  Future<List<List<Object?>>> readRows(
+    String spreadsheetId,
+    String tab,
+    List<int> rows,
+  ) async {
+    try {
+      final api = await _sheetsApi();
+      final out = <List<Object?>>[];
+      // Ranges ride in the URL, so ask for a hundred rows at a time.
+      for (var i = 0; i < rows.length; i += 100) {
+        final chunk = rows.sublist(i, (i + 100).clamp(0, rows.length));
+        final result = await api.spreadsheets.values.batchGet(
+          spreadsheetId,
+          ranges: [for (final r in chunk) "'$tab'!$r:$r"],
+          valueRenderOption: 'UNFORMATTED_VALUE',
+        );
+        final ranges = result.valueRanges ?? const [];
+        for (var k = 0; k < chunk.length; k++) {
+          out.add(k < ranges.length ? ranges[k].values?.firstOrNull ?? [] : []);
+        }
+      }
+      return out;
+    } catch (e) {
+      throw GSheetsException('Failed to read rows: $e');
+    }
+  }
+
+  /// Every row of a tab from row 1, blanks kept so indexes are row numbers,
+  /// raw like [readRows].
+  Future<List<List<Object?>>> readTabRaw(
+    String spreadsheetId,
+    String tab,
+  ) async {
+    try {
+      final api = await _sheetsApi();
+      final result = await api.spreadsheets.values.get(
+        spreadsheetId,
+        "'$tab'",
+        valueRenderOption: 'UNFORMATTED_VALUE',
+      );
+      // The range starts at the first filled row, not always row 1.
+      final start = _firstRowOf(result.range) ?? 1;
+      return [
+        for (var r = 1; r < start; r++) const <Object?>[],
+        ...?result.values,
+      ];
+    } catch (e) {
+      throw GSheetsException('Failed to read $tab: $e');
+    }
+  }
+
   /// Replaces a tab's contents with [rows], creating the tab if needed.
   /// Used for the "Not scanned" / "Count vs expected" check tab.
   Future<void> writeTab(
