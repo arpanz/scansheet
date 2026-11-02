@@ -38,6 +38,19 @@ class _OnbSigninStepState extends State<OnbSigninStep> {
   @override
   Widget build(BuildContext context) {
     final c = context.ss;
+    // Scrolls on short phones; on tall ones the Spacer still pins the
+    // buttons to the bottom.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: IntrinsicHeight(child: _body(c)),
+        ),
+      ),
+    );
+  }
+
+  Widget _body(SsColors c) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
       child: Column(
@@ -109,10 +122,20 @@ class _OnbSigninStepState extends State<OnbSigninStep> {
                   'Select what ScanSheet can access',
                   style: SsText.caption(color: c.ink2),
                 ),
+                // Google's own wording for the scopes in
+                // GoogleSheetsService._scopes, so the real screen matches.
                 _ConsentRow(
-                  'See and edit the spreadsheets you pick with ScanSheet',
+                  'See, edit, create, and delete all your Google Sheets spreadsheets',
+                  why: 'To make your sheet and add each row',
                 ),
-                _ConsentRow('See your email address'),
+                _ConsentRow(
+                  'See information about your Google Drive files',
+                  why: 'To list your spreadsheets so you can pick one',
+                ),
+                _ConsentRow(
+                  'See, edit, create, and delete only the specific Google Drive files you use with this app',
+                  why: 'To share a sheet when you scan together',
+                ),
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
@@ -120,7 +143,7 @@ class _OnbSigninStepState extends State<OnbSigninStep> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    'Keep both ticked so your rows can reach your sheet',
+                    'Keep all three ticked so your rows can reach your sheet',
                     style: SsText.caption(color: c.ink),
                   ),
                 ),
@@ -129,9 +152,10 @@ class _OnbSigninStepState extends State<OnbSigninStep> {
           ),
           const SizedBox(height: 12),
           Text(
-            '🔒  The rest of your Drive stays private to you.',
+            '🔒  ScanSheet only opens and writes to the sheets you choose.',
             style: SsText.caption(color: c.ink2),
           ),
+          const SizedBox(height: 16),
           const Spacer(),
           SsButton.secondary(
             'Continue with Google',
@@ -159,18 +183,31 @@ class _OnbSigninStepState extends State<OnbSigninStep> {
 
 class _ConsentRow extends StatelessWidget {
   final String text;
-  const _ConsentRow(this.text);
+  final String why;
+  const _ConsentRow(this.text, {required this.why});
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 9),
     child: Row(
       children: [
         Expanded(
-          child: Text(
-            text,
-            style: SsText.sans(size: 14, height: 1.4, color: context.ss.ink),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                text,
+                style: SsText.sans(
+                  size: 14,
+                  height: 1.4,
+                  color: context.ss.ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(why, style: SsText.caption(color: context.ss.ink2)),
+            ],
           ),
         ),
+        const SizedBox(width: 12),
         Icon(LucideIcons.check, color: context.ss.emerald, size: 20),
       ],
     ),
