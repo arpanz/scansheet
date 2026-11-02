@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../core/services/scan_session_service.dart';
 import '../../core/services/sync_queue_service.dart';
 import '../../core/widgets/ss.dart';
+import '../../core/utils/app_router.dart';
 import '../scan/models/scan_session.dart';
+import '../scan/screens/done_for_now_screen.dart';
 import '../team/team_screen.dart';
 
 /// One place for a sheet's lifecycle: finish, reopen, rename, clear, delete.
@@ -29,6 +31,16 @@ Future<void> showSheetActions(
       await reopenSheet(context, session);
     case _Action.team:
       await openTeam(context, session);
+    case _Action.export:
+      await Navigator.of(context).push(
+        FadeSlideRoute(
+          page: DoneForNowScreen(
+            session: session,
+            addedThisVisit: 0,
+            totalRows: ScanSessionService.getRowCount(session.id),
+          ),
+        ),
+      );
     case _Action.rename:
       await renameSheet(context, session);
     case _Action.clear:
@@ -182,7 +194,7 @@ Future<bool> _confirm(
   return ok ?? false;
 }
 
-enum _Action { finish, reopen, team, rename, clear, delete }
+enum _Action { finish, reopen, team, export, rename, clear, delete }
 
 class _ActionsSheet extends StatelessWidget {
   final ScanSession session;
@@ -243,6 +255,13 @@ class _ActionsSheet extends StatelessWidget {
                       ? 'Teammates add rows from their phones'
                       : 'Who’s in, invite more, stop sharing',
                   onTap: () => pick(_Action.team),
+                ),
+              if (session.destination == SessionDestination.googleSheets)
+                SsListRow(
+                  leading: SsIconTile(LucideIcons.fileDown, size: 36),
+                  title: 'Save a file copy',
+                  subtitle: 'Excel or CSV, to keep or share',
+                  onTap: () => pick(_Action.export),
                 ),
               SsListRow(
                 leading: SsIconTile(LucideIcons.pencil, size: 36),

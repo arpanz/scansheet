@@ -32,7 +32,16 @@ import '../widgets/scanner/value_sheet.dart';
 
 class ScanSessionScreen extends StatefulWidget {
   final ScanSession session;
-  const ScanSessionScreen({super.key, required this.session});
+
+  /// Opens straight to "Type a code" with the camera off, and goes back
+  /// once the typed row is in: the sheet view's Type button.
+  final bool typeOnly;
+
+  const ScanSessionScreen({
+    super.key,
+    required this.session,
+    this.typeOnly = false,
+  });
 
   @override
   State<ScanSessionScreen> createState() => _ScanSessionScreenState();
@@ -94,18 +103,42 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
     if (_beep) ScanSound.warmUp();
     HardwareKeyboard.instance.addHandler(_onKey);
     _torch = prefs.torchDefault;
-    _camera = MobileScannerController(torchEnabled: _torch);
+    _camera = MobileScannerController(
+      torchEnabled: _torch,
+      autoStart: !widget.typeOnly,
+    );
     _resetPending();
     if (_hasLocation) {
       final location = LocationService.instance;
       location.status.addListener(_onLocationStatus);
       location.start();
     }
-    if (_session.columns.any(
+    if (widget.typeOnly) {
+      // Same values keep their current value; no start-of-scan questions.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _typeOnlyFlow());
+    } else if (_session.columns.any(
       (c) => c.type == SessionColumnType.fixed && c.askAtStart,
     )) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _askStartValues());
     }
+  }
+
+  /// [ScanSessionScreen.typeOnly]: type codes until the row is complete
+  /// (a sheet with two scan columns asks twice), then go back.
+  Future<void> _typeOnlyFlow() async {
+    do {
+      _sheetOpen = true;
+      final value = await showSsSheet<String>(
+        context,
+        builder: (_) => const _TypeCodeSheet(),
+      );
+      _sheetOpen = false;
+      if (!mounted) return;
+      if (value == null || value.isEmpty) break;
+      _lastAt = null;
+      await _handleValue(value);
+    } while (mounted && _activeScanColumnIndex != 0);
+    if (mounted) Navigator.of(context).pop();
   }
 
   /// Team sheet: picks up the owner's newer list, warns if sharing
@@ -677,7 +710,7 @@ class _ScanSessionScreenState extends State<ScanSessionScreen> {
   Future<void> _resume() async {
     if (mounted) {
       setState(() => _processing = false);
-      await _camera.start();
+      if (!widget.typeOnly) await _camera.start();
     }
   }
 
