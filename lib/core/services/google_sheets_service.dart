@@ -11,9 +11,11 @@ class GoogleSheetsService {
   static final GoogleSheetsService instance = GoogleSheetsService._();
   GoogleSheetsService._();
 
+  // No restricted scopes, so the app only needs Google's standard review.
+  // drive.file sees the sheets ScanSheet made plus any picked in Google's
+  // picker (DrivePickerScreen); spreadsheets reads and writes any sheet by id.
   static const _scopes = [
     sheets.SheetsApi.spreadsheetsScope,
-    drive.DriveApi.driveMetadataReadonlyScope,
     drive.DriveApi.driveFileScope,
   ];
 
@@ -118,6 +120,18 @@ class GoogleSheetsService {
     return _authClient!;
   }
 
+  /// A raw access token for Google's file picker, which runs in a web view.
+  Future<String> accessToken() async {
+    if (_currentUser == null) throw GSheetsException('Not signed in.');
+    final auth = await _currentUser!.authorizationClient.authorizationForScopes(
+      _scopes,
+    );
+    if (auth == null) {
+      throw GSheetsException('Not signed in: Google access expired.');
+    }
+    return auth.accessToken;
+  }
+
   Future<sheets.SheetsApi> _sheetsApi() async {
     final client = await _getClient();
     return sheets.SheetsApi(client);
@@ -132,7 +146,8 @@ class GoogleSheetsService {
   // Spreadsheet operations
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// List the user's spreadsheets (most recently modified first).
+  /// List the spreadsheets ScanSheet can see (most recently modified first):
+  /// ones it created and ones picked in Google's picker, not the whole Drive.
   /// Optionally filter by [query] string matched against title.
   Future<List<SpreadsheetInfo>> listSpreadsheets({String? query}) async {
     try {
@@ -181,7 +196,8 @@ class GoogleSheetsService {
   }
 
   /// Gives [email] edit access to a spreadsheet (Scan together). Works for
-  /// spreadsheets ScanSheet created; others must be shared in Google Sheets.
+  /// spreadsheets ScanSheet created or that were picked in Google's picker;
+  /// others must be shared in Google Sheets.
   Future<void> shareWith(String spreadsheetId, String email) async {
     try {
       final api = await _driveApi();

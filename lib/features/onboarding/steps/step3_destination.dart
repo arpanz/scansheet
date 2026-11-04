@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/services/google_sheets_service.dart';
 import '../../../core/services/template_service.dart';
 import '../../../core/widgets/ss.dart';
+import '../../settings/screens/drive_picker_screen.dart';
 import '../onboarding_flow.dart';
 
 class OnbDestinationStep extends StatefulWidget {
@@ -59,6 +60,21 @@ class _OnbDestinationStepState extends State<OnbDestinationStep> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _pickFromDrive() async {
+    final picked = await DrivePickerScreen.open(context);
+    if (picked == null || !mounted) return;
+    setState(() {
+      _files = [
+        picked,
+        for (final f in _files)
+          if (f.id != picked.id) f,
+      ];
+      widget.scope.state.pickedSpreadsheetId = picked.id;
+      widget.scope.state.pickedSpreadsheetTitle = picked.title;
+      _error = null;
+    });
   }
 
   void _select(String value) {
@@ -203,10 +219,7 @@ class _OnbDestinationStepState extends State<OnbDestinationStep> {
             else if (_error != null)
               Text(_error!, style: SsText.caption(color: c.error))
             else if (_files.isEmpty)
-              Text(
-                'No spreadsheets found in your Drive yet.',
-                style: SsText.caption(color: c.muted),
-              )
+              const SizedBox.shrink()
             else
               ..._files
                   .take(4)
@@ -226,6 +239,17 @@ class _OnbDestinationStepState extends State<OnbDestinationStep> {
                       }),
                     ),
                   ),
+            ListTile(
+              dense: true,
+              leading: Icon(LucideIcons.folderOpen, color: c.ink),
+              title: Text(
+                _files.isEmpty
+                    ? 'Choose a sheet from Drive'
+                    : 'Choose another sheet from Drive',
+                style: SsText.label(color: c.ink),
+              ),
+              onTap: _pickFromDrive,
+            ),
           ],
           const Spacer(),
           if (widget.scope.state.destination == 'existing' &&
