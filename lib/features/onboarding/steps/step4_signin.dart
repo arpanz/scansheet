@@ -129,12 +129,8 @@ class _OnbSigninStepState extends State<OnbSigninStep> {
                   why: 'To make your sheet and add each row',
                 ),
                 _ConsentRow(
-                  'See information about your Google Drive files',
-                  why: 'To list your spreadsheets so you can pick one',
-                ),
-                _ConsentRow(
                   'See, edit, create, and delete only the specific Google Drive files you use with this app',
-                  why: 'To share a sheet when you scan together',
+                  why: 'To list the sheets you use here and share them',
                 ),
                 Container(
                   padding: const EdgeInsets.all(10),
@@ -143,7 +139,7 @@ class _OnbSigninStepState extends State<OnbSigninStep> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    'Keep all three ticked so your rows can reach your sheet',
+                    'Keep both ticked so your rows can reach your sheet',
                     style: SsText.caption(color: c.ink),
                   ),
                 ),
