@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScanSheet Privacy Policy</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <header>
+    <div class="mark">S</div>
+    <a href="/">ScanSheet</a>
+  </header>
+
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: November 4, 2026</p>
+
+  <p>This policy explains what the ScanSheet app ("ScanSheet", "the app") by Livin Labs ("we", "us") collects, why, and what control you have over it.</p>
+
+  <h2>1. What stays on your phone</h2>
+  <p>Your scans, sheets, lists, history and settings are stored on your phone. Barcode and QR code scanning, including reading text from labels, runs on the phone. Camera images are not uploaded or stored by us.</p>
+
+  <h2>2. Google account data</h2>
+  <p>Connecting a Google account is optional. You can use ScanSheet without it and save your scans as Excel or CSV files on the phone. If you sign in with Google, ScanSheet asks for:</p>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>Permission</th><th>What ScanSheet does with it</th></tr>
+      <tr><td>Your name, email address and profile picture</td><td>Shows which account is connected, keeps your free-plan count tied to your account, and shows your name to teammates when you scan together.</td></tr>
+      <tr><td>Google Sheets (<code>spreadsheets</code>)</td><td>Creates a spreadsheet for your scans, reads its tab names and the tab you choose as a list, and adds a row for each scan. ScanSheet only opens spreadsheets you create in the app or choose yourself.</td></tr>
+      <tr><td>Google Drive files you use with this app (<code>drive.file</code>)</td><td>Lists the spreadsheets you created or chose in ScanSheet, opens Google's file picker so you can choose another one, and shares a spreadsheet with teammates' email addresses when you scan together. ScanSheet cannot see your other Drive files.</td></tr>
+    </table>
+  </div>
+  <p>Data from Google Sheets and Drive goes directly between your phone and Google. It does not pass through or get stored on our servers. We do not sell Google user data, use it for advertising, or use it to train AI models.</p>
+  <p>ScanSheet's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+  <h2>3. Data stored on our servers</h2>
+  <p>We use Google Firebase (Firestore and Firebase Authentication) for two things:</p>
+  <ul>
+    <li><strong>Free-plan count:</strong> how many rows you added this month, stored under an anonymous ID for your phone and, if you are signed in, your Google account ID. This keeps the free allowance correct after a reinstall.</li>
+    <li><strong>Scan together:</strong> when you share a sheet with a team, we store the team's invite code, the sheet's setup (name, columns and spreadsheet ID), each member's name, email address, row count and whether they are scanning, and, if the sheet checks against a list, that list. Your scanned rows are never stored on our servers. Each phone adds them directly to the Google Sheet.</li>
+  </ul>
+
+  <h2>4. Other services</h2>
+  <ul>
+    <li><strong>Product names:</strong> when ScanSheet looks up the product name for a scanned barcode, only the barcode number is sent to <a href="https://world.openfoodfacts.org">Open Food Facts</a> to find the product name.</li>
+    <li><strong>Location:</strong> if a sheet has a Location column and you allow location access, your position is added to that sheet's rows. It is turned into a place name using your phone's built-in geocoding service. We do not receive or store it.</li>
+    <li><strong>Ads:</strong> the free version shows ads from Google AdMob, which may use your device's advertising ID. You can limit ad personalisation in your phone's settings. Pro removes ads.</li>
+    <li><strong>Purchases:</strong> Google Play handles payment. We never see your payment details.</li>
+  </ul>
+  <p>These services handle data under their own policies, including the <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.</p>
+
+  <h2>5. Sharing</h2>
+  <p>We do not sell or rent your data. Your name and email are shared only with people you invite to scan a sheet with you, and a spreadsheet is shared only with the teammates you approve.</p>
+
+  <h2>6. Keeping and deleting your data</h2>
+  <ul>
+    <li>Data on your phone is deleted when you delete it in the app or uninstall the app.</li>
+    <li>Leaving or ending a shared sheet removes your team membership from our servers.</li>
+    <li>You can remove ScanSheet's access to your Google account at any time at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Spreadsheets in your Google Drive stay yours and are not deleted.</li>
+    <li>To have any data we hold about you deleted, email <a href="mailto:connect.livinlabs@gmail.com">connect.livinlabs@gmail.com</a>. We will delete it within 30 days.</li>
+  </ul>
+
+  <h2>7. Security</h2>
+  <p>All data sent between the app, Google and Firebase is encrypted in transit (HTTPS). Access to our Firestore data is limited by security rules to the people who need it.</p>
+
+  <h2>8. Children</h2>
+  <p>ScanSheet is not directed at children under 13, and we do not knowingly collect their personal information.</p>
+
+  <h2>9. Changes</h2>
+  <p>If we change this policy, we will update the date at the top of this page.</p>
+
+  <h2>10. Contact</h2>
+  <p>Livin Labs · <a href="mailto:connect.livinlabs@gmail.com">connect.livinlabs@gmail.com</a></p>
+
+  <footer>
+    <a href="/">Home</a>
+    <a href="/terms">Terms of Service</a>
+    <span>© 2026 Livin Labs</span>
+  </footer>
+</main>
+</body>
+</html>
