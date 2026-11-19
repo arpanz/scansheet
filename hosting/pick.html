@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="origin">
+<meta name="robots" content="noindex">
+<title>Choose a sheet – ScanSheet</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  .pick { text-align: center; padding-top: 18vh; }
+  .pick p { color: var(--ink2); }
+  .pick a.button {
+    display: inline-block; margin-top: 12px; padding: 12px 22px;
+    border-radius: 999px; background: var(--emerald); color: var(--paper);
+    text-decoration: none; font-weight: 600;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="pick">
+  <h1>ScanSheet</h1>
+  <p id="status">Opening Google Drive…</p>
+  <a id="back" class="button" href="scansheet-pick://cancel" hidden>Back to ScanSheet</a>
+</main>
+<script>
+  // Opened by the ScanSheet app in a Chrome tab. The app passes its own
+  // short-lived drive.file token and the sheet to open in the URL fragment,
+  // which never reaches a server. Choosing the sheet grants ScanSheet
+  // drive.file access to it, and the page hands the id back to the app.
+  var API_KEY = 'AIzaSyBaoQB8OCUA5c-I2-cylAsukUasd2sumVg';
+  var APP_ID = '1099311415728';
+  var RETURN = 'scansheet-pick://';
+
+  var params = new URLSearchParams(location.hash.slice(1));
+  history.replaceState(null, '', location.pathname);
+  var token = params.get('token');
+  var fileId = params.get('id');
+
+  function finish(path, label, text) {
+    var url = RETURN + path;
+    document.getElementById('status').textContent = text;
+    var back = document.getElementById('back');
+    back.href = url;
+    back.textContent = label;
+    back.hidden = false;
+    location.href = url;
+  }
+
+  function fail() {
+    finish('error', 'Back to ScanSheet', 'Couldn’t open Google Drive.');
+  }
+
+  function show() {
+    var view = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS)
+      .setMode(google.picker.DocsViewMode.LIST);
+    if (fileId) view.setFileIds(fileId);
+    new google.picker.PickerBuilder()
+      .setAppId(APP_ID)
+      .setOAuthToken(token)
+      .setDeveloperKey(API_KEY)
+      .setOrigin(location.origin)
+      .addView(view)
+      .enableFeature(google.picker.Feature.NAV_HIDDEN)
+      .setTitle(fileId ? 'Select the sheet to use it in ScanSheet'
+                       : 'Choose a sheet for ScanSheet')
+      .setSize(window.innerWidth, window.innerHeight)
+      .setCallback(function (data) {
+        var action = data[google.picker.Response.ACTION];
+        if (action === google.picker.Action.PICKED) {
+          var doc = data[google.picker.Response.DOCUMENTS][0];
+          finish(
+            'picked?id=' + encodeURIComponent(doc[google.picker.Document.ID]) +
+              '&name=' + encodeURIComponent(doc[google.picker.Document.NAME] || ''),
+            'Back to ScanSheet',
+            'Done. Going back to ScanSheet…');
+        } else if (action === google.picker.Action.CANCEL) {
+          finish('cancel', 'Back to ScanSheet', 'No sheet chosen.');
+        }
+      })
+      .build()
+      .setVisible(true);
+  }
+
+  function onLoaded() {
+    if (!token) return fail();
+    gapi.load('picker', { callback: show, onerror: fail });
+  }
+</script>
+<script src="https://apis.google.com/js/api.js" onload="onLoaded()" onerror="fail()"></script>
+</body>
+</html>

@@ -5,8 +5,29 @@
   "hosting": {
     "public": "hosting",
     "rewrites": [
-      { "source": "/privacy", "destination": "/privacy.html" },
-      { "source": "/terms", "destination": "/terms.html" }
+      {
+        "source": "/privacy",
+        "destination": "/privacy.html"
+      },
+      {
+        "source": "/terms",
+        "destination": "/terms.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/pick.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "origin"
+          }
+        ]
+      }
     ]
   }
 }

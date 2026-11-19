@@ -3,7 +3,7 @@ import '../../../core/services/google_sheets_service.dart';
 import '../../../core/services/template_service.dart';
 import '../../../core/widgets/ss.dart';
 import '../../../core/widgets/file_marks.dart';
-import '../../settings/screens/drive_picker_screen.dart';
+import '../../settings/screens/sheet_link.dart';
 import '../onboarding_flow.dart';
 
 class OnbDestinationStep extends StatefulWidget {
@@ -63,8 +63,8 @@ class _OnbDestinationStepState extends State<OnbDestinationStep> {
     }
   }
 
-  Future<void> _pickFromDrive() async {
-    final picked = await DrivePickerScreen.open(context);
+  Future<void> _useLink() async {
+    final picked = await useSheetFromLink(context);
     if (picked == null || !mounted) return;
     setState(() {
       _files = [
@@ -133,7 +133,7 @@ class _OnbDestinationStepState extends State<OnbDestinationStep> {
             (
               'existing',
               'Add to a spreadsheet I have',
-              'Pick one from your Google Drive',
+              'One ScanSheet made, or paste a link',
               const SsFileMark(FileMark.sheets, size: 22),
             ),
             (
@@ -242,14 +242,12 @@ class _OnbDestinationStepState extends State<OnbDestinationStep> {
                   ),
             ListTile(
               dense: true,
-              leading: Icon(LucideIcons.folderOpen, color: c.ink),
+              leading: Icon(LucideIcons.link, color: c.ink),
               title: Text(
-                _files.isEmpty
-                    ? 'Choose a sheet from Drive'
-                    : 'Choose another sheet from Drive',
+                'Use a sheet from a link',
                 style: SsText.label(color: c.ink),
               ),
-              onTap: _pickFromDrive,
+              onTap: _useLink,
             ),
           ],
           const Spacer(),

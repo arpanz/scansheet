@@ -9,6 +9,7 @@ import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
 import '../scan/models/scan_session.dart';
 import '../settings/screens/connect_sheets_screen.dart';
+import '../settings/screens/sheet_link.dart';
 import 'plan_limits.dart';
 
 /// The one sync problem worth showing right now, most urgent first
@@ -134,13 +135,17 @@ class _WaitingForAccess extends StatelessWidget {
       tone: context.ss.amber,
       title: 'Waiting to be let in',
       body:
-          'Your rows are safe on this phone. They go to the sheet once the '
-          'owner’s ScanSheet gives you access, which happens when they open '
-          'the app.',
+          'Your rows are safe on this phone. The owner’s ScanSheet shares '
+          'the sheet with you when they open the app. Then tap Allow access '
+          'and select the sheet in Google Drive.',
       actions: [
         SsButton(
-          'Try now',
+          'Allow access',
           large: false,
+          onPressed: () => allowSheetAccess(context, session.spreadsheetId!),
+        ),
+        SsButton.secondary(
+          'Try now',
           onPressed: () {
             sync.forgetMissing(session.spreadsheetId!);
             sync.retryNow();
@@ -320,6 +325,9 @@ class _SheetGoneState extends State<_SheetGone> {
     SheetsSyncService.instance.syncSoon();
   }
 
+  Future<void> _allow() =>
+      _run(() => allowSheetAccess(context, _s.spreadsheetId!));
+
   Future<void> _newSheet() => _run(() async {
     final id = await GoogleSheetsService.instance.createSpreadsheet(_s.name);
     await _moveTo(id, null);
@@ -365,16 +373,22 @@ class _SheetGoneState extends State<_SheetGone> {
           Padding(
             padding: const EdgeInsets.only(left: 28),
             child: Text(
-              '“${_s.name}” was deleted or you lost access.',
+              '“${_s.name}” was deleted, or ScanSheet needs your OK to '
+              'reach it. Allow access to select it in Google Drive.',
               style: SsText.sans(size: 13, color: c.muted),
             ),
           ),
           const SizedBox(height: 12),
           SsButton(
-            'Send rows to a new sheet',
+            'Allow access',
             large: false,
             loading: _busy,
-            onPressed: _newSheet,
+            onPressed: _allow,
+          ),
+          const SizedBox(height: 8),
+          SsButton.secondary(
+            'Send rows to a new sheet',
+            onPressed: _busy ? null : _newSheet,
           ),
           const SizedBox(height: 8),
           SsButton.secondary(

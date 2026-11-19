@@ -7,7 +7,7 @@ import '../../../core/services/google_sheets_service.dart';
 import '../../../core/services/sheet_summary.dart';
 import '../../../core/widgets/ss.dart';
 import '../../../core/widgets/file_marks.dart';
-import 'drive_picker_screen.dart';
+import 'sheet_link.dart';
 
 /// Result returned by [ConnectSheetsScreen] when the user picks a destination.
 class SheetDestination {
@@ -139,10 +139,9 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
     }
   }
 
-  Future<void> _pickFromDrive() async {
-    final picked = await DrivePickerScreen.open(context);
+  Future<void> _useLink() async {
+    final picked = await useSheetFromLink(context);
     if (picked == null || !mounted) return;
-    // It joins the list for good: picking granted drive.file access to it.
     setState(() {
       _spreadsheets = [
         picked,
@@ -281,13 +280,13 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
                         horizontal: 16,
                         vertical: 14,
                       ),
-                      onTap: _pickFromDrive,
+                      onTap: _useLink,
                       child: Row(
                         children: [
-                          const SsIconTile(LucideIcons.folderOpen),
+                          const SsIconTile(LucideIcons.link),
                           const SizedBox(width: 12),
                           Text(
-                            'Choose another sheet from Drive',
+                            'Use a sheet from a link',
                             style: SsText.label(color: c.ink),
                           ),
                         ],
@@ -308,7 +307,7 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
                           child: Text(
                             _searchQuery.isNotEmpty
                                 ? 'No spreadsheets match “$_searchQuery”'
-                                : 'Sheets you make or choose here show up in this list',
+                                : 'Sheets ScanSheet makes show up here. For another sheet, paste its link.',
                             textAlign: TextAlign.center,
                             style: SsText.body(color: c.muted),
                           ),

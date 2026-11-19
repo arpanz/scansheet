@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/sheets/v4.dart' as sheets;
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -11,13 +13,16 @@ class GoogleSheetsService {
   static final GoogleSheetsService instance = GoogleSheetsService._();
   GoogleSheetsService._();
 
-  // No restricted scopes, so the app only needs Google's standard review.
-  // drive.file sees the sheets ScanSheet made plus any picked in Google's
-  // picker (DrivePickerScreen); spreadsheets reads and writes any sheet by id.
-  static const _scopes = [
-    sheets.SheetsApi.spreadsheetsScope,
-    drive.DriveApi.driveFileScope,
-  ];
+  // drive.file only: it is non-sensitive, so Google needs no data-access
+  // review. It reaches the sheets ScanSheet made and any sheet the user
+  // chooses in Google's file picker ([pickInDrive]); the Sheets API accepts
+  // it for those files.
+  static const _scopes = [drive.DriveApi.driveFileScope];
+
+  // Google's file picker, hosted on Firebase Hosting (hosting/pick.html). It
+  // returns to the app through this scheme (see AndroidManifest.xml).
+  static const _pickPage = 'https://scansheet-496017.firebaseapp.com/pick.html';
+  static const _pickScheme = 'scansheet-pick';
 
   final _googleSignIn = GoogleSignIn.instance;
   Future<void>? _initialized;
@@ -75,7 +80,16 @@ class GoogleSheetsService {
       await _ensureInitialized();
       final account = await _googleSignIn.authenticate(scopeHint: _scopes);
       // Sign-in and access are separate steps since google_sign_in 7.
-      await account.authorizationClient.authorizeScopes(_scopes);
+      final client = account.authorizationClient;
+      final authz = await client.authorizeScopes(_scopes);
+      // Play services can hand back a cached token the user has since revoked
+      // (Google Account → Linked apps). Drop it and ask again, which shows
+      // Google's consent screen instead of failing every request with a 401.
+      if (!await _tokenWorks(authz.accessToken)) {
+        await client.clearAuthorizationToken(accessToken: authz.accessToken);
+        await client.authorizeScopes(_scopes);
+      }
+      _authClient = null;
       _onUserChanged(account);
       return account;
     } on GoogleSignInException catch (e) {
@@ -92,8 +106,37 @@ class GoogleSheetsService {
   }
 
   Future<void> signOut() async {
+    // Forget the cached token too, so the next sign-in gets a fresh one.
+    try {
+      final authz = await _currentUser?.authorizationClient
+          .authorizationForScopes(_scopes);
+      if (authz != null) {
+        await _currentUser!.authorizationClient.clearAuthorizationToken(
+          accessToken: authz.accessToken,
+        );
+      }
+    } catch (e) {
+      debugPrint('Clearing Google token failed: $e');
+    }
     await _googleSignIn.signOut();
     _onUserChanged(null);
+  }
+
+  /// Whether Google still accepts [token]. A network failure counts as yes,
+  /// so being offline never forces a second consent prompt.
+  Future<bool> _tokenWorks(String token) async {
+    try {
+      final res = await http
+          .get(
+            Uri.https('oauth2.googleapis.com', '/tokeninfo', {
+              'access_token': token,
+            }),
+          )
+          .timeout(const Duration(seconds: 8));
+      return res.statusCode == 200;
+    } catch (_) {
+      return true;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -120,7 +163,7 @@ class GoogleSheetsService {
     return _authClient!;
   }
 
-  /// A raw access token for Google's file picker, which runs in a web view.
+  /// A raw access token for Google's file picker page.
   Future<String> accessToken() async {
     if (_currentUser == null) throw GSheetsException('Not signed in.');
     final auth = await _currentUser!.authorizationClient.authorizationForScopes(
@@ -196,8 +239,8 @@ class GoogleSheetsService {
   }
 
   /// Gives [email] edit access to a spreadsheet (Scan together). Works for
-  /// spreadsheets ScanSheet created or that were picked in Google's picker;
-  /// others must be shared in Google Sheets.
+  /// any sheet ScanSheet can reach through drive.file, as long as this
+  /// account may share it.
   Future<void> shareWith(String spreadsheetId, String email) async {
     try {
       final api = await _driveApi();
@@ -299,13 +342,112 @@ class GoogleSheetsService {
   /// Fetch the Drive title for a spreadsheet. Missing access is best effort.
   Future<String?> spreadsheetTitle(String spreadsheetId) async {
     try {
-      final api = await _driveApi();
-      final file = await api.files.get(spreadsheetId, $fields: 'name');
-      return (file as drive.File).name;
+      final api = await _sheetsApi();
+      final sheet = await api.spreadsheets.get(
+        spreadsheetId,
+        $fields: 'properties.title',
+      );
+      return sheet.properties?.title;
     } catch (e) {
       debugPrint('Failed to get spreadsheet title: $e');
       return null;
     }
+  }
+
+  /// The spreadsheet id in a Google Sheets link
+  /// (`docs.google.com/spreadsheets/d/ID/…`), or a bare id; null if neither.
+  static String? spreadsheetIdFromLink(String text) {
+    final value = text.trim();
+    final link = RegExp(
+      r'/spreadsheets/d/([a-zA-Z0-9_-]{20,})',
+    ).firstMatch(value);
+    if (link != null) return link.group(1);
+    return RegExp(r'^[a-zA-Z0-9_-]{30,}$').hasMatch(value) ? value : null;
+  }
+
+  /// Opens a sheet the user pasted a link to. A sheet ScanSheet hasn't seen
+  /// yet opens in Google's file picker first, where choosing it grants
+  /// drive.file access. Returns null if the user backs out of the picker.
+  Future<SpreadsheetInfo?> openSpreadsheetFromLink(String link) async {
+    final id = spreadsheetIdFromLink(link);
+    if (id == null) {
+      throw GSheetsException('That isn’t a Google Sheets link.');
+    }
+    try {
+      return await _openById(id);
+    } on _NoAccess {
+      if (await pickInDrive(spreadsheetId: id) == null) return null;
+      // Retry the id we asked for, not whatever came back from the browser.
+      try {
+        return await _openById(id);
+      } on _NoAccess {
+        final email = _currentUser?.email ?? 'your Google account';
+        throw GSheetsException(
+          'Couldn’t open that sheet as $email. Check that Chrome is signed '
+          'in to it and that the sheet is shared with it as an editor.',
+        );
+      }
+    }
+  }
+
+  Future<SpreadsheetInfo> _openById(String id) async {
+    try {
+      final api = await _sheetsApi();
+      final sheet = await api.spreadsheets.get(id, $fields: 'properties.title');
+      return SpreadsheetInfo(
+        id: id,
+        title: sheet.properties?.title ?? 'Untitled spreadsheet',
+      );
+    } on sheets.DetailedApiRequestError catch (e) {
+      // drive.file answers 403 or 404 for a sheet not granted to the app.
+      if (e.status == 403 || e.status == 404) throw _NoAccess();
+      throw GSheetsException('Couldn’t open that sheet: ${e.message}');
+    } on GSheetsException {
+      rethrow;
+    } catch (e) {
+      throw GSheetsException(
+        'Couldn’t open that sheet. Check your connection.',
+      );
+    }
+  }
+
+  /// Opens Google's file picker in a Chrome tab. Choosing a sheet there
+  /// grants ScanSheet drive.file access to it. With [spreadsheetId] the
+  /// picker shows just that sheet, so the user only confirms it. Returns the
+  /// chosen sheet, or null if the user backs out.
+  Future<SpreadsheetInfo?> pickInDrive({String? spreadsheetId}) async {
+    final token = await accessToken();
+    final fragment = Uri(
+      queryParameters: {'token': token, 'id': ?spreadsheetId},
+    ).query;
+    final String result;
+    try {
+      result = await FlutterWebAuth2.authenticate(
+        url: '$_pickPage#$fragment',
+        callbackUrlScheme: _pickScheme,
+        // The picker needs a signed-in Google session and third-party
+        // cookies, which Chrome has and browsers like Brave often don't.
+        // Falls back to the default browser when Chrome isn't installed.
+        options: const FlutterWebAuth2Options(
+          customTabsPackageOrder: ['com.android.chrome'],
+        ),
+      );
+    } on PlatformException catch (e) {
+      if (e.code == 'CANCELED') return null;
+      debugPrint('Picker failed: ${e.code} ${e.message}');
+      throw GSheetsException('Couldn’t open Google Drive. Try again.');
+    }
+    final uri = Uri.parse(result);
+    if (uri.host == 'error') {
+      throw GSheetsException('Couldn’t open Google Drive. Try again.');
+    }
+    final id = uri.queryParameters['id'];
+    if (uri.host != 'picked' || id == null || id.isEmpty) return null;
+    final name = uri.queryParameters['name'];
+    return SpreadsheetInfo(
+      id: id,
+      title: name == null || name.isEmpty ? 'Untitled spreadsheet' : name,
+    );
   }
 
   /// Get the header row (first row) of a worksheet.
@@ -554,3 +696,5 @@ class GoogleAuthClient extends http.BaseClient {
     super.close();
   }
 }
+
+class _NoAccess implements Exception {}

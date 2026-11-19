@@ -34,6 +34,18 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Google's file picker (hosting/pick.html) returns here. -->
+        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true"
+            android:taskAffinity="">
+            <intent-filter android:label="flutter_web_auth_2">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="scansheet-pick" />
+            </intent-filter>
+        </activity>
         <service
             android:name=".ScanTileService"
             android:exported="true"
@@ -76,6 +88,10 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- flutter_web_auth_2: browsers that can open Google's picker page -->
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService"/>
         </intent>
         <!-- url_launcher: https/http links -->
         <intent>

@@ -123,15 +123,11 @@ class _OnbSigninStepState extends State<OnbSigninStep> {
                   'Select what ScanSheet can access',
                   style: SsText.caption(color: c.ink2),
                 ),
-                // Google's own wording for the scopes in
+                // Google's own wording for the scope in
                 // GoogleSheetsService._scopes, so the real screen matches.
                 _ConsentRow(
-                  'See, edit, create, and delete all your Google Sheets spreadsheets',
-                  why: 'To make your sheet and add each row',
-                ),
-                _ConsentRow(
                   'See, edit, create, and delete only the specific Google Drive files you use with this app',
-                  why: 'To list the sheets you use here and share them',
+                  why: 'To make your sheet, add each row, and share it',
                 ),
                 Container(
                   padding: const EdgeInsets.all(10),
@@ -140,7 +136,7 @@ class _OnbSigninStepState extends State<OnbSigninStep> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    'Keep both ticked so your rows can reach your sheet',
+                    'Keep it ticked so your rows can reach your sheet',
                     style: SsText.caption(color: c.ink),
                   ),
                 ),
