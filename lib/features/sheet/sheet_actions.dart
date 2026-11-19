@@ -5,6 +5,7 @@ import '../../core/services/sync_queue_service.dart';
 import '../../core/utils/app_router.dart';
 import '../../core/widgets/ss.dart';
 import '../scan/models/scan_session.dart';
+import '../scan/screens/done_for_now_screen.dart';
 import '../team/team_screen.dart';
 import 'new_sheet_screen.dart';
 
@@ -31,6 +32,16 @@ Future<void> showSheetActions(
       await reopenSheet(context, session);
     case _Action.team:
       await openTeam(context, session);
+    case _Action.export:
+      await Navigator.of(context).push(
+        FadeSlideRoute(
+          page: DoneForNowScreen(
+            session: session,
+            addedThisVisit: 0,
+            totalRows: ScanSessionService.getRowCount(session.id),
+          ),
+        ),
+      );
     case _Action.rename:
       await renameSheet(context, session);
     case _Action.clear:
@@ -193,7 +204,7 @@ Future<bool> _confirm(
   return ok ?? false;
 }
 
-enum _Action { finish, reopen, team, newTab, rename, clear, delete }
+enum _Action { finish, reopen, team, newTab, export, rename, clear, delete }
 
 class _ActionsSheet extends StatelessWidget {
   final ScanSession session;
@@ -263,6 +274,13 @@ class _ActionsSheet extends StatelessWidget {
                   title: 'Scan into another tab',
                   subtitle: 'Same columns, new tab in this file',
                   onTap: () => pick(_Action.newTab),
+                ),
+              if (session.destination == SessionDestination.googleSheets)
+                SsListRow(
+                  leading: SsIconTile(LucideIcons.fileDown, size: 36),
+                  title: 'Save a file copy',
+                  subtitle: 'Excel or CSV, to keep or share',
+                  onTap: () => pick(_Action.export),
                 ),
               SsListRow(
                 leading: SsIconTile(LucideIcons.pencil, size: 36),

@@ -49,3 +49,6 @@ app.*.map.json
 *.jks
 *.keystore
 *.p12
+
+# Firebase deploy cache
+.firebase/

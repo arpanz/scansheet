@@ -7,6 +7,7 @@ import '../../../core/services/google_sheets_service.dart';
 import '../../../core/services/sheet_summary.dart';
 import '../../../core/widgets/ss.dart';
 import '../../../core/widgets/file_marks.dart';
+import 'drive_picker_screen.dart';
 
 /// Result returned by [ConnectSheetsScreen] when the user picks a destination.
 class SheetDestination {
@@ -138,6 +139,20 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
     }
   }
 
+  Future<void> _pickFromDrive() async {
+    final picked = await DrivePickerScreen.open(context);
+    if (picked == null || !mounted) return;
+    // It joins the list for good: picking granted drive.file access to it.
+    setState(() {
+      _spreadsheets = [
+        picked,
+        for (final s in _spreadsheets)
+          if (s.id != picked.id) s,
+      ];
+    });
+    await _loadWorksheets(picked);
+  }
+
   void _onSearchChanged(String value) {
     _searchQuery = value;
     _debounce?.cancel();
@@ -259,6 +274,25 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    SsCard(
+                      radius: 20,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      onTap: _pickFromDrive,
+                      child: Row(
+                        children: [
+                          const SsIconTile(LucideIcons.folderOpen),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Choose another sheet from Drive',
+                            style: SsText.label(color: c.ink),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 20),
                     if (_isLoadingSheets)
                       Padding(
@@ -274,7 +308,7 @@ class _ConnectSheetsScreenState extends State<ConnectSheetsScreen> {
                           child: Text(
                             _searchQuery.isNotEmpty
                                 ? 'No spreadsheets match “$_searchQuery”'
-                                : 'No spreadsheets found',
+                                : 'Sheets you make or choose here show up in this list',
                             textAlign: TextAlign.center,
                             style: SsText.body(color: c.muted),
                           ),
